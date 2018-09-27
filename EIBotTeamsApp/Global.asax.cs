@@ -52,7 +52,6 @@ namespace Microsoft.Office.EIBot.Service
                         .AsSelf()
                         .InstancePerLifetimeScope();
                 });
-#endif
 
             _botJwtRefreshWorker = new BotJwtRefreshWorker();
         }
