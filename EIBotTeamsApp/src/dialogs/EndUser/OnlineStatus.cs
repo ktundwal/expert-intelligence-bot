@@ -23,7 +23,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 // Retrieve the storage account from the connection string.
                 CloudStorageAccount storageAccount = CloudStorageAccount.Parse(
-                    ConfigurationManager.ConnectionStrings["StorageConnectionString"].ConnectionString);
+                    ConfigurationManager.AppSettings["StorageConnectionString"]);
 
                 // Create the OnlineStatusTableClient client.
                 CloudTableClient tableClient = storageAccount.CreateCloudTableClient();

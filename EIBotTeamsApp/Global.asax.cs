@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
 using Autofac;
@@ -39,9 +38,7 @@ namespace Microsoft.Office.EIBot.Service
             });
             */
 
-            var tableStore = new TableBotDataStore(ConfigurationManager
-                .ConnectionStrings["StorageConnectionString"]
-                .ConnectionString);
+            var tableStore = new TableBotDataStore(ConfigurationManager.AppSettings["StorageConnectionString"]);
 
             Conversation.UpdateContainer(
                 builder =>
@@ -64,7 +61,15 @@ namespace Microsoft.Office.EIBot.Service
 
         private void VerifyConfigurationIsValid()
         {
-            string[] requiredConfigs = { "VsoOrgUrl", "MicrosoftAppId", "VsoUsername", "FancyHandsConsumerKey", "BotPhoneNumber" };
+            string[] requiredConfigs =
+            {
+                "VsoOrgUrl",
+                "MicrosoftAppId",
+                "VsoUsername",
+                "FancyHandsConsumerKey",
+                "BotPhoneNumber",
+                "StorageConnectionString"
+            };
             foreach (var requiredConfig in requiredConfigs)
             {
                 var appSetting = ConfigurationManager.AppSettings[requiredConfig];
@@ -75,11 +80,6 @@ namespace Microsoft.Office.EIBot.Service
                                         $"or eibot.secretAppSettings.config if running local ");
                 }
             }
-
-            if (string.IsNullOrEmpty(ConfigurationManager
-                .ConnectionStrings["StorageConnectionString"]
-                .ConnectionString)) throw new Exception("StorageConnectionString is not set. Please verify Azure AppSettings " +
-                                                        "or config/connectionStrings.config if running local ");
         }
 
         protected void Application_End()
