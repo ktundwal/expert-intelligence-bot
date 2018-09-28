@@ -20,7 +20,7 @@ namespace Microsoft.Office.EIBot.Service.utility
         public static readonly string Uri = ConfigurationManager.AppSettings["VsoOrgUrl"];
         public static readonly string Project = ConfigurationManager.AppSettings["VsoProject"];
         public static readonly string ResearchTaskType = "Research";
-        public static readonly string VirtualAssistanceTaskType = "VirtualAssistance";
+        public static readonly string VirtualAssistanceTaskType = "Virtual Assistance";
         public static readonly string[] TaskTypes = {ResearchTaskType, VirtualAssistanceTaskType};
 
         private static bool IsSupportedTask(string taskType) => TaskTypes.Any(taskType.Contains);
@@ -59,6 +59,17 @@ namespace Microsoft.Office.EIBot.Service.utility
             DateTime targetDate,
             string teamsConversationId)
         {
+            var properties = new Dictionary<string, string>
+            {
+                {"class", "VsoHelpers" },
+                {"function", "CreateTaskInVso" },
+                {"taskType", taskType },
+                {"description", description },
+                {"requestedBy", requestedBy },
+                {"teamsConversationId", teamsConversationId },
+                {"targetDate", targetDate.ToString() },
+            };
+
             if (!IsSupportedTask(taskType))
             {
                 throw new ArgumentException($"Vso Task type must be {ResearchTaskType} or {VirtualAssistanceTaskType}. " +
@@ -120,21 +131,20 @@ namespace Microsoft.Office.EIBot.Service.utility
             {
                 using (WorkItemTrackingHttpClient workItemTrackingHttpClient = GetWorkItemTrackingHttpClient())
                 {
-                    var result = await workItemTrackingHttpClient.CreateWorkItemAsync(patchDocument, Project, "Research");
-                    Trace.TraceInformation(@"Task Successfully Created: Research task #{0}", result.Id);
+                    var result = await workItemTrackingHttpClient.CreateWorkItemAsync(patchDocument, Project, taskType);
+                    Trace.TraceInformation($"Task Successfully Created: {taskType} task {result.Id}");
 
-                    return (int)result.Id;
+                    var taskInVso = (int)result.Id;
+
+                    properties.Add("vsoId", taskInVso.ToString());
+                    WebApiConfig.TelemetryClient.TrackEvent("CreateTaskInVso", properties);
+
+                    return taskInVso;
                 }
             }
-            catch (AggregateException ex)
+            catch (Exception ex)
             {
-                WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
-                {
-                    {"function", "CreateResearchTaskInVso" },
-                    {"description", description },
-                    {"requestedBy", requestedBy },
-                    {"targetDate", targetDate.ToString() },
-                });
+                WebApiConfig.TelemetryClient.TrackException(ex, properties);
                 throw;
             }
         }
