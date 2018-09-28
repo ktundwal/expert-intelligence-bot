@@ -135,7 +135,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             var vsoTicketNumber = await VsoHelper.CreateTaskInVso(VsoHelper.ResearchTaskType,
                     context.Activity.From.Name,
                     description + Environment.NewLine + additionalInfoFromUser,
-                    "mamottol@microsoft.com",
+                    ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
                     deadline,
                     "");
 

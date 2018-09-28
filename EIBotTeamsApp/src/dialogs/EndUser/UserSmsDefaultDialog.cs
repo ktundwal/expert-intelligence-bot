@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Threading.Tasks;
 using AdaptiveCards;
@@ -72,7 +73,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 var vsoTicketNumber = await VsoHelper.CreateTaskInVso(VsoHelper.VirtualAssistanceTaskType,
                     context.Activity.From.Name,
                     description,
-                    "mamottol@microsoft.com",
+                    ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
                     deadline,
                     "");
 

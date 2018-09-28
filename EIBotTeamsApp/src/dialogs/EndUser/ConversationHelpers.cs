@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -157,7 +158,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
                 IMessageActivity agentMessage = Activity.CreateMessageActivity();
                 agentMessage.From = endUserActivity.Recipient;
-                agentMessage.Recipient = new ChannelAccount("mamottol@microsoft.com");
+                agentMessage.Recipient = new ChannelAccount(ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"]);
                 agentMessage.Type = ActivityTypes.Message;
                 agentMessage.ChannelId = "msteam";
                 agentMessage.ServiceUrl = endUserActivity.ServiceUrl;

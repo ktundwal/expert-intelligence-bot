@@ -68,6 +68,7 @@ namespace Microsoft.Office.EIBot.Service
                 "VsoUsername",
                 "FancyHandsConsumerKey",
                 "BotPhoneNumber",
+                "AgentToAssignVsoTasksTo",
                 "StorageConnectionString"
             };
             foreach (var requiredConfig in requiredConfigs)
