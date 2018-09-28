@@ -399,7 +399,6 @@
     <Content Include="Connected Services\Application Insights\ConnectedService.json" />
     <Content Include="manifest\test\manifest.json" />
     <Content Include="config\connectionStrings.config" />
-    <Content Include="config\appSettings.config" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>

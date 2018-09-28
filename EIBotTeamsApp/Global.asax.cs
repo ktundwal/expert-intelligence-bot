@@ -1,4 +1,8 @@
-﻿using Autofac;
+﻿using System;
+using System.Collections.Generic;
+using System.Configuration;
+using System.Diagnostics;
+using Autofac;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Builder.Dialogs.Internals;
 using Microsoft.Bot.Connector;
@@ -17,7 +21,9 @@ namespace Microsoft.Office.EIBot.Service
         {
             GlobalConfiguration.Configure(WebApiConfig.Register);
 
-/*
+            VerifyConfigurationIsValid();
+
+            /*
             // Use an in-memory store for bot data.
             // This registers a IBotDataStore singleton that will be used throughout the app.
             var store = new InMemoryDataStore();
@@ -31,9 +37,9 @@ namespace Microsoft.Office.EIBot.Service
                          .AsSelf()
                          .InstancePerLifetimeScope();
             });
-*/
+            */
 
-            var tableStore = new TableBotDataStore(System.Configuration.ConfigurationManager
+            var tableStore = new TableBotDataStore(ConfigurationManager
                 .ConnectionStrings["StorageConnectionString"]
                 .ConnectionString);
 
@@ -54,6 +60,26 @@ namespace Microsoft.Office.EIBot.Service
                 });
 
             _botJwtRefreshWorker = new BotJwtRefreshWorker();
+        }
+
+        private void VerifyConfigurationIsValid()
+        {
+            string[] requiredConfigs = { "VsoOrgUrl", "MicrosoftAppId", "VsoUsername", "FancyHandsConsumerKey", "BotPhoneNumber" };
+            foreach (var requiredConfig in requiredConfigs)
+            {
+                var appSetting = ConfigurationManager.AppSettings[requiredConfig];
+                Trace.TraceInformation($"AppSetting: {requiredConfig}: {appSetting}");
+                if (string.IsNullOrEmpty(appSetting))
+                {
+                    throw new Exception($"{requiredConfig} not set. Please verify Azure AppSettings " +
+                                        $"or eibot.secretAppSettings.config if running local ");
+                }
+            }
+
+            if (string.IsNullOrEmpty(ConfigurationManager
+                .ConnectionStrings["StorageConnectionString"]
+                .ConnectionString)) throw new Exception("StorageConnectionString is not set. Please verify Azure AppSettings " +
+                                                        "or config/connectionStrings.config if running local ");
         }
 
         protected void Application_End()
