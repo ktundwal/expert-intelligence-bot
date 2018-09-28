@@ -17,6 +17,7 @@ using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.Office.EIBot.Service.Properties;
 using Microsoft.Office.EIBot.Service.utility;
 using Microsoft.Teams.TemplateBotCSharp;
+using Activity = Microsoft.Bot.Connector.Activity;
 using Middleware = Microsoft.Office.EIBot.Service.middleware.Middleware;
 
 namespace Microsoft.Office.EIBot.Service.controllers
@@ -52,27 +53,9 @@ namespace Microsoft.Office.EIBot.Service.controllers
                     //Convert incoming activity text to lower case, to match the intent irrespective of incoming text case
                     activity = Middleware.ConvertActivityTextToLower(activity);
 
-                    //Set the OFFICE_365_TENANT_FILTER key in web.config file with Tenant Information
-                    //Validate bot for specific teams tenant if any
-                    string currentTenant = "#ANY#";
-                    try
-                    {
-                        currentTenant = activity.GetTenantId();
-
-                    }
-                    catch (Exception e)
-                    {
-                        Trace.TraceError($"Exception from activity.GetTenantId(): {e}");
-                    }
-                    if (Middleware.RejectMessageBasedOnTenant(activity, currentTenant))
-                    {
-                        Bot.Connector.Activity replyActivity = activity.CreateReply();
-                        replyActivity.Text = Strings.TenantLevelDeniedAccess;
-
-                        await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(async () => 
-                            await connectorClient.Conversations.ReplyToActivityAsync(replyActivity));
-                        return Request.CreateResponse(HttpStatusCode.OK);
-                    }
+                    // todo: enable tenant check
+                    //var unexpectedTenantResponse = await RejectMessageFromUnexpectedTenant(activity, connectorClient);
+                    //if (unexpectedTenantResponse != null) return unexpectedTenantResponse;
 
                     //await Conversation.SendAsync(activity, () => ActivityHelper.IsConversationPersonal(activity)
                     //    ? (IDialog<object>)new UserRootDialog()
@@ -190,6 +173,35 @@ namespace Microsoft.Office.EIBot.Service.controllers
             var response = Request.CreateResponse(HttpStatusCode.OK);
 
             return response;
+        }
+
+        private async Task<HttpResponseMessage> RejectMessageFromUnexpectedTenant(Activity activity, ConnectorClient connectorClient)
+        {
+            //Set the OFFICE_365_TENANT_FILTER key in web.config file with Tenant Information
+            //Validate bot for specific teams tenant if any
+            string currentTenant = "#ANY#";
+            try
+            {
+                currentTenant = activity.GetTenantId();
+            }
+            catch (Exception e)
+            {
+                Trace.TraceError($"Exception from activity.GetTenantId(): {e}");
+            }
+
+            if (Middleware.RejectMessageBasedOnTenant(activity, currentTenant))
+            {
+                Bot.Connector.Activity replyActivity = activity.CreateReply();
+                replyActivity.Text = Strings.TenantLevelDeniedAccess;
+
+                await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(async () =>
+                    await connectorClient.Conversations.ReplyToActivityAsync(replyActivity));
+                {
+                    return Request.CreateResponse(HttpStatusCode.OK);
+                }
+            }
+
+            return null;
         }
 
         private async Task HandleSystemMessageAsync(Bot.Connector.Activity message, ConnectorClient connectorClient, CancellationToken cancellationToken)
