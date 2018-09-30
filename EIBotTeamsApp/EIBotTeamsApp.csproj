@@ -307,6 +307,7 @@
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="utility\BotJwtRefreshWorker.cs" />
+    <Compile Include="utility\DateTimeUtility.cs" />
     <Compile Include="utility\DialogContextExtensions.cs" />
     <Compile Include="src\dialogs\EndUser\CloudTableExtensions.cs" />
     <Compile Include="src\dialogs\EndUser\ConversationHelpers.cs" />
