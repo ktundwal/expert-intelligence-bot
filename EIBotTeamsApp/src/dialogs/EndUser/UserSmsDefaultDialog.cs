@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using AdaptiveCards;
@@ -11,6 +12,7 @@ using Microsoft.Office.EIBot.Service.Properties;
 using Microsoft.Office.EIBot.Service.utility;
 using Microsoft.Teams.TemplateBotCSharp;
 using Microsoft.Teams.TemplateBotCSharp.Dialogs;
+using Activity = Microsoft.Bot.Connector.Activity;
 
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
@@ -24,6 +26,18 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 throw new ArgumentNullException(nameof(context));
             }
 
+            // First ask Bot Service if it already has a token for this user
+            var token = await context.GetUserTokenAsync("EIBotDev2OAuth").ConfigureAwait(false);
+            if (token != null)
+            {
+                // use the token to do exciting things!
+            }
+            else
+            {
+                // If Bot Service does not have a token, send an OAuth card to sign in 
+                await SendOAuthCardAsync(context, (Activity)context.Activity);
+            }
+
             if (await ConversationHelpers.RelayMessageToAgentIfThereIsAnOpenResearchProject(context))
             {
                 // end the context
@@ -34,6 +48,43 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 await context.PostWithRetryAsync("Hi, this is EIBot. I can help with many todos. For instance, booking an appointment. " +
                                         "Lets start with what do you need?");
                 context.Wait(MessageReceivedAsync);
+            }
+        }
+
+        private async Task SendOAuthCardAsync(IDialogContext context, Activity activity)
+        {
+            await context.PostAsync($"To do this, you'll first need to sign in.");
+
+            var reply = await context.Activity.CreateOAuthReplyAsync("EIBotDev2OAuth", "pls sign in", "signin button label").ConfigureAwait(false);
+            await context.PostAsync(reply);
+
+            context.Wait(WaitForToken);
+        }
+
+        private async Task WaitForToken(IDialogContext context, IAwaitable<object> result)
+        {
+            var activity = await result as Activity;
+
+            var tokenResponse = activity.ReadTokenResponseContent();
+            if (tokenResponse != null)
+            {
+                // Use the token to do exciting things!
+                Trace.TraceInformation($"SUCCESS: Got users token");
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(activity.Text))
+                {
+                    tokenResponse = await context.GetUserTokenAsync("EIBotDev2OAuth",
+                        activity.Text);
+                    if (tokenResponse != null)
+                    {
+                        // Use the token to do exciting things!
+                        return;
+                    }
+                }
+                await context.PostAsync($"Hmm. Something went wrong. Let's try again.");
+                await SendOAuthCardAsync(context, activity);
             }
         }
 
