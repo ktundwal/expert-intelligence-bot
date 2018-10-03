@@ -33,31 +33,30 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         #region Hello Dialog
 
-        [RegexPattern(DialogMatches.HelloDialogMatch1)]
-        [RegexPattern(DialogMatches.HelloDialogMatch2)]
         [ScorableGroup(1)]
         public void RunHelloDialog(IDialogContext context, IActivity activity)
         {
-            context.Call(new HelloDialog(), this.EndHelloDialog);
+            UserProfile.EnsureWeKnowAboutUser(context);
+            context.Call(new HelloDialog(), EndHelloDialog);
         }
 
         #endregion
 
         #region Help Dialog
 
-        [RegexPattern(DialogMatches.Help)]
-        [ScorableGroup(1)]
-        public void Help(IDialogContext context, IActivity activity)
-        {
-            context.Call(new UserHelpDialog(), this.EndHelpDialog);
-        }
+        //[RegexPattern(DialogMatches.Help)]
+        //[ScorableGroup(1)]
+        //public void Help(IDialogContext context, IActivity activity)
+        //{
+        //    context.Call(new UserHelpDialog(), this.EndHelpDialog);
+        //}
 
-        [MethodBind]
-        [ScorableGroup(2)]
-        public void Default(IDialogContext context, IActivity activity)
-        {
-            context.Call(new UserDefaultDialog(), this.EndDefaultDialog);
-        }
+        //[MethodBind]
+        //[ScorableGroup(2)]
+        //public void Default(IDialogContext context, IActivity activity)
+        //{
+        //    context.Call(new UserDefaultDialog(), this.EndDefaultDialog);
+        //}
 
         public Task EndHelpDialog(IDialogContext context, IAwaitable<object> result)
         {
