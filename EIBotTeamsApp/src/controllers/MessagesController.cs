@@ -204,7 +204,7 @@ namespace Microsoft.Office.EIBot.Service.controllers
             return null;
         }
 
-        private async Task HandleSystemMessageAsync(Bot.Connector.Activity message, ConnectorClient connectorClient, CancellationToken cancellationToken)
+        private async Task HandleSystemMessageAsync(Activity message, ConnectorClient connectorClient, CancellationToken cancellationToken)
         {
             if (message.Type == ActivityTypes.DeleteUserData)
             {
@@ -298,7 +298,7 @@ namespace Microsoft.Office.EIBot.Service.controllers
         /// <param name="message">The incoming message requesting the reset</param>
         /// <param name="cancellationToken">The cancellation token</param>
         /// <returns></returns>
-        private async Task<HttpResponseMessage> HandleResetBotChatAsync(Bot.Connector.Activity message, CancellationToken cancellationToken)
+        private async Task<HttpResponseMessage> HandleResetBotChatAsync(Activity message, CancellationToken cancellationToken)
         {
             // Forget everything we know about the user
             using (var scope = DialogModule.BeginLifetimeScope(Conversation.Container, message))
@@ -314,7 +314,7 @@ namespace Microsoft.Office.EIBot.Service.controllers
 
             // Synthesize a conversation update event and simulate the bot receiving it
             // Note that this is a fake event, as Teams does not support deleting a 1:1 conversation and re-creating it
-            var conversationUpdateMessage = new Bot.Connector.Activity
+            var conversationUpdateMessage = new Activity
             {
                 Type = ActivityTypes.ConversationUpdate,
                 Id = message.Id,
@@ -327,7 +327,7 @@ namespace Microsoft.Office.EIBot.Service.controllers
                 Timestamp = message.Timestamp,
                 MembersAdded = new List<ChannelAccount> { message.From, message.Recipient },
             };
-            return await this.Post(conversationUpdateMessage, cancellationToken);
+            return await Post(conversationUpdateMessage, cancellationToken);
         }
 
         /// <summary>
@@ -337,14 +337,14 @@ namespace Microsoft.Office.EIBot.Service.controllers
         /// <param name="connectorClient">Connector client instance for posting to Bot Framework.</param>
         /// <returns>Task tracking operation.</returns>
 
-        private static async Task<HttpResponseMessage> HandleO365ConnectorCardActionQuery(Bot.Connector.Activity activity)
+        private static async Task<HttpResponseMessage> HandleO365ConnectorCardActionQuery(Activity activity)
         {
             var connectorClient = new ConnectorClient(new Uri(activity.ServiceUrl));
 
             // Get O365 connector card query data.
             O365ConnectorCardActionQuery o365CardQuery = activity.GetO365ConnectorCardActionQueryData();
 
-            Bot.Connector.Activity replyActivity = activity.CreateReply();
+            Activity replyActivity = activity.CreateReply();
 
             replyActivity.TextFormat = "xml";
 
@@ -372,11 +372,11 @@ namespace Microsoft.Office.EIBot.Service.controllers
         /// </summary>
         /// <param name="activity"></param>
         /// <returns></returns>
-        private static async Task<HttpResponseMessage> PopUpSignInHandler(Bot.Connector.Activity activity)
+        private static async Task<HttpResponseMessage> PopUpSignInHandler(Activity activity)
         {
             var connectorClient = new ConnectorClient(new Uri(activity.ServiceUrl));
 
-            Bot.Connector.Activity replyActivity = activity.CreateReply();
+            Activity replyActivity = activity.CreateReply();
 
             replyActivity.Text = $@"Authentication Successful";
 
