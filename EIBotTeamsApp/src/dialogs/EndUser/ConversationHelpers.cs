@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AdaptiveCards;
 using Microsoft.Bot.Builder.Dialogs;
+using Microsoft.Bot.Builder.Dialogs.Internals;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.Office.EIBot.Service.utility;
@@ -17,26 +18,19 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
     public static class ConversationHelpers
     {
+        private const int MinutesToWaitBeforeSendingAutoReply = 10;
+        private const string AutoReplySentOnKey = "AutoReplySentOn";
+        private const int MinutesToWaitForAgentOnlineBeforeSendingAutoReply = 30;
+
         public static async Task<bool> RelayMessageToAgentIfThereIsAnOpenResearchProject(IDialogContext context)
         {
-            int? vsoId = await GetResearchVsoIdFromContextOrVso(context);
+            int? vsoId = await GetResearchVsoIdFromVso(context.Activity.From.Name);
             if (vsoId == null) return false;
 
             EndUserAndAgentConversationMappingState state =
                 await EndUserAndAgentConversationMappingState.GetFromVso((int)vsoId);
-
-            // Check when was the last time we sent message to agent
-            var timeStampWhenLastMessageWasSentByAgent =
-                await OnlineStatus.GetTimeWhenMemberWasLastActive(OnlineStatus.AgentMemberType);
-            var timeSpan = DateTime.UtcNow.Subtract((DateTime)timeStampWhenLastMessageWasSentByAgent);
-            var timeDiffInSeconds = timeSpan.TotalSeconds;
-            if (timeDiffInSeconds >= 30)
-            {
-                await context.PostWithRetryAsync($"My experts are working on Project #{vsoId}. " +
-                                        $"Current status of this project is {await VsoHelper.GetProjectStatus((int)vsoId)}. " +
-                                        "Either experts are busy or offline at the moment. " +
-                                        $"They were online {timeSpan.TimeAgo()}. Please wait. ");
-            }
+            
+            await SendAutoReplyIfNeeded(context, vsoId);
 
             IMessageActivity messageActivity = (IMessageActivity)context.Activity;
             await ActivityHelper.SendMessageToAgentAsReplyToConversationInAgentsChannel(
@@ -50,42 +44,59 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 OnlineStatus.EndUserMemberType);
 
             return true;
-
         }
 
-        private static async Task<int?> GetResearchVsoIdFromContextOrVso(IDialogContext context)
+        private static async Task SendAutoReplyIfNeeded(IDialogContext context, int? vsoId)
+        {
+            // Check when was the last time we sent message to agent
+            var timeStampWhenLastMessageWasSentByAgent =
+                            await OnlineStatus.GetTimeWhenMemberWasLastActive(OnlineStatus.AgentMemberType);
+            var timeSinceLastMessageWasSentByAgent = DateTime.UtcNow.Subtract((DateTime)timeStampWhenLastMessageWasSentByAgent);
+            bool autoReplyWasSentAWhileBack = DateTime.UtcNow.Subtract(GetAutoReplySentOnTimeStamp(context))
+                                                  .TotalMinutes > MinutesToWaitBeforeSendingAutoReply;
+            if (timeSinceLastMessageWasSentByAgent.TotalMinutes >= MinutesToWaitForAgentOnlineBeforeSendingAutoReply && autoReplyWasSentAWhileBack)
+            {
+                await context.PostWithRetryAsync($"Hi {UserProfile.GetFriendlyName(context, false)}, " +
+                                                 $"My experts are working on Project #{vsoId}. " +
+                                        $"Current status of this project is {await VsoHelper.GetProjectStatus((int)vsoId)}. " +
+                                        "Either experts are busy or offline at the moment. " +
+                                        $"They were online {timeSinceLastMessageWasSentByAgent.TimeAgo()}. Please wait. ");
+                SetAutoReplySentOnTimeStamp(context);
+            }
+        }
+
+        private static DateTime GetAutoReplySentOnTimeStamp(IBotData context) => context.ConversationData.GetValue<DateTime>(AutoReplySentOnKey);
+
+        private static void SetAutoReplySentOnTimeStamp(IBotData context) => context.ConversationData.SetValue(AutoReplySentOnKey, DateTime.UtcNow);
+
+        private static async Task<int?> GetResearchVsoIdFromVso(string uniqueName)
         {
             var properties = new Dictionary<string, string>
             {
                 {"class", "ConversationHelpers" },
-                {"function", "GetResearchVsoIdFromContextOrVso" },
-                {"from", context.Activity.From.Name }
+                {"function", "GetResearchVsoIdFromVso" },
+                {"from",  uniqueName}
             };
 
-            int? vsoId = await GetVsoIdFromConversation(context);
-            // if vsoId is null, try getting it from VSO.
-            if (vsoId == null)
+            int? vsoId = null;
+            try
             {
-                try
+                var workItems = await VsoHelper.GetWorkItemsForUser(
+                    VsoHelper.ResearchTaskType,
+                    uniqueName);
+                if (workItems != null)
                 {
-                    var workItems = await VsoHelper.GetWorkItemsForUser(
-                        ActivityHelper.IsPhoneNumber(context.Activity.From.Name) ? VsoHelper.VirtualAssistanceTaskType : VsoHelper.ResearchTaskType,
-                        context.Activity.From.Name);
-                    if (workItems != null)
-                    {
-                        vsoId = workItems.Select(wi => wi.Id).FirstOrDefault();
-                    }
-                }
-                catch (System.Exception e)
-                {
-
-                    WebApiConfig.TelemetryClient.TrackException(e, properties);
+                    vsoId = workItems.Select(wi => wi.Id).FirstOrDefault();
                 }
             }
+            catch (System.Exception e)
+            {
 
+                WebApiConfig.TelemetryClient.TrackException(e, properties);
+            }
             properties.Add("vsoId", vsoId != null ? vsoId.ToString() : "not set");
 
-            WebApiConfig.TelemetryClient.TrackEvent("GetResearchVsoIdFromContextOrVso", properties);
+            WebApiConfig.TelemetryClient.TrackEvent("GetResearchVsoIdFromVso", properties);
 
             return vsoId;
         }
