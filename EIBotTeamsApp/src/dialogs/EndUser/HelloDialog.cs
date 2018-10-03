@@ -40,7 +40,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         private async Task EngageBot(IDialogContext context)
         {
             var message = context.MakeMessage();
-            Attachment attachment = BuildOptionsForNewUser();
+            Attachment attachment = BuildOptionsForNewUser(context);
             message.Attachments.Add(attachment);
             await context.PostWithRetryAsync(message);
             context.Wait(MessageReceivedAsync);
@@ -65,40 +65,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             if (message.Text.ToLower().StartsWith("closeproject"))
             {
-                if (TryParseVsoId(message.Text, out int vsoId))
-                {
-                    await context.PostWithRetryAsync($"Sure I can help close project #{vsoId}");
-                    await VsoHelper.CloseProject(vsoId);
-                    await context.PostWithRetryAsync($"{vsoId} project is now closed.");
-                    await PromptForCreatingNewProjectAfterClosingExistingOne(context);
-                }
-                else
-                {
-                    await context.PostWithRetryAsync("Sorry, I ran into an error");
-                    context.Call(new UserHelpDialog(), EndDialog);
-                }
+                await CloseProject(context, message);
             }
             else if (message.Text.ToLower().StartsWith("getproject"))
             {
-                if (TryParseVsoId(message.Text, out int vsoId))
-                {
-                    await context.PostWithRetryAsync($"Let me get the status of {vsoId}");
-                    try
-                    {
-                        string projectDetails = await VsoHelper.GetProjectSummary(vsoId);
-                        await context.PostWithRetryAsync(projectDetails);
-                        await PromptForConnectToAgentAfterGettingProjectDetails(context);
-                    }
-                    catch (System.Exception e)
-                    {
-                        Trace.TraceInformation($"Sorry, I ran into an error closing project #{vsoId}. Exception = {e.Message}");
-                        context.Call(new UserHelpDialog(), EndDialog);
-                    }
-                }
-                else
-                {
-                    await LetUserKnowWeRanIntoAnIssueAndSendToAgentDialog(context);
-                }
+                await GetProject(context, message);
             }
             else if (message.Text.ToLower().StartsWith("research"))
             {
@@ -120,6 +91,45 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
             else
             {
+                context.Call(new UserHelpDialog(), EndDialog);
+            }
+        }
+
+        private async Task GetProject(IDialogContext context, IMessageActivity message)
+        {
+            if (TryParseVsoId(message.Text, out int vsoId))
+            {
+                await context.PostWithRetryAsync($"Let me get the status of {vsoId}");
+                try
+                {
+                    string projectDetails = await VsoHelper.GetProjectSummary(vsoId);
+                    await context.PostWithRetryAsync(projectDetails);
+                    await PromptForConnectToAgentAfterGettingProjectDetails(context);
+                }
+                catch (System.Exception e)
+                {
+                    Trace.TraceInformation($"Sorry, I ran into an error closing project #{vsoId}. Exception = {e.Message}");
+                    context.Call(new UserHelpDialog(), EndDialog);
+                }
+            }
+            else
+            {
+                await LetUserKnowWeRanIntoAnIssueAndSendToAgentDialog(context);
+            }
+        }
+
+        private async Task CloseProject(IDialogContext context, IMessageActivity message)
+        {
+            if (TryParseVsoId(message.Text, out int vsoId))
+            {
+                await context.PostWithRetryAsync($"Sure I can help close project #{vsoId}");
+                await VsoHelper.CloseProject(vsoId);
+                await context.PostWithRetryAsync($"{vsoId} project is now closed.");
+                await PromptForCreatingNewProjectAfterClosingExistingOne(context);
+            }
+            else
+            {
+                await context.PostWithRetryAsync("Sorry, I ran into an error");
                 context.Call(new UserHelpDialog(), EndDialog);
             }
         }
@@ -194,7 +204,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             if (message.Text == "yes")
             {
                 var newMessage = context.MakeMessage();
-                Attachment attachment = BuildOptionsForNewUser();
+                Attachment attachment = BuildOptionsForNewUser(context);
                 newMessage.Attachments.Add(attachment);
                 await context.PostWithRetryAsync(newMessage);
                 context.Wait(MessageReceivedAsync);
@@ -250,16 +260,15 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }.ToAttachment();
         }
 
-        private static Attachment BuildOptionsForNewUser()
+        private static Attachment BuildOptionsForNewUser(IDialogContext context)
         {
             var heroCard = new HeroCard
             {
-                Title = "Hello! I am Expert Intelligence Bot.",
+                Title = $"Hello {UserProfile.GetFriendlyName(context, false)}! I am Expert Intelligence Bot.",
                 Subtitle = "I am supported by experts who can work for you.",
                 Text = "We can do a few things. Please select one of the options so I can collect few information to get started. " +
                        "After that a project manager will review your request and follow up." +
-                       "You can also request virtual assistance such as booking an appointment with car dealer. " +
-                       $"Send me a SMS at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
+                       $"You can also reach out to me by sending SMS at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
                 Buttons = new List<CardAction>
                 {
                     new CardAction(ActionTypes.ImBack, "Internet Research", value: "research"),
@@ -277,9 +286,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             var heroCard = new HeroCard
             {
                 Title = "Hello! I am Expert Intelligence Bot.",
-                Subtitle = "I am supported by experts who can work for you." + 
-                           "You can also request virtual assistance such as booking an appointment with car dealer. " +
-                           $"Send me a SMS at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
+                Subtitle = "I am supported by experts who can work for you." +
+                           $"You can also reach out to me by sending SMS at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
                 Text = $"I am tracking project #{workItem.Id} " +
                        $"due on {workItem.Fields["Microsoft.VSTS.Scheduling.TargetDate"]} " +
                        $"Description: {workItem.Fields["System.Description"]}). " +
