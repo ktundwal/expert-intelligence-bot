@@ -15,16 +15,15 @@ using Microsoft.Teams.TemplateBotCSharp.Dialogs;
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
     /// <summary>
-    /// This is Game Dialog Class. Here are the steps to play the games -
-    ///  1. Its gives 3 options to users to choose.
-    ///  2. If user choose any of the option, Bot take confirmation from the user about the choice.
-    ///  3. Bot reply to the user based on user choice.
+    /// internet research dialog
     /// </summary>
     [Serializable]
     public class InternetResearchDialog : IDialog<bool>
     {
         static readonly string Uri = ConfigurationManager.AppSettings["VsoOrgUrl"];
         static readonly string Project = ConfigurationManager.AppSettings["VsoProject"];
+
+        private bool isSms;
 
         /// <summary>
         /// This is start of the Dialog and Prompting for User name
@@ -37,8 +36,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            //Set the Last Dialog in Conversation Data
-            context.UserData.SetValue(Strings.LastDialogKey, Strings.LastDialogGameDialog);
+
+            isSms = ActivityHelper.IsPhoneNumber(context.Activity.From.Name);
 
             // This will Prompt for Name of the user.
             var message = context.MakeMessage();
@@ -49,11 +48,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             await context.PostWithRetryAsync(message);
 
             var promptDescription = new PromptText(
-                "Please describe your research request (Minimum 200 and maximum 500 characters)",
-                "I need a minimum of 200 characters and maximum of 500 characters to process",
+                "Please describe your research request (Minimum 150 and maximum 1000 characters)",
+                "I need a minimum of 150 characters and maximum of 1000 characters to process",
                 "Wrong again. Too many attempts.",
-                3);
-            context.Call<string>(promptDescription, OnDescriptionReceivedAsync);
+                3, isSms ? 10 : 150, 1000);
+            context.Call(promptDescription, OnDescriptionReceivedAsync);
         }
 
         private async Task OnDescriptionReceivedAsync(IDialogContext context, IAwaitable<string> result)
@@ -83,9 +82,9 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 // "result" contains the date (or array of dates) returned from the prompt
                 IEnumerable<DateTime> momentOrRange = await result;
-                //var deadline = DeadlinePrompt.MomentOrRangeToString(momentOrRange);
 
-                var targetDate = momentOrRange.First();
+                // pick the datetime which give us most time to complete the research
+                var targetDate = momentOrRange.OrderByDescending(date => date.Ticks).First();
 
                 // Store date
                 context.ConversationData.SetValue("deadline", targetDate);
@@ -101,7 +100,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 var promptAdditionalInfo = new PromptText(
                     "Do you have anything else to add? Information like success criteria and formatting requirements would be helpful. " +
                     "Please say 'none' if you don't have anything else to add. My experts will clarify later.",
-                    "Please try again", "Wrong again. Too many attempts.", 2, 0, 500);
+                    "Please try again", "Wrong again. Too many attempts.", 2, 0);
 
                 context.Call(promptAdditionalInfo, OnAdditionalInfoReceivedAsync);
             }
@@ -214,9 +213,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             await context.PostWithRetryAsync(responseMessage);
 
+            // close the dialog.
             context.Done<object>(null);
         }
 
+        // todo: katundwa remove hardcoded channel id
         private static ChannelInfo GetHardcodedChannelId()
         {
             return new ChannelInfo("19:c20b196747424d8db51f6c00a8a9efa8@thread.skype", "Research Agents");
