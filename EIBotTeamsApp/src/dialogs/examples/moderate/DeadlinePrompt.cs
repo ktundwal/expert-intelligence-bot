@@ -20,7 +20,7 @@ namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
             " - Five hours from now";
 
         public const string PastValueErrorMessage =
-            "I'm sorry, but I need at least 3 hours to complete this research.\n\n $moment$ is no good for me.\n\nWhat other moment suits you best?";
+            "You have requested $moment$.\n\nI'm sorry, but I need at least 3 hours to complete this work.\n\nWhat other time suits you best?";
 
         private readonly string _culture;
 
