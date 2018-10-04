@@ -171,7 +171,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 agentMessage.From = endUserActivity.Recipient;
                 agentMessage.Recipient = new ChannelAccount(ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"]);
                 agentMessage.Type = ActivityTypes.Message;
-                agentMessage.ChannelId = "msteam";
+                agentMessage.ChannelId = ActivityHelper.MsTeamChannelId;
                 agentMessage.ServiceUrl = endUserActivity.ServiceUrl;
 
                 agentMessage.Attachments = new List<Attachment>

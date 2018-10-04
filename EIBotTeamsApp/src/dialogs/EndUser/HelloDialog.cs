@@ -33,14 +33,25 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
             else
             {
-                await EngageBot(context);
+                /*
+                 *  Check if we know about user.
+                 * If this is over SMS we need alias
+                 * If this is over Teams we need mobile phone and alias.
+                 */
+                utility.UserProfile userProfile = await UserProfile.GetUserProfileFromStoreOrAskFromUser(context);
+                context.UserData.SetValue("userProfile", userProfile);
+                context.Call(new InternetResearchDialog(), EndDialog);
+
+                // This code is commented out because at the moment we are going
+                // straight to internet research requests
+                // await EngageBot(context);
             }
         }
 
         private async Task EngageBot(IDialogContext context)
         {
             var message = context.MakeMessage();
-            Attachment attachment = BuildOptionsForNewUser(context);
+            Attachment attachment = BuildOptionsForNewUserWithResearchPptApptOptions(context);
             message.Attachments.Add(attachment);
             await context.PostWithRetryAsync(message);
             context.Wait(MessageReceivedAsync);
@@ -204,7 +215,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             if (message.Text == "yes")
             {
                 var newMessage = context.MakeMessage();
-                Attachment attachment = BuildOptionsForNewUser(context);
+                Attachment attachment = BuildOptionsForNewUserWithResearchPptApptOptions(context);
                 newMessage.Attachments.Add(attachment);
                 await context.PostWithRetryAsync(newMessage);
                 context.Wait(MessageReceivedAsync);
@@ -260,7 +271,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }.ToAttachment();
         }
 
-        private static Attachment BuildOptionsForNewUser(IDialogContext context)
+        private static Attachment BuildOptionsForNewUserWithResearchPptApptOptions(IDialogContext context)
         {
             var heroCard = new HeroCard
             {

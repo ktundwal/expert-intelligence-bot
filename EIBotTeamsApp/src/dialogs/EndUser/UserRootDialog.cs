@@ -36,7 +36,6 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         [ScorableGroup(1)]
         public void RunHelloDialog(IDialogContext context, IActivity activity)
         {
-            UserProfile.EnsureWeKnowAboutUser(context);
             context.Call(new HelloDialog(), EndHelloDialog);
         }
 

@@ -19,6 +19,8 @@ namespace Microsoft.Office.EIBot.Service.utility
 {
     public static class ActivityHelper
     {
+        public const string SmsChannelId = "sms";
+        public const string MsTeamChannelId = "msteam";
         private const string SmsServiceEndpoint = "https://sms.botframework.com";
         public const string TeamsServiceEndpoint = "https://smba.trafficmanager.net/amer/";
 
@@ -33,7 +35,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                 { "recipientName", activity.Recipient.Name},
             };
 
-            if (activity.ChannelId == "sms")
+            if (activity.ChannelId == SmsChannelId)
             {
                 properties.Add("dialog", "UserSmsRootDialog");
                 dialog = new ExceptionHandlerDialog<object>(new UserSmsRootDialog(),
@@ -71,7 +73,7 @@ namespace Microsoft.Office.EIBot.Service.utility
         public static bool IsConversationPersonal(IMessageActivity activity)
         {
             Trace.TraceInformation($"IsConversationPersonal called from channel: {activity.ChannelId}");
-            if (activity.ChannelId == "sms") return true;
+            if (activity.ChannelId == SmsChannelId) return true;
             try
             {
                 foreach (var property in activity.Conversation.Properties)
@@ -129,7 +131,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                     message.Conversation = new ConversationAccount(id: conversation.Id);
                     message.Text = messageToSend;
                     message.Locale = "en-Us";
-                    message.ChannelId = isSms ? "sms" : "msteam";
+                    message.ChannelId = isSms ? SmsChannelId : MsTeamChannelId;
                     message.ServiceUrl = serviceUrl;
 
                     var endUserMessageActivity = (Activity)message;
@@ -262,7 +264,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                 agentMessage.From = botAccount;
                 agentMessage.Type = ActivityTypes.Message;
                 agentMessage.Text = messageToSend;
-                agentMessage.ChannelId = "msteam";
+                agentMessage.ChannelId = MsTeamChannelId;
                 agentMessage.ServiceUrl = endUserActivity.ServiceUrl;
                 agentMessage.ReplyToId = agentConversationId;
 
