@@ -33,13 +33,6 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
             else
             {
-                /*
-                 *  Check if we know about user.
-                 * If this is over SMS we need alias
-                 * If this is over Teams we need mobile phone and alias.
-                 */
-                utility.UserProfile userProfile = await UserProfile.GetUserProfileFromStoreOrAskFromUser(context);
-                context.UserData.SetValue("userProfile", userProfile);
                 context.Call(new InternetResearchDialog(), EndDialog);
 
                 // This code is commented out because at the moment we are going
@@ -275,7 +268,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         {
             var heroCard = new HeroCard
             {
-                Title = $"Hello {UserProfile.GetFriendlyName(context, false)}! I am Expert Intelligence Bot.",
+                Title = $"Hello {UserProfileHelper.GetFriendlyName(context, false)}! I am Expert Intelligence Bot.",
                 Subtitle = "I am supported by experts who can work for you.",
                 Text = "We can do a few things. Please select one of the options so I can collect few information to get started. " +
                        "After that a project manager will review your request and follow up." +

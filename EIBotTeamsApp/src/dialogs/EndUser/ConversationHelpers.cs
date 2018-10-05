@@ -56,7 +56,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                                                   .TotalMinutes > MinutesToWaitBeforeSendingAutoReply;
             if (timeSinceLastMessageWasSentByAgent.TotalMinutes >= MinutesToWaitForAgentOnlineBeforeSendingAutoReply && autoReplyWasSentAWhileBack)
             {
-                await context.PostWithRetryAsync($"Hi {UserProfile.GetFriendlyName(context, false)}, " +
+                await context.PostWithRetryAsync($"Hi {UserProfileHelper.GetFriendlyName(context, false)}, " +
                                                  $"My experts are working on Project #{vsoId}. " +
                                         $"Current status of this project is {await VsoHelper.GetProjectStatus((int)vsoId)}. " +
                                         "Either experts are busy or offline at the moment. " +

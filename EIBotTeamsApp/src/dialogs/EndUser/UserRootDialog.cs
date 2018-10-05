@@ -8,7 +8,7 @@ using Microsoft.Office.EIBot.Service.utility;
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
     /// <summary>
-    /// This is Root Dialog, its a triggring point for every Child dialog based on the RexEx Match with user input command
+    /// This is Root Dialog for user
     /// </summary>
 
     [Serializable]
@@ -33,10 +33,19 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         #region Hello Dialog
 
+        [MethodBind]
         [ScorableGroup(1)]
         public void RunHelloDialog(IDialogContext context, IActivity activity)
         {
-            context.Call(new HelloDialog(), EndHelloDialog);
+            // introduce the bot
+            context.Call(new UserProfileDialog(),
+                async delegate(IDialogContext phoneDialogContext, IAwaitable<UserProfile> userProfileResult)
+                {
+                    UserProfile userProfile = await userProfileResult;
+                    context.UserData.SetValue(UserProfileHelper.UserProfileKey, userProfile);
+                    context.Call(new HelloDialog(), EndHelloDialog);
+                }
+            );
         }
 
         #endregion

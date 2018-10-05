@@ -20,7 +20,7 @@ namespace Microsoft.Office.EIBot.Service.utility
     public static class ActivityHelper
     {
         public const string SmsChannelId = "sms";
-        public const string MsTeamChannelId = "msteam";
+        public const string MsTeamChannelId = "msteams";
         private const string SmsServiceEndpoint = "https://sms.botframework.com";
         public const string TeamsServiceEndpoint = "https://smba.trafficmanager.net/amer/";
 

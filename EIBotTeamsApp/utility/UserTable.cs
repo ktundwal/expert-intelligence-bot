@@ -180,6 +180,9 @@ namespace Microsoft.Office.EIBot.Service.utility
 
             try
             {
+                // Create the IdTableClient if it doesn't exist.
+                await UserTableClient.CreateIfNotExistsAsync();
+
                 // Construct the query operation for all customer entities where PartitionKey="Smith".
                 TableQuery<UserEntity> rangeQuery = new TableQuery<UserEntity>()
                     .Where(TableQuery.GenerateFilterCondition(columnName, QueryComparisons.Equal, textToSearch));
