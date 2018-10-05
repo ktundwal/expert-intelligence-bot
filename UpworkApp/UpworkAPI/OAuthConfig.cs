@@ -13,11 +13,11 @@ namespace UpworkAPI
         /// <summary>
         /// API consumer key
         /// </summary>
-        public readonly string ConsumerKey = "ac894513895430f14047f6721241f067";
+        public readonly string ConsumerKey = "";
         /// <summary>
         /// API consumer secret key
         /// </summary>
-        public readonly string ConsumerSecret = "cd03f726309f9514";
+        public readonly string ConsumerSecret = "";
         /// <summary>
         /// OAuth token
         /// </summary>
@@ -32,19 +32,20 @@ namespace UpworkAPI
         public const string AuthorizeUrl = "https://www.upwork.com/services/api/auth";
 
         /// <summary>
-        /// Default class constructor
-        /// </summary>
-        public OAuthConfig() { }
-
-        /// <summary>
         /// Class constructor
         /// </summary>
         /// <param name="consumerKey">A consumer (application) key</param>
         /// <param name="consumerSecret">A consumer (application) secret key</param>
         /// <param name="oAuthToken">Application OAuth token. Leave it empty('') if not have token yet</param>
         /// <param name="oAuthTokenSecret">Application OAuth secret token. Leave it empty('') if not have token yet</param>
+        /// <exception cref="System.ArgumentNullException">Thrown when one of required parameters is missing</exception>
         public OAuthConfig(string consumerKey, string consumerSecret, string oAuthToken, string oAuthTokenSecret)
         {
+            if (String.IsNullOrEmpty(consumerKey))
+                throw new ArgumentNullException("consumerKey");
+            if (String.IsNullOrEmpty(consumerSecret))
+                throw new ArgumentNullException("consumerSecret");
+
             ConsumerKey = consumerKey;
             ConsumerSecret = consumerSecret;
             OAuthToken = oAuthToken;

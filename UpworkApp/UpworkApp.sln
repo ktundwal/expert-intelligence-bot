@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27703.2000
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpworkApp", "UpworkApp\UpworkApp.csproj", "{CD8C6B6B-723B-4A91-91D0-95DD51B4C628}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpworkApp", "UpworkApp\UpworkApp.csproj", "{CD8C6B6B-723B-4A91-91D0-95DD51B4C628}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpworkAPI", "UpworkAPI\UpworkAPI.csproj", "{B644BAD9-183B-4B4F-88D6-BED74690A954}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UpworkAPI", "UpworkAPI\UpworkAPI.csproj", "{B644BAD9-183B-4B4F-88D6-BED74690A954}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UpworkAPI.Test", "UpworkAPI.Test\UpworkAPI.Test.csproj", "{B202F672-A585-460B-A5E4-577222CF775B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{B644BAD9-183B-4B4F-88D6-BED74690A954}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B644BAD9-183B-4B4F-88D6-BED74690A954}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B644BAD9-183B-4B4F-88D6-BED74690A954}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B202F672-A585-460B-A5E4-577222CF775B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B202F672-A585-460B-A5E4-577222CF775B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B202F672-A585-460B-A5E4-577222CF775B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B202F672-A585-460B-A5E4-577222CF775B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

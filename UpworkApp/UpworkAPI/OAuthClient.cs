@@ -5,11 +5,15 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using UpworkAPI.Interfaces;
 
 namespace UpworkAPI
 {
-    public class OAuthClient
+    public class OAuthClient : IOAuthClient
     {
+        /// <summary>
+        /// OAuth configuration
+        /// </summary>
         OAuthConfig _config;
 
         readonly DateTime epochUtc = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -28,29 +32,19 @@ namespace UpworkAPI
         /// Class constructor
         /// </summary>
         /// <param name="config">OAuth 1.0 config</param>
+        /// <exception cref="System.ArgumentNullException">Thrown when config parameter is missing.</exception>
         public OAuthClient(OAuthConfig config)
         {
-            _config = config;
+            _config = config ?? throw new ArgumentNullException("config");
 
             _random = new Random();
             sigHasher = new HMACSHA1(new ASCIIEncoding().GetBytes(string.Format("{0}&{1}", _config.ConsumerSecret, _config.OAuthTokenSecret)));
         }
 
-        //public async Task<string> GetAuthorizationUrl(string callBackUrl = null)
-        //{
-        //    string authUrl = "";
-        //    string requestTokenResult = await SetRequestToken();
-
-        //    if (!String.IsNullOrEmpty(requestTokenResult))
-        //        authUrl = $"https://www.upwork.com/services/api/auth?oauth_token={_config.OAuthToken}{(!String.IsNullOrEmpty(callBackUrl) ? "&oauth_callback=" + callBackUrl : "")}";
-
-        //    return authUrl;
-        //}
-
-
         /// <summary>
         /// Get request tokens for upwork applications
         /// </summary>
+        /// <returns>OAuthUpworkResponse instance with tokens.</returns>
         public async Task<OAuthUpworkResponse> GetRequestTokens()
         {
             string tokenResponse = await SendRequest(OAuthConfig.RequestTokenUrl, "POST", new Dictionary<string, string>());
@@ -61,7 +55,9 @@ namespace UpworkAPI
                 _config.OAuthTokenSecret = oauthResponse["oauth_token_secret"];
                 sigHasher = new HMACSHA1(new ASCIIEncoding().GetBytes(string.Format("{0}&{1}", _config.ConsumerSecret, _config.OAuthTokenSecret)));
             }
-            catch { }
+            catch(Exception ex) {
+                throw new Exception($"Cannot get request tokens: {ex.Message}");
+            }
             return oauthResponse;
         }
 
@@ -77,10 +73,13 @@ namespace UpworkAPI
             try
             {
                 _config.OAuthToken = oauthResponse["oauth_token"];
-                //_config.OAuthTokenSecret = oauthResponse["oauth_token_secret"];
+                _config.OAuthTokenSecret = oauthResponse["oauth_token_secret"];
                 sigHasher = new HMACSHA1(new ASCIIEncoding().GetBytes(string.Format("{0}&{1}", _config.ConsumerSecret, _config.OAuthTokenSecret)));
             }
-            catch { }
+            catch (Exception ex)
+            {
+                throw new Exception($"Cannot get access tokens: {ex.Message}");
+            }
             return oauthResponse;
         }
 
@@ -140,19 +139,23 @@ namespace UpworkAPI
                     var httpResp = await http.PostAsync(fullUrl, formData);
                     respBody = await httpResp.Content.ReadAsStringAsync();
                 }
-
-
                 return respBody;
             }
         }
 
         /// <summary>
-        /// Generate an OAuth signature from OAuth header values.
-        /// <param name="url"/>Full request URL</param>
-        /// <param name="data">Request data</param>
+        /// Generate request signature.
         /// </summary>
-        string GenerateSignature(string url, string method, Dictionary<string, string> data)
+        /// <param name="url">Full request URL</param>
+        /// <param name="method">Request method</param>
+        /// <param name="data">Request data</param>
+        /// <returns>Returns System.String with request signature</returns>
+        /// <exception cref="System.ArgumentNullException">Thrown when request data is null</exception>
+        public string GenerateSignature(string url, string method, Dictionary<string, string> data)
         {
+            if (data == null)
+                throw new ArgumentNullException("data");
+
             var sigString = string.Join(
                 "&",
                 data
@@ -173,10 +176,15 @@ namespace UpworkAPI
 
         /// <summary>
         /// Generate the raw OAuth HTML header from the values (including signature).
-        /// <param name="data">Request data</param>
         /// </summary>
-        string GenerateOAuthHeader(Dictionary<string, string> data)
+        /// <param name="data">Request Auth data</param>
+        /// <returns>System.String with OAuth header</returns>
+        /// <exception cref="System.ArgumentNullException">Thrown when Request Auth data is null</exception>
+        public string GenerateOAuthHeader(Dictionary<string, string> data)
         {
+            if (data == null)
+                throw new ArgumentNullException("data");
+
             return "OAuth " + string.Join(
                 ", ",
                 data
@@ -213,7 +221,7 @@ namespace UpworkAPI
         ///   </para>
         /// </remarks>
         /// <returns>the nonce</returns>
-        string GenerateNonce()
+        public string GenerateNonce()
         {
             var sb = new System.Text.StringBuilder();
             for (int i = 0; i < 8; i++)

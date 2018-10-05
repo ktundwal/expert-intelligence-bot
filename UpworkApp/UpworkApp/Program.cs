@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UpworkAPI;
+using UpworkAPI.Interfaces;
 using UpworkAPI.Models;
 
 namespace UpworkApp
@@ -21,7 +22,7 @@ namespace UpworkApp
 
             //1. At first we have no OAuthToken and OAuthTokenSecret so for first usage we shold to get them
             OAuthConfig config = new OAuthConfig(ConsumerKey, ConsumerKeySecret, OAuthToken, OAuthTokenSecret);
-            OAuthClient client = new OAuthClient(config);
+            IOAuthClient client = new OAuthClient(config);
 
             //2.Get request token.
             //After calling this function We can refer to them through 'tokensResponse["oauth_token"] and 'tokensResponse["oauth_token_secret"]
@@ -45,7 +46,7 @@ namespace UpworkApp
             OAuthTokenSecret = accessToken["oauth_token_secret"];
 
             //4. Create Upwork API instance
-            Upwork upworkApi = new Upwork(client);
+            IUpwork upworkApi = new Upwork(client);
 
             // 5. Get Categories & Subcategories
             List<Category> categories = await upworkApi.GetCategories();
@@ -56,11 +57,14 @@ namespace UpworkApp
             // 7. Get User teams
             List<UserTeam> teams = await upworkApi.GetUserTeams();
 
+            // 8. Get available skills
+            List<string> skills = await upworkApi.GetSkills();
+
             // 8. Post job
             string categoryTitle = categories.FirstOrDefault().Title;
             string subCategoryTitle = categories.FirstOrDefault().Topics.FirstOrDefault().Title;
 
-            UpworkJob job = new UpworkJob("New Job", teams.FirstOrDefault().Reference, "Test description", categoryTitle, subCategoryTitle, "fixed-price", "pulic", "php",null,50);
+            UpworkJob job = new UpworkJob("New Job2", teams.FirstOrDefault().Reference, "Test description2", categoryTitle, subCategoryTitle, "fixed-price", "pulic", skills.FirstOrDefault(), null, 50);
             JobInfo postedJob = await upworkApi.PostJob(job);
 
             Console.WriteLine($"New job URL: {postedJob.PublicUrl}");

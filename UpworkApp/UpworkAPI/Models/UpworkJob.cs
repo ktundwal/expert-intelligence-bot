@@ -124,21 +124,6 @@ namespace UpworkAPI.Models
         }
 
         /// <summary>
-        /// Generate json string with job values
-        /// </summary>
-        /// <returns>String in Json format</returns>
-        public string ToJsonString()
-        {
-            string result = "";
-
-            Dictionary<string, string> jobDictionary = ToUpworkDictionary();
-
-            result = Newtonsoft.Json.JsonConvert.SerializeObject(jobDictionary, Newtonsoft.Json.Formatting.Indented);
-
-            return result;
-        }
-
-        /// <summary>
         /// Create dictionary with upwork job params
         /// </summary>
         /// <returns>Dictionary with Upwork API posting job keys</returns>
@@ -156,7 +141,10 @@ namespace UpworkAPI.Models
             };
 
             if (StartDate != null)
-                jobDictionary.Add("start_date", StartDate?.ToString("MM-dd-yyy"));
+            {
+                DateTime stDate = (DateTime)(StartDate);
+                jobDictionary.Add("start_date", stDate.ToString("MM-dd-yyy"));
+            }   
             if (Duration != null)
                 jobDictionary.Add("duration", Duration.ToString());
             if (Budget != null)

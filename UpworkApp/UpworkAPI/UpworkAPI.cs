@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using UpworkAPI.Interfaces;
 using UpworkAPI.Models;
 
 namespace UpworkAPI
@@ -11,12 +12,12 @@ namespace UpworkAPI
     /// Сlass for working with Upwork using Single-user OAuth 1.0
     /// https://www.upwork.com/api/
     /// </summary>
-    public class Upwork
+    public class Upwork : IUpwork
     {
         /// <summary>
         /// OAuthClient
         /// </summary>
-        OAuthClient _client;
+        IOAuthClient _client;
 
         /// <summary>
         /// Base API url
@@ -36,16 +37,18 @@ namespace UpworkAPI
             {"PostJob","hr/v2/jobs.json"},
             {"Categories","profiles/v2/metadata/categories.json"},
             {"UserInfo","auth/v1/info.json"},
-            {"UserTeams","hr/v2/teams.json"}
+            {"UserTeams","hr/v2/teams.json"},
+            {"Skills","profiles/v1/metadata/skills.json"}
         };
 
         /// <summary>
         /// Class constructor
         /// </summary>
         /// <param name="configuration">Upwork OAuth 1.0 client</param>
-        public Upwork(OAuthClient client)
+        /// <exception cref="System.ArgumentNullException">Thrown when OAuthClient parameter is null.</exception>
+        public Upwork(IOAuthClient client)
         {
-            _client = client;
+            _client = client ?? throw new ArgumentNullException("client");
         }
 
         /// <summary>
@@ -54,14 +57,16 @@ namespace UpworkAPI
         /// <returns></returns>
         public async Task<UpworkUser> GetUserInfo()
         {
-            UpworkUser user = new UpworkUser();
+            UpworkUser user;
             try
             {
                 string clientUrl = UpworkApiBaseUrl + API_URL["UserInfo"];
                 string clientResponse = await _client.SendRequest(clientUrl, "GET", new Dictionary<string, string>());
                 user = JsonConvert.DeserializeObject<UpworkUser>(clientResponse);
             }
-            catch { }
+            catch(Exception ex) {
+                throw new Exception($"Cannot get user information: {ex.Message}");
+            }
             
             return user;
         }
@@ -72,7 +77,7 @@ namespace UpworkAPI
         /// <returns>Return list of teams for current user </returns>
         public async Task<List<UserTeam>> GetUserTeams()
         {
-            List<UserTeam> result = new List<UserTeam>();
+            List<UserTeam> result;
             try
             {
                 string teamsUrl = UpworkApiBaseUrl + API_URL["UserTeams"];
@@ -80,7 +85,9 @@ namespace UpworkAPI
                 JObject jResponse = JObject.Parse(teamsResponse);
                 result = JsonConvert.DeserializeObject<List<UserTeam>>(jResponse["teams"].ToString());
             }
-            catch { }
+            catch(Exception ex) {
+                throw new Exception($"Cannot get user teams: {ex.Message}");
+            }
             return result;
         }
 
@@ -91,21 +98,30 @@ namespace UpworkAPI
         /// <returns>New job Id</returns>
         public async Task<JobInfo> PostJob(UpworkJob job)
         {
-            JobInfo result = new JobInfo();
+            JobInfo result;
             try
             {
                 string postJobUrl = UpworkApiBaseUrl + API_URL["PostJob"];
-                string jobResponse = await _client.SendRequest(postJobUrl, "POST", job.ToUpworkDictionary());
+                Dictionary<string, string> jobData = job.ToUpworkDictionary();
+
+                string jobResponse = await _client.SendRequest(postJobUrl, "POST", jobData);
                 JObject jResponse = JObject.Parse(jobResponse);
                 result = JsonConvert.DeserializeObject<JobInfo>(jResponse["job"].ToString());
             }
-            catch { }
+            catch (Exception ex)
+            {
+                throw new Exception($"Cannot post new job: {ex.Message}");
+            }
             return result;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         public async Task<List<Category>> GetCategories()
         {
-            List<Category> result = new List<Category>();
+            List<Category> result;
             try
             {
                 string categoriesUrl = UpworkApiBaseUrl + API_URL["Categories"];
@@ -113,7 +129,31 @@ namespace UpworkAPI
                 JObject jResponse = JObject.Parse(categoriesResponse);
                 result = JsonConvert.DeserializeObject<List<Category>>(jResponse["categories"].ToString());
             }
-            catch { }
+            catch (Exception ex)
+            {
+                throw new Exception($"Cannot get upwork categories: {ex.Message}");
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Get list of available upwork skills
+        /// </summary>
+        /// <returns>List<System.String></returns>
+        public async Task<List<string>> GetSkills()
+        {
+            List<string> result;
+            try
+            {
+                string skillsUrl = UpworkApiBaseUrl + API_URL["Skills"];
+                string skillsResponse = await _client.SendRequest(skillsUrl, "GET", new Dictionary<string, string>());
+                JObject jResponse = JObject.Parse(skillsResponse);
+                result = JsonConvert.DeserializeObject<List<string>>(jResponse["skills"].ToString());
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Cannot get upwork available skills: {ex.Message}");
+            }
             return result;
         }
     }
