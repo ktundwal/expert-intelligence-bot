@@ -24,6 +24,20 @@ public class AskAliasDialog : IDialog<string>
         _nextDialogToCall = nextDialogToCall;
     }
 
+    public static IDialog<string> MakeSelectManyQuery()
+    {
+        var prompts = new[] { "p1", "p2", "p3" };
+
+        var query = from x in new PromptDialog.PromptString(prompts[0], prompts[0], attempts: 1)
+            from y in new PromptDialog.PromptString(prompts[1], prompts[1], attempts: 1)
+            from z in new PromptDialog.PromptString(prompts[2], prompts[2], attempts: 1)
+            select string.Join(" ", x, y, z);
+
+        query = query.PostToUser();
+
+        return query;
+    }
+
     public Task StartAsync(IDialogContext context)
     {
         if (context == null)
