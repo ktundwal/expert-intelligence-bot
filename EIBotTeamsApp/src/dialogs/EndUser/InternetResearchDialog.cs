@@ -187,12 +187,23 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 var description = context.ConversationData.GetValue<string>(DescriptionKey);
                 var deadline = DateTime.Parse(context.ConversationData.GetValue<string>(DeadlineKey));
 
+                string mobilePhone = string.Empty;
+                string alias = string.Empty;
+
+                if (context.UserData.TryGetValue(UserProfileHelper.UserProfileKey, out UserProfile userProfile))
+                {
+                    mobilePhone = userProfile.MobilePhone;
+                    alias = userProfile.Alias;
+                }
+
                 var vsoTicketNumber = await VsoHelper.CreateTaskInVso(VsoHelper.ResearchTaskType,
                     context.Activity.From.Name,
                     description + Environment.NewLine + additionalInfoFromUser,
                     ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
                     deadline,
-                    "");
+                    "",
+                    mobilePhone,
+                    alias);
 
                 context.ConversationData.SetValue(VsoIdKey, vsoTicketNumber);
                 context.ConversationData.SetValue(EndUserConversationIdKey, context.Activity.Conversation.Id);

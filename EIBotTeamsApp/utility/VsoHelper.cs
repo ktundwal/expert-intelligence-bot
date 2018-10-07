@@ -20,6 +20,8 @@ namespace Microsoft.Office.EIBot.Service.utility
         public const string EndUserConversationIdFieldName = "Custom.EndUserConversationId";
         public const string EndUserNameFieldName = "Custom.EndUserName";
         public const string EndUserIdFieldName = "Custom.EndUserId";
+        public const string EndUserMobilePhoneFieldName = "Custom.MobilePhone";
+        public const string EndUserAliasFieldName = "Custom.Alias";
         private const string StateFieldName = "System.State";
         private const string TitleFieldName = "System.Title";
         private const string FreelancerplatformFieldName = "Custom.Freelancerplatform";
@@ -67,7 +69,9 @@ namespace Microsoft.Office.EIBot.Service.utility
             string description,
             string assignedTo,
             DateTime targetDate,
-            string teamsConversationId)
+            string teamsConversationId,
+            string endUserMobilePhone,
+            string endUserAlias)
         {
             var properties = new Dictionary<string, string>
             {
@@ -102,6 +106,14 @@ namespace Microsoft.Office.EIBot.Service.utility
                     Operation = Operation.Add,
                     Path = "/fields/" + GetRequestedByFieldNameBasedOnTaskType(taskType),
                     Value = requestedBy
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add, Path = $"/fields/{EndUserAliasFieldName}", Value = endUserAlias
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add, Path = $"/fields/{EndUserMobilePhoneFieldName}", Value = endUserMobilePhone
                 },
                 new JsonPatchOperation()
                 {

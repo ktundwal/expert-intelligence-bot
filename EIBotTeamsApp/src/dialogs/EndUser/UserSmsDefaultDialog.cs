@@ -70,12 +70,23 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
                 var description = context.ConversationData.GetValue<string>("description");
 
+                string mobilePhone = string.Empty;
+                string alias = string.Empty;
+
+                if (!context.UserData.TryGetValue(UserProfileHelper.UserProfileKey, out UserProfile userProfile))
+                {
+                    mobilePhone = userProfile.MobilePhone;
+                    alias = userProfile.Alias;
+                }
+
                 var vsoTicketNumber = await VsoHelper.CreateTaskInVso(VsoHelper.VirtualAssistanceTaskType,
                     context.Activity.From.Name,
                     description,
                     ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
                     deadline,
-                    "");
+                    "",
+                    mobilePhone,
+                    alias);
 
                 MicrosoftAppCredentials.TrustServiceUrl(ActivityHelper.TeamsServiceEndpoint);
 

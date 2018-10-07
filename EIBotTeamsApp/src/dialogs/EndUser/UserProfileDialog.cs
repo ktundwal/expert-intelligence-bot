@@ -98,9 +98,9 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             });
             aliasDialogContext.UserData.SetValue(AliasKey, alias);
 
-            aliasDialogContext.Call(new PromptText(
+            aliasDialogContext.Call(new PromptPhoneNumber(
                 "Can you also please tell us your mobile phone number?  That way you can reach us via SMS as well.",
-                "Please try again", "Wrong again. Too many attempts.", 2, 10), OnPhoneReceivedAsync);
+                "Please try again", "Wrong again. Too many attempts."), OnPhoneReceivedAsync);
         }
 
         private async Task OnPhoneReceivedAsync(IDialogContext phoneDialogContext, IAwaitable<string> phoneResult)

@@ -9,7 +9,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         public static string GetFriendlyName(IDialogContext context)
         {
-            if (!context.UserData.TryGetValue(UserProfileKey, out UserProfile userProfile))
+            if (context.UserData.TryGetValue(UserProfileKey, out UserProfile userProfile))
             {
                 if (!string.IsNullOrEmpty(userProfile.Name))
                     return userProfile.Name.Split(' ')[0];
