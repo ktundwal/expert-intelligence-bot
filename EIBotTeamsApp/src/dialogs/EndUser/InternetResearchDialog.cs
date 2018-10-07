@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using AdaptiveCards;
@@ -29,6 +30,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         static readonly string Project = ConfigurationManager.AppSettings["VsoProject"];
 
         private bool isSms;
+        private UserProfile userProfile;
 
         /// <summary>
         /// This is start of the Dialog and Prompting for User name
@@ -42,22 +44,19 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 throw new ArgumentNullException(nameof(context));
             }
 
-            isSms = ActivityHelper.IsPhoneNumber(context.Activity.From.Name);
+            isSms = context.Activity.ChannelId == ActivityHelper.SmsChannelId;
+            userProfile = await UserProfileHelper.GetUserProfile(context);
 
-            // This will Prompt for Name of the user.
-            var message = context.MakeMessage();
-            var attachment = GetIntroHeroCard();
+            //// This will Prompt for Name of the user.
+            //var message = isSms ? BuildIntroMessageForSms(context) : BuildIntroMessageForTeams(context);
+            //await context.PostWithRetryAsync(message);
 
-            message.Attachments.Add(attachment);
-
-            await context.PostWithRetryAsync(message);
-
-            var minLength = isSms ? 10 : 150;
+            var minLength = isSms ? 5 : 150;
             var maxLength = 1000;
             var charLimitGuidance = $"I need a minimum of {minLength} characters and maximum of {maxLength} characters to process";
             var promptDescription = new PromptText(
-                "Okay, I'll find a human freelancer who can do the research for you. Tell me what kind of research you'd like the freelancer to do?. " +
-                charLimitGuidance,
+                "Okay, I'll find a human freelancer who can do the research for you. " +
+                $"Tell me what kind of research you'd like the freelancer to do?. {(isSms ? "" : charLimitGuidance)}",
                 charLimitGuidance,
                 "Wrong again. Too many attempts.",
                 3, minLength, maxLength);
@@ -97,35 +96,14 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 context.ConversationData.SetValue(DeadlineKey, targetDate);
 
                 var description = context.ConversationData.GetValue<string>(DescriptionKey);
-
-
-                AdaptiveCard responseCard = new AdaptiveCard();
-                responseCard.Body.Add(new AdaptiveTextBlock
-                {
-                    Text = "Okay, this is what I have so far.",
-                    Size = AdaptiveTextSize.Default,
-                    Wrap = true,
-                    Separator = true
-                });
-                responseCard.Body.Add(new AdaptiveFactSet
-                {
-                    Facts = new List<AdaptiveFact>
-                    {
-                        new AdaptiveFact("Who", context.Activity.From.Name),
-                        new AdaptiveFact("What", description),
-                        new AdaptiveFact("When", targetDate.ToString()),
-                    }
-                });
-
-                var responseMessage = context.MakeMessage();
-                responseMessage.Attachments = new List<Attachment>
-                {
-                    new Attachment()
-                    {
-                        ContentType = AdaptiveCard.ContentType,
-                        Content = responseCard
-                    }
-                };
+                
+                IMessageActivity responseMessage = isSms
+                    ? BuildWhoWhatWhenSummaryMessageForSms(context,
+                        targetDate,
+                        description)
+                    : BuildWhoWhatWhenSummaryMessageForTeams(context,
+                        targetDate,
+                        description);
 
                 await context.PostWithRetryAsync(responseMessage);
 
@@ -152,6 +130,49 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
         }
 
+        private IMessageActivity BuildWhoWhatWhenSummaryMessageForSms(IDialogContext context, DateTime targetDate, string description)
+        {
+            var responseMessage = context.MakeMessage();
+            responseMessage.Text = "Okay, this is what I have so far.\n\n" +
+                                   $"Who: {userProfile}\n"+
+                                   $"What: {description}\n"+
+                                   $"When: {targetDate}";
+            responseMessage.TextFormat = "plain";
+            return responseMessage;
+        }
+
+        private IMessageActivity BuildWhoWhatWhenSummaryMessageForTeams(IDialogContext context, DateTime targetDate, string description)
+        {
+            AdaptiveCard responseCard = new AdaptiveCard();
+            responseCard.Body.Add(new AdaptiveTextBlock
+            {
+                Text = "Okay, this is what I have so far.",
+                Size = AdaptiveTextSize.Default,
+                Wrap = true,
+                Separator = true
+            });
+            responseCard.Body.Add(new AdaptiveFactSet
+            {
+                Facts = new List<AdaptiveFact>
+                    {
+                        new AdaptiveFact("Who", userProfile.ToString()),
+                        new AdaptiveFact("What", description),
+                        new AdaptiveFact("When", targetDate.ToString()),
+                    }
+            });
+
+            var responseMessage = context.MakeMessage();
+            responseMessage.Attachments = new List<Attachment>
+                {
+                    new Attachment()
+                    {
+                        ContentType = AdaptiveCard.ContentType,
+                        Content = responseCard
+                    }
+                };
+            return responseMessage;
+        }
+
         private async Task OnAdditionalInfoReceivedAsync(IDialogContext context, IAwaitable<string> result)
         {
             if (result == null)
@@ -165,10 +186,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             var description = context.ConversationData.GetValue<string>(DescriptionKey);
             var deadline = DateTime.Parse(context.ConversationData.GetValue<string>(DeadlineKey));
 
-            context.Call(new ConfirmResearchRequestDialog(context.Activity.From.Name,
+            context.Call(new ConfirmResearchRequestDialog(isSms, context.Activity.From.Name,
                     description,
                     additionalInfoFromUser,
-                    deadline),
+                    deadline,
+                    userProfile),
                 OnConfirmResearchDialog);
         }
 
@@ -187,35 +209,20 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 var description = context.ConversationData.GetValue<string>(DescriptionKey);
                 var deadline = DateTime.Parse(context.ConversationData.GetValue<string>(DeadlineKey));
 
-                string mobilePhone = string.Empty;
-                string alias = string.Empty;
-
-                if (context.UserData.TryGetValue(UserProfileHelper.UserProfileKey, out UserProfile userProfile))
-                {
-                    mobilePhone = userProfile.MobilePhone;
-                    alias = userProfile.Alias;
-                }
-                else
-                {
-                    throw new System.Exception("user profile not found");
-                }
-
                 var vsoTicketNumber = await VsoHelper.CreateTaskInVso(VsoHelper.ResearchTaskType,
                     context.Activity.From.Name,
                     description + Environment.NewLine + additionalInfoFromUser,
                     ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
                     deadline,
                     "",
-                    mobilePhone,
-                    alias);
+                    userProfile);
 
                 context.ConversationData.SetValue(VsoIdKey, vsoTicketNumber);
                 context.ConversationData.SetValue(EndUserConversationIdKey, context.Activity.Conversation.Id);
 
                 try
                 {
-                    var conversationTitle = $"New web research request from {userProfile.Name} " +
-                                            $"[alias: {userProfile.Alias} phone: {userProfile.MobilePhone}] via {context.Activity.ChannelId} ";
+                    var conversationTitle = $"New web research request from {userProfile} via {context.Activity.ChannelId} ";
                     string agentConversationId = await ConversationHelpers.CreateAgentConversationEx(context,
                         conversationTitle,
                         CreateCardForAgent(context,
@@ -255,12 +262,12 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
         }
 
-        private static AdaptiveCard CreateCardForAgent(IDialogContext context, string additionalInfoFromUser, string description, DateTime deadline, int vsoTicketNumber)
+        private AdaptiveCard CreateCardForAgent(IDialogContext context, string additionalInfoFromUser, string description, DateTime deadline, int vsoTicketNumber)
         {
             AdaptiveCard card = new AdaptiveCard();
             card.Body.Add(new AdaptiveTextBlock
             {
-                Text = $"New research request from {context.Activity.From.Name}. VSO:{vsoTicketNumber}",
+                Text = $"New research request from {userProfile}. VSO:{vsoTicketNumber}",
                 Size = AdaptiveTextSize.Large,
                 Wrap = true,
                 Separator = true
@@ -280,6 +287,15 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 Url = new Uri($"{Uri}/{Project}/_workitems/edit/{vsoTicketNumber}"),
                 Title = $"Vso: {vsoTicketNumber}"
             });
+            card.Body.Add(new AdaptiveTextBlock {Text = "Tips", Wrap = true});
+            card.Body.Add(new AdaptiveTextBlock {Text = "- Please use **reply to user** command to send message to user.", Wrap = true});
+            card.Body.Add(new AdaptiveTextBlock {Text = "- Please post jobs to UpWork manually. Support to posting via bot is coming soon.", Wrap = true});
+            card.Body.Add(new AdaptiveTextBlock {Text = "- Sending attachments is not supported. " +
+                                                        "Please send research documents as a **link**. " +
+                                                        "Upload file in 'files' tab, use it to go to SharePoint site. From there 'Share > Email'. " +
+                                                        "User alias is in VSO ticket", Wrap = true});
+            card.Body.Add(new AdaptiveTextBlock {Text = "- When research is complete, please seek acknowledgement from end user. " +
+                                                        "Once done, please **close VSO ticket**, else user wont be able to create new one", Wrap = true});
             return card;
         }
 
@@ -296,8 +312,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             return "en-us";
         }
 
-        private static Attachment GetIntroHeroCard()
+        private static IMessageActivity BuildIntroMessageForSms(IDialogContext context)
         {
+            var message = context.MakeMessage();
+
             var heroCard = new HeroCard
             {
                 Title = "Internet research request",
@@ -316,7 +334,9 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 }
             };
 
-            return heroCard.ToAttachment();
+            message.Attachments.Add(heroCard.ToAttachment());
+
+            return message;
         }
     }
 }

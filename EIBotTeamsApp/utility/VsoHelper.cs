@@ -71,8 +71,7 @@ namespace Microsoft.Office.EIBot.Service.utility
             string assignedTo,
             DateTime targetDate,
             string teamsConversationId,
-            string endUserMobilePhone,
-            string endUserAlias)
+            UserProfile userProfile)
         {
             var properties = new Dictionary<string, string>
             {
@@ -110,11 +109,11 @@ namespace Microsoft.Office.EIBot.Service.utility
                 },
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = $"/fields/{EndUserAliasFieldName}", Value = endUserAlias
+                    Operation = Operation.Add, Path = $"/fields/{EndUserAliasFieldName}", Value = userProfile.Alias
                 },
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = $"/fields/{EndUserMobilePhoneFieldName}", Value = endUserMobilePhone
+                    Operation = Operation.Add, Path = $"/fields/{EndUserMobilePhoneFieldName}", Value = userProfile.MobilePhone
                 },
                 new JsonPatchOperation()
                 {

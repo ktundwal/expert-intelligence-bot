@@ -18,18 +18,18 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     {
         #region Internet research Pattern
 
-        [RegexPattern(DialogMatches.PerformInternetResearchMatch)]
-        [ScorableGroup(1)]
-        public void PerformInternetResearch(IDialogContext context, IActivity activity)
-        {
-            context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
-        }
+        //[RegexPattern(DialogMatches.PerformInternetResearchMatch)]
+        //[ScorableGroup(1)]
+        //public void PerformInternetResearch(IDialogContext context, IActivity activity)
+        //{
+        //    context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
+        //}
 
-        public async Task EndInternetResearchDialog(IDialogContext context, IAwaitable<bool> awaitable)
-        {
-            await context.PostWithRetryAsync("Have a nice day!");
-            context.Done<object>(null);
-        }
+        //public async Task EndInternetResearchDialog(IDialogContext context, IAwaitable<bool> awaitable)
+        //{
+        //    await context.PostWithRetryAsync("Have a nice day!");
+        //    context.Done<object>(null);
+        //}
 
         #endregion
 

@@ -27,6 +27,11 @@ namespace Microsoft.Office.EIBot.Service.utility
             Name = name;
             MobilePhone = mobilePhone; 
         }
+
+        public override string ToString()
+        {
+            return $"{Name}: [alias: {Alias}, MobilePhone: {MobilePhone}]";
+        }
     }
 
     // member: botName = BotId

@@ -36,11 +36,20 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             await SendAutoReplyIfNeeded(context, vsoId);
 
             IMessageActivity messageActivity = (IMessageActivity)context.Activity;
-            await ActivityHelper.SendMessageToAgentAsReplyToConversationInAgentsChannel(
-                messageActivity,
-                messageActivity.Text,
-                agentConversationId,
-                (int)vsoId);
+            if (ActivityHelper.HasAttachment(messageActivity))
+            {
+                await context.PostWithRetryAsync(
+                    $"Sending file attachments is not supported. " +
+                    $"Please send it via an accessible link within Microsoft");
+            }
+            else
+            {
+                await ActivityHelper.SendMessageToAgentAsReplyToConversationInAgentsChannel(
+                    messageActivity,
+                    messageActivity.Text,
+                    agentConversationId,
+                    (int)vsoId);
+            }
 
             await OnlineStatus.SetMemberActive(context.Activity.From.Name,
                 context.Activity.From.Id,

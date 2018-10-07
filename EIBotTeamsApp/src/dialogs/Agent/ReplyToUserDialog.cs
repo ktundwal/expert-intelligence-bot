@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
@@ -27,14 +30,23 @@ namespace Microsoft.Office.EIBot.Service.dialogs.Agent
             EndUserAndAgentConversationMappingState mappingState =
                 await VsoHelper.GetStateFromVsoGivenAgentConversationId(activity.Conversation.Id);
 
-            await ActivityHelper.SendMessageToUserEx((IMessageActivity)context.Activity,
-                mappingState.EndUserName,
-                mappingState.EndUserId,
-                activity.Text.Replace(DialogMatches.ReplyToUser + " ", ""),
-                mappingState.VsoId);
+            if (ActivityHelper.HasAttachment(activity))
+            {
+                await context.PostWithRetryAsync(
+                    $"Sending file attachments to user is not supported. " +
+                    $"Please send it via SharePoint > Share > Email. Alias is in VSO ticket");
+            }
+            else
+            {
+                await ActivityHelper.SendMessageToUserEx((IMessageActivity)context.Activity,
+                    mappingState.EndUserName,
+                    mappingState.EndUserId,
+                    activity.Text.Replace(DialogMatches.ReplyToUser + " ", ""),
+                    mappingState.VsoId);
+            }
 
             await OnlineStatus.SetMemberActive(
-                context.Activity.From.Name, 
+                context.Activity.From.Name,
                 context.Activity.From.Id,
                 OnlineStatus.AgentMemberType);
 

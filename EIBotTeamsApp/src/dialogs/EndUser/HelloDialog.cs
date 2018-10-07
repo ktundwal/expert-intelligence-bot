@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
+using Microsoft.Bot.Builder.Dialogs.Internals;
 using Microsoft.Bot.Connector;
 using Microsoft.Office.EIBot.Service.Properties;
 using Microsoft.Office.EIBot.Service.utility;
@@ -20,6 +21,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     public class HelloDialog : IDialog<object>
     {
         private const string ProjectTypeKey = "projectType";
+        private bool isSms;
 
         public async Task StartAsync(IDialogContext context)
         {
@@ -27,6 +29,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 throw new ArgumentNullException(nameof(context));
             }
+
+            isSms = context.Activity.ChannelId == ActivityHelper.SmsChannelId;
 
             if (await ConversationHelpers.RelayMessageToAgentIfThereIsAnOpenResearchProject(context))
             {
@@ -36,24 +40,64 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             else
             {
                 // introduce the bot
-                var introCard = new HeroCard
-                {
-                    Title = "Hello! I am Expert Intelligence Bot.",
-                    Subtitle = "I am supported by experts who can work for you.",
-                    Text = "I'll collect some information to get started. Then a human project manager will review your request and follow up. " +
-                           $"You can also send me a text request via SMS text message on your phone at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
-                    Buttons = new List<CardAction>
-                    {
-                        new CardAction(ActionTypes.ImBack, 
-                            $"I need web {DialogMatches.PerformInternetResearchMatch}", 
-                            value: DialogMatches.PerformInternetResearchMatch)
-                    }
-                };
-                var message = context.MakeMessage();
-                message.Attachments.Add(introCard.ToAttachment());
+                IMessageActivity message = isSms ? BuildIntroMessageForSms(context) : BuildIntroMessageForTeams(context);
                 await context.PostWithRetryAsync(message);
                 context.Wait(OnProjectTypeReceivedAsync);
             }
+        }
+
+        private IMessageActivity BuildIntroMessageForSms(IBotToUser context)
+        {
+            var message = context.MakeMessage();
+            message.Text = "Hello, I am Expert Intelligence Bot. I'll collect some information to get started, " +
+                           "then a human project manager will review your request and follow up. \n\n" +
+                           "What would you like help with?\n\n" +
+                           "You can say: research";
+            message.TextFormat = "plain";
+            return message;
+        }
+
+        private static IMessageActivity BuildIntroMessageForTeams(IDialogContext context)
+        {
+            var introCard = new HeroCard
+            {
+                Title = "Hello! I am Expert Intelligence Bot.",
+                Subtitle = "I am supported by experts who can work for you.",
+                Text = "I'll collect some information to get started, then a human project manager will review your request and follow up. " +
+                                       $"You can also send me a text request via SMS text message on your phone at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
+                Buttons = new List<CardAction>
+                    {
+                        new CardAction(ActionTypes.ImBack,
+                            $"I need web {DialogMatches.PerformInternetResearchMatch}",
+                            value: DialogMatches.PerformInternetResearchMatch)
+                    },
+                //Images = new List<CardImage>
+                //{
+                //    new CardImage(
+                //        url:
+                //        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFN_PjNlFuUyf0Q35ahXce4KuslRhb3F1XNutFTLcCet8cFlix",
+                //        alt: "Top strategies to stand-out on Linked In",
+                //        tap: new CardAction()
+                //        {
+                //            Value = $"https://microsoft.sharepoint.com/:w:/t/OfficeandtheGigEconomy/EaupzMfIrlRMiJ821DGbkqIBTMSkqlUduR85E6boQRK43w?e=opeRjW",
+                //            Type = "openUrl",
+                //            Title = "Top strategies to stand-out on Linked In"
+                //        }),
+                //    new CardImage(
+                //        url:
+                //        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFN_PjNlFuUyf0Q35ahXce4KuslRhb3F1XNutFTLcCet8cFlix",
+                //        alt: "Average price for a Raspberry Pi 3 in Washington",
+                //        tap: new CardAction()
+                //        {
+                //            Value = $"https://microsoft.sharepoint.com/:w:/t/OfficeandtheGigEconomy/EcrZDqoBqzxDrRsdQoKsNNYBrspa7e7uZYNoosFqxNJyrA?e=2a6BX6",
+                //            Type = "openUrl",
+                //            Title = "Average price for a Raspberry Pi 3 in Washington"
+                //        }),
+                //}
+            };
+            var message = context.MakeMessage();
+            message.Attachments.Add(introCard.ToAttachment());
+            return message;
         }
 
         private async Task EngageBot(IDialogContext context)
@@ -86,7 +130,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             if (projectType != DialogMatches.PerformInternetResearchMatch)
             {
-                await context.PostAsync($"Sorry, I don't support {projectType}. Please say '{DialogMatches.PerformInternetResearchMatch}' to proceed");
+                await context.PostWithRetryAsync($"Sorry, I don't support {projectType}. Please say '{DialogMatches.PerformInternetResearchMatch}' to proceed");
                 context.Wait(OnProjectTypeReceivedAsync);
             }
 

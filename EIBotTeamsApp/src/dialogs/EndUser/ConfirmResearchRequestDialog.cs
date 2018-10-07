@@ -12,29 +12,60 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     [Serializable]
     public class ConfirmResearchRequestDialog : IDialog<bool>
     {
-        private string name;
-        private string description;
-        private string additionalInfoFromUser;
-        private DateTime deadline;
+        private readonly string _name;
+        private readonly string _description;
+        private readonly string _additionalInfoFromUser;
+        private readonly DateTime _deadline;
+        private readonly UserProfile _userProfile;
+        private readonly bool _isSms;
 
-        public ConfirmResearchRequestDialog(string name, string description, string additionalInfoFromUser, DateTime deadline)
+        public ConfirmResearchRequestDialog(bool isSms,
+            string name,
+            string description,
+            string additionalInfoFromUser,
+            DateTime deadline,
+            UserProfile userProfile)
         {
-            this.name = name;
-            this.description = description;
-            this.additionalInfoFromUser = additionalInfoFromUser;
-            this.deadline = deadline;
+            this._isSms = isSms;
+            this._name = name;
+            this._description = description;
+            this._additionalInfoFromUser = additionalInfoFromUser;
+            this._deadline = deadline;
+            this._userProfile = userProfile;
         }
 
         public async Task StartAsync(IDialogContext context)
+        {
+            IMessageActivity responseMessage = _isSms ? BuildConfirmationMessageForSms(context) :
+            BuildConfirmationMessageForTeams(context);
+
+            await context.PostWithRetryAsync(responseMessage);
+            context.Wait(OnConfirmationAsync);
+        }
+
+        private IMessageActivity BuildConfirmationMessageForSms(IDialogContext context)
+        {
+            var responseMessage = context.MakeMessage();
+            responseMessage.Text = "Okay, here is what I will send to the freelancer.\n\n" +
+                                   $"Who: {_userProfile}\n" +
+                                   $"What: {_description}\n" +
+                                   $"Additional Info: {_additionalInfoFromUser}\n" +
+                                   $"When: {_deadline}\n\n" +
+                                   $"Shall I send this to freelancer now? You can say 'yes' or 'no'";
+            responseMessage.TextFormat = "plain";
+            return responseMessage;
+        }
+
+        private IMessageActivity BuildConfirmationMessageForTeams(IDialogContext context)
         {
             var summary = new AdaptiveFactSet
             {
                 Facts = new List<AdaptiveFact>
                 {
                     new AdaptiveFact("Who", context.Activity.From.Name),
-                    new AdaptiveFact("What", description),
-                    new AdaptiveFact("Additional Info", additionalInfoFromUser),
-                    new AdaptiveFact("When", deadline.ToString()),
+                    new AdaptiveFact("What", _description),
+                    new AdaptiveFact("Additional Info", _additionalInfoFromUser),
+                    new AdaptiveFact("When", _deadline.ToString()),
                 }
             };
 
@@ -62,9 +93,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     }
                 }.ToAttachment()
             };
-
-            await context.PostWithRetryAsync(responseMessage);
-            context.Wait(OnConfirmationAsync);
+            return responseMessage;
         }
 
         private async Task OnConfirmationAsync(IDialogContext context, IAwaitable<IMessageActivity> result)

@@ -85,8 +85,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
                     deadline,
                     "",
-                    mobilePhone,
-                    alias);
+                    null);
 
                 MicrosoftAppCredentials.TrustServiceUrl(ActivityHelper.TeamsServiceEndpoint);
 
