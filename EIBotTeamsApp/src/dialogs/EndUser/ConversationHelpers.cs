@@ -27,8 +27,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             int? vsoId = await GetResearchVsoIdFromVso(context.Activity.From.Name);
             if (vsoId == null) return false;
 
-            EndUserAndAgentConversationMappingState state =
-                await EndUserAndAgentConversationMappingState.GetFromVso((int)vsoId);
+            string agentConversationId = await VsoHelper.GetAgentConversationIdForVso((int)vsoId);
+            if (string.IsNullOrEmpty(agentConversationId)) return false;
             
             await SendAutoReplyIfNeeded(context, vsoId);
 
@@ -36,7 +36,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             await ActivityHelper.SendMessageToAgentAsReplyToConversationInAgentsChannel(
                 messageActivity,
                 messageActivity.Text,
-                state.AgentConversationId,
+                agentConversationId,
                 (int)vsoId);
 
             await OnlineStatus.SetMemberActive(context.Activity.From.Name,
@@ -56,7 +56,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                                                   .TotalMinutes > MinutesToWaitBeforeSendingAutoReply;
             if (timeSinceLastMessageWasSentByAgent.TotalMinutes >= MinutesToWaitForAgentOnlineBeforeSendingAutoReply && autoReplyWasSentAWhileBack)
             {
-                await context.PostWithRetryAsync($"Hi {UserProfileHelper.GetFriendlyName(context, false)}, " +
+                await context.PostWithRetryAsync($"Hi {UserProfileHelper.GetFriendlyName(context)}, " +
                                                  $"My experts are working on Project #{vsoId}. " +
                                         $"Current status of this project is {await VsoHelper.GetProjectStatus((int)vsoId)}. " +
                                         "Either experts are busy or offline at the moment. " +
@@ -65,7 +65,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
         }
 
-        private static DateTime GetAutoReplySentOnTimeStamp(IBotData context) => context.ConversationData.GetValue<DateTime>(AutoReplySentOnKey);
+        private static DateTime GetAutoReplySentOnTimeStamp(IBotData context) => context.ConversationData.TryGetValue(
+            AutoReplySentOnKey,
+            out DateTime autoReplySentOn)
+            ? autoReplySentOn
+            : DateTime.MinValue;
 
         private static void SetAutoReplySentOnTimeStamp(IBotData context) => context.ConversationData.SetValue(AutoReplySentOnKey, DateTime.UtcNow);
 

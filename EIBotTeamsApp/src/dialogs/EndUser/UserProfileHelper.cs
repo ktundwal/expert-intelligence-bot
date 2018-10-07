@@ -7,13 +7,15 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     {
         public const string UserProfileKey = "userProfile";
 
-        public static string GetFriendlyName(IDialogContext context, bool promptUserIfNotAvailable = false)
+        public static string GetFriendlyName(IDialogContext context)
         {
             if (!context.UserData.TryGetValue(UserProfileKey, out UserProfile userProfile))
             {
-                return !string.IsNullOrEmpty(userProfile.Name) ? userProfile.Name.Split(' ')[0] : "";
+                if (!string.IsNullOrEmpty(userProfile.Name))
+                    return userProfile.Name.Split(' ')[0];
+                throw new System.Exception("User name isn't available");
             }
-            return "";
+            throw new System.Exception("User name isn't available");
         }
 
         public static UserProfile GetUserProfile(IDialogContext context)
@@ -22,7 +24,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 return userProfile;
             }
-            return null;
+            throw new System.Exception("User profile isn't available");
         }
     }
 }

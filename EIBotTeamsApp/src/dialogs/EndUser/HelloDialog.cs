@@ -19,6 +19,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     [Serializable]
     public class HelloDialog : IDialog<object>
     {
+        private const string ProjectTypeKey = "projectType";
+
         public async Task StartAsync(IDialogContext context)
         {
             if (context == null)
@@ -33,11 +35,24 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
             else
             {
-                context.Call(new InternetResearchDialog(), EndDialog);
-
-                // This code is commented out because at the moment we are going
-                // straight to internet research requests
-                // await EngageBot(context);
+                // introduce the bot
+                var introCard = new HeroCard
+                {
+                    Title = "Hello! I am Expert Intelligence Bot.",
+                    Subtitle = "I am supported by experts who can work for you.",
+                    Text = "I'll collect some information to get started. Then a human project manager will review your request and follow up. " +
+                           $"You can also send me a text request via SMS text message on your phone at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
+                    Buttons = new List<CardAction>
+                    {
+                        new CardAction(ActionTypes.ImBack, 
+                            $"I need web {DialogMatches.PerformInternetResearchMatch}", 
+                            value: DialogMatches.PerformInternetResearchMatch)
+                    }
+                };
+                var message = context.MakeMessage();
+                message.Attachments.Add(introCard.ToAttachment());
+                await context.PostWithRetryAsync(message);
+                context.Wait(OnProjectTypeReceivedAsync);
             }
         }
 
@@ -47,10 +62,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             Attachment attachment = BuildOptionsForNewUserWithResearchPptApptOptions(context);
             message.Attachments.Add(attachment);
             await context.PostWithRetryAsync(message);
-            context.Wait(MessageReceivedAsync);
+            context.Wait(OnProjectTypeReceivedAsync);
         }
 
-        private async Task MessageReceivedAsync(IDialogContext context, IAwaitable<IMessageActivity> result)
+        private async Task OnProjectTypeReceivedAsync(IDialogContext context, IAwaitable<IMessageActivity> result)
         {
             if (result == null)
             {
@@ -58,38 +73,70 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
 
             //Prompt the user with welcome message before game starts
-            IMessageActivity message = await result;
+            IMessageActivity resultActivity = await result;
 
-            WebApiConfig.TelemetryClient.TrackEvent("Message received", new Dictionary<string, string>()
+            string projectType = resultActivity.Text;
+
+            WebApiConfig.TelemetryClient.TrackEvent("OnProjectTypeReceivedAsync", new Dictionary<string, string>()
             {
                 {"class", "HelloDialog" },
                 {"from", context.Activity.From.Name },
-                {"message", message.Text },
+                {ProjectTypeKey, projectType },
             });
 
-            if (message.Text.ToLower().StartsWith("closeproject"))
+            if (projectType != DialogMatches.PerformInternetResearchMatch)
             {
-                await CloseProject(context, message);
+                await context.PostAsync($"Sorry, I don't support {projectType}. Please say '{DialogMatches.PerformInternetResearchMatch}' to proceed");
+                context.Wait(OnProjectTypeReceivedAsync);
             }
-            else if (message.Text.ToLower().StartsWith("getproject"))
+
+            context.ConversationData.SetValue(ProjectTypeKey, projectType);
+
+            //run user profile wizard
+            context.Call(new UserProfileDialog(), OnUserProfileReceivedAsync);
+        }
+
+        private async Task OnUserProfileReceivedAsync(IDialogContext context, IAwaitable<UserProfile> userProfileResult)
+        {
+            if (userProfileResult == null)
             {
-                await GetProject(context, message);
+                throw new InvalidOperationException((nameof(userProfileResult)) + Strings.NullException);
             }
-            else if (message.Text.ToLower().StartsWith("research"))
+
+            UserProfile userProfile = await userProfileResult;
+            context.UserData.SetValue(UserProfileHelper.UserProfileKey, userProfile);
+
+            WebApiConfig.TelemetryClient.TrackEvent("OnUserProfileReceivedAsync", new Dictionary<string, string>()
             {
-                context.Call(new InternetResearchDialog(), EndDialog);
+                {"class", "HelloDialog" },
+                {"from", context.Activity.From.Name },
+            });
+
+            string projectType = context.ConversationData.GetValue<string>(ProjectTypeKey);
+
+            if (projectType.ToLower().StartsWith("closeproject"))
+            {
+                await CloseProject(context);
             }
-            else if (message.Text.ToLower().StartsWith("ppt"))
+            else if (projectType.ToLower().StartsWith("getproject"))
+            {
+                await GetProject(context);
+            }
+            else if (projectType.ToLower().StartsWith(DialogMatches.PerformInternetResearchMatch))
+            {
+                context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
+            }
+            else if (projectType.ToLower().StartsWith("ppt"))
             {
                 await context.PostWithRetryAsync("'PowerPoint improvement' functionality is still under development.");
                 context.Done<object>(null);
             }
-            else if (message.Text.ToLower().StartsWith("appointment"))
+            else if (projectType.ToLower().StartsWith("appointment"))
             {
                 await context.PostWithRetryAsync("'virtual assistant' functionality is still under development.");
                 context.Done<object>(null);
             }
-            else if (message.Text.ToLower().StartsWith("agent"))
+            else if (projectType.ToLower().StartsWith("agent"))
             {
                 context.Call(new TalkToAnAgentDialog(), EndDialog);
             }
@@ -97,6 +144,16 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 context.Call(new UserHelpDialog(), EndDialog);
             }
+        }
+
+        private Task GetProject(IDialogContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        private Task CloseProject(IDialogContext context)
+        {
+            throw new NotImplementedException();
         }
 
         private async Task GetProject(IDialogContext context, IMessageActivity message)
@@ -211,7 +268,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 Attachment attachment = BuildOptionsForNewUserWithResearchPptApptOptions(context);
                 newMessage.Attachments.Add(attachment);
                 await context.PostWithRetryAsync(newMessage);
-                context.Wait(MessageReceivedAsync);
+                //context.Wait(MessageReceivedAsync);
             }
             else if (message.Text == "no")
             {
@@ -245,10 +302,16 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             return Task.CompletedTask;
         }
 
-        private Task EndDialog(IDialogContext context, IAwaitable<bool> result)
+        private async Task EndInternetResearchDialog(IDialogContext context, IAwaitable<bool> result)
         {
+            if (result == null)
+            {
+                throw new InvalidOperationException((nameof(result)) + Strings.NullException);
+            }
+
+            var requestCompleted = await result;
+
             context.Done<object>(null);
-            return Task.CompletedTask;
         }
 
         private static Attachment BuildYesNoHeroCard(string question)
@@ -268,7 +331,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         {
             var heroCard = new HeroCard
             {
-                Title = $"Hello {UserProfileHelper.GetFriendlyName(context, false)}! I am Expert Intelligence Bot.",
+                Title = $"Hello {UserProfileHelper.GetFriendlyName(context)}! I am Expert Intelligence Bot.",
                 Subtitle = "I am supported by experts who can work for you.",
                 Text = "We can do a few things. Please select one of the options so I can collect few information to get started. " +
                        "After that a project manager will review your request and follow up." +
@@ -294,7 +357,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                            $"You can also reach out to me by sending SMS at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
                 Text = $"I am tracking project #{workItem.Id} " +
                        $"due on {workItem.Fields["Microsoft.VSTS.Scheduling.TargetDate"]} " +
-                       $"Description: {workItem.Fields["System.Description"]}). " +
+                       $"Description: {workItem.Fields[VsoHelper.DescriptionFieldName]}). " +
                        "Before we begin working on new one, we need to first close existing project one",
                 Buttons = new List<CardAction>
                 {

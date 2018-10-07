@@ -30,7 +30,7 @@ namespace Microsoft.Office.EIBot.Service.controllers
         /// POST: api/Messages
         /// Receive a message from a user and reply to it
         /// </summary>
-        public async Task<HttpResponseMessage> Post([FromBody]Bot.Connector.Activity activity, CancellationToken cancellationToken)
+        public async Task<HttpResponseMessage> Post([FromBody]Activity activity, CancellationToken cancellationToken)
         {
             var connectorClient = await BotConnectorUtility.BuildConnectorClientAsync(activity.ServiceUrl);
 

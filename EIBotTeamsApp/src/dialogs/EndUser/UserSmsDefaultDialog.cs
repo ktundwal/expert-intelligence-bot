@@ -53,7 +53,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             context.ConversationData.SetValue("description", message.Text);
 
             // Prompt for delivery date
-            var prompt = new DeadlinePrompt(GetCurrentCultureCode());
+            var prompt = new DeadlinePrompt(Convert.ToInt32(ConfigurationManager.AppSettings["ResearchProjectViaSmsMinHours"]), GetCurrentCultureCode());
             context.Call(prompt, this.OnDeadlineSelected);
         }
 

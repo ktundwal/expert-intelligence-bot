@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Configuration;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Builder.Scorables;
@@ -37,15 +39,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         [ScorableGroup(1)]
         public void RunHelloDialog(IDialogContext context, IActivity activity)
         {
-            // introduce the bot
-            context.Call(new UserProfileDialog(),
-                async delegate(IDialogContext phoneDialogContext, IAwaitable<UserProfile> userProfileResult)
-                {
-                    UserProfile userProfile = await userProfileResult;
-                    context.UserData.SetValue(UserProfileHelper.UserProfileKey, userProfile);
-                    context.Call(new HelloDialog(), EndHelloDialog);
-                }
-            );
+            context.Call(new HelloDialog(), EndHelloDialog);
         }
 
         #endregion

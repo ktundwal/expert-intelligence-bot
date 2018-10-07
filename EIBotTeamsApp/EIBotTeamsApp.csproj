@@ -309,6 +309,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
+    <Compile Include="src\dialogs\EndUser\AskAliasDialog.cs" />
+    <Compile Include="src\dialogs\EndUser\ConfirmResearchRequestDialog.cs" />
     <Compile Include="src\dialogs\EndUser\UserProfileHelper.cs" />
     <Compile Include="src\dialogs\EndUser\UserProfileDialog.cs" />
     <Compile Include="utility\BotJwtRefreshWorker.cs" />

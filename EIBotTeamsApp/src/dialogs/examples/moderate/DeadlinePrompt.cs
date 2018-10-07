@@ -12,21 +12,20 @@ namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
     public class DeadlinePrompt : Prompt<IEnumerable<DateTime>, DateTime>
     {
         public const string DeliveryPromptMessage =
-            "When do you want to this done by?\n\n" +
             "Some valid options are:\n\n" +
-            " - Tomorrow morning\n\n" +
-            " - 10/08/2018\n\n" +
-            " - 9PM Tomorrow\n\n" +
-            " - Five hours from now";
+            " - 48 hours from now\n\n" +
+            " - next thursday\n\n" +
+            " - next week";
 
         public const string PastValueErrorMessage =
-            "You have requested $moment$.\n\nI'm sorry, but I need at least 3 hours to complete this work.\n\nWhat other time suits you best?";
-
+            "You have requested $moment$.\n\nI'm sorry, but I need at least 48 hours to complete this work.\n\nWhat other time suits you best?";
+        private readonly int MinHours;
         private readonly string _culture;
 
-        public DeadlinePrompt(string culture) : base(new PromptOptions<DateTime>(DeliveryPromptMessage, attempts: 5))
+        public DeadlinePrompt(int minHours, string culture) : base(new PromptOptions<DateTime>(DeliveryPromptMessage, attempts: 5))
         {
             this._culture = culture;
+            MinHours = minHours;
         }
 
         protected override bool TryParse(IMessageActivity message, out IEnumerable<DateTime> result)
@@ -41,7 +40,7 @@ namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
             return extraction.IsValid;
         }
 
-        public static Extraction ValidateAndExtract(string input, string culture)
+        public Extraction ValidateAndExtract(string input, string culture)
         {
             // Get DateTime for the specified culture
             var results = DateTimeRecognizer.RecognizeDateTime(input, culture);
@@ -84,7 +83,7 @@ namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
                     // range
                     var from = DateTime.Parse(resolutionValues.First()["start"]);
                     var to = DateTime.Parse(resolutionValues.First()["end"]);
-                    if (IsFuture(from) && IsFuture(to))
+                    if (/*IsFuture(from) && */IsFuture(to))
                     {
                         // future
                         return new Extraction
@@ -112,13 +111,13 @@ namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
             };
         }
 
-        public static bool IsFuture(DateTime date)
+        public bool IsFuture(DateTime date)
         {
             // at least one hour
-            return date > DateTime.Now.AddHours(1);
+            return date > DateTime.Now.AddHours(MinHours);
         }
 
-        public static string MomentOrRangeToString(IEnumerable<DateTime> moments, string momentPrefix = "on ")
+        public string MomentOrRangeToString(IEnumerable<DateTime> moments, string momentPrefix = "on ")
         {
             if (moments.Count() == 1)
             {
@@ -128,7 +127,7 @@ namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
             return "from " + string.Join(" to ", moments.Select(m => MomentOrRangeToString(m, "")));
         }
 
-        public static string MomentOrRangeToString(DateTime moment, string momentPrefix = "on ")
+        public string MomentOrRangeToString(DateTime moment, string momentPrefix = "on ")
         {
             return momentPrefix + moment.ToString();
         }
