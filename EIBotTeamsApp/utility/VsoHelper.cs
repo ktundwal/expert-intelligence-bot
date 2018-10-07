@@ -26,6 +26,7 @@ namespace Microsoft.Office.EIBot.Service.utility
         private const string TitleFieldName = "System.Title";
         private const string FreelancerplatformFieldName = "Custom.Freelancerplatform";
         private const string FreelancerplatformJobIdFieldName = "Custom.FreelancerPlatformJobId";
+        private const string RequestedByFieldName = "Custom.RequestedBy";
         public static readonly string Uri = ConfigurationManager.AppSettings["VsoOrgUrl"];
         public static readonly string Project = ConfigurationManager.AppSettings["VsoProject"];
         public static readonly string ResearchTaskType = "Research";
@@ -172,7 +173,7 @@ namespace Microsoft.Office.EIBot.Service.utility
         }
 
         private static string GetRequestedByFieldNameBasedOnTaskType(string taskType) => taskType == ResearchTaskType
-            ? "Custom.RequestedBy"
+            ? RequestedByFieldName
             : taskType == VirtualAssistanceTaskType
                 ? "Custom.RequestedByPhoneNo"
                 : "not-set";
@@ -215,7 +216,7 @@ namespace Microsoft.Office.EIBot.Service.utility
         /// Execute a WIQL query to return a list of bugs using the .NET client library
         /// </summary>
         /// <returns>List of Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem</returns>
-        public static async Task<List<WorkItem>> GetWorkItemsForUser(string taskType, string fromName)
+        public static async Task<List<WorkItem>> GetWorkItemsForUser(string taskType, string channelId, string fromName)
         {
             //create a wiql object and build our query
             Wiql wiql = new Wiql()
@@ -225,11 +226,11 @@ namespace Microsoft.Office.EIBot.Service.utility
                         $"[{AgentConversationIdFieldName}], " +
                         $"[{EndUserIdFieldName}], " +
                         $"[{EndUserNameFieldName}], " +
-                        "[Custom.RequestedBy] " +
+                        $"[{RequestedByFieldName}] " +
                         "From WorkItems " +
                         $"Where [Work Item Type] = '{taskType}' " +
-                        "And [System.TeamProject] = '" + Project + "' " +
-                        "And [Custom.RequestedBy] = '" + fromName + "' " +
+                        $"And [System.TeamProject] = '{Project}' " +
+                        $"And [{(channelId == ActivityHelper.SmsChannelId ? EndUserMobilePhoneFieldName : RequestedByFieldName)}] = '{fromName}' "  +
                         $"And [{StateFieldName}] <> 'Closed' " +
                         "Order By [State] Asc, [Changed Date] Desc"
             };

@@ -37,9 +37,11 @@ namespace Microsoft.Office.EIBot.Service.utility
 
             if (activity.ChannelId == SmsChannelId)
             {
-                properties.Add("dialog", "UserSmsRootDialog");
-                dialog = new ExceptionHandlerDialog<object>(new UserSmsRootDialog(),
-                displayException: true);
+                //properties.Add("dialog", "UserSmsRootDialog");
+                //dialog = new ExceptionHandlerDialog<object>(new UserSmsRootDialog(),
+                //displayException: true);
+                dialog = new ExceptionHandlerDialog<object>(new UserRootDialog(),
+                    displayException: true);
             }
             else
             {
@@ -129,7 +131,8 @@ namespace Microsoft.Office.EIBot.Service.utility
                     message.From = botAccount;
                     message.Recipient = userAccount;
                     message.Conversation = new ConversationAccount(id: conversation.Id);
-                    message.Text = messageToSend;
+                    message.Text = $"[Human - {activity.From.Name}] {messageToSend}";
+                    message.TextFormat = "plain";
                     message.Locale = "en-Us";
                     message.ChannelId = isSms ? SmsChannelId : MsTeamChannelId;
                     message.ServiceUrl = serviceUrl;

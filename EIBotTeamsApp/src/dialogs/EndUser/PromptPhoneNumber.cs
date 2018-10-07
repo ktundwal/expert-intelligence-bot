@@ -22,6 +22,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         protected override bool TryParse(IMessageActivity message, out string text)
         {
             text = message.Text;
+
+            var entities = SequenceRecognizer.RecognizePhoneNumber(text, Culture.English);
             return IsValidDescription(message.Text);
         }
 

@@ -24,8 +24,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         public static async Task<bool> RelayMessageToAgentIfThereIsAnOpenResearchProject(IDialogContext context)
         {
-            int? vsoId = await GetResearchVsoIdFromVso(context.Activity.From.Name);
+            int? vsoId = await GetResearchVsoIdFromVso(context.Activity.ChannelId, context.Activity.From.Name);
             if (vsoId == null) return false;
+
+            var userProfile = await UserProfileHelper.GetUserProfile(context);
+            context.UserData.SetValue(UserProfileHelper.UserProfileKey, userProfile);
 
             string agentConversationId = await VsoHelper.GetAgentConversationIdForVso((int)vsoId);
             if (string.IsNullOrEmpty(agentConversationId)) return false;
@@ -73,12 +76,13 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         private static void SetAutoReplySentOnTimeStamp(IBotData context) => context.ConversationData.SetValue(AutoReplySentOnKey, DateTime.UtcNow);
 
-        private static async Task<int?> GetResearchVsoIdFromVso(string uniqueName)
+        private static async Task<int?> GetResearchVsoIdFromVso(string channelId, string uniqueName)
         {
             var properties = new Dictionary<string, string>
             {
                 {"class", "ConversationHelpers" },
                 {"function", "GetResearchVsoIdFromVso" },
+                {"channelId",  channelId},
                 {"from",  uniqueName}
             };
 
@@ -87,6 +91,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 var workItems = await VsoHelper.GetWorkItemsForUser(
                     VsoHelper.ResearchTaskType,
+                    channelId,
                     uniqueName);
                 if (workItems != null)
                 {
@@ -158,6 +163,92 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 throw;
             }
             return vsoId;
+        }
+
+        public static async Task<string> CreateAgentConversationEx(IDialogContext context,
+            string topicName,
+            AdaptiveCard cardToSend,
+            UserProfile endUserProfile)
+        {
+            string serviceUrl = GetServiceUrl(context);
+
+            var agentChannelInfo = await IdTable.GetAgentChannelInfo();
+
+            ChannelAccount botMsTeamsChannelAccount = context.Activity.ChannelId == ActivityHelper.SmsChannelId
+                ? await IdTable.GetBotId()
+                : context.Activity.From;
+
+            using (var connectorClient = await BotConnectorUtility.BuildConnectorClientAsync(serviceUrl))
+            {
+                try
+                {
+                    var channelData = new TeamsChannelData { Channel = agentChannelInfo };
+
+                    IMessageActivity agentMessage = Activity.CreateMessageActivity();
+                    agentMessage.From = botMsTeamsChannelAccount;
+                    agentMessage.Recipient =
+                        new ChannelAccount(ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"]);
+                    agentMessage.Type = ActivityTypes.Message;
+                    agentMessage.ChannelId = ActivityHelper.MsTeamChannelId;
+                    agentMessage.ServiceUrl = serviceUrl;
+
+                    agentMessage.Attachments = new List<Attachment>
+                    {
+                        new Attachment {ContentType = AdaptiveCard.ContentType, Content = cardToSend}
+                    };
+
+                    var agentMessageActivity = (Activity)agentMessage;
+
+                    ConversationParameters conversationParams = new ConversationParameters(
+                        isGroup: true,
+                        bot: null,
+                        members: null,
+                        topicName: topicName,
+                        activity: agentMessageActivity,
+                        channelData: channelData);
+
+                    var conversationResourceResponse = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(
+                        async ()
+                            => await connectorClient.Conversations.CreateConversationAsync(conversationParams));
+
+                    Trace.TraceInformation(
+                        $"[SUCCESS]: CreateAgentConversation. response id ={conversationResourceResponse.Id}");
+
+                    WebApiConfig.TelemetryClient.TrackEvent("CreateAgentConversation", new Dictionary<string, string>
+                    {
+                        {"endUser", agentMessage.From.Name},
+                        {"agentConversationId", conversationResourceResponse.Id},
+                    });
+
+                    return conversationResourceResponse.Id;
+                }
+                catch (System.Exception e)
+                {
+                    WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
+                    {
+                        {"function", "CreateAgentConversation" }
+                    });
+
+                    throw;
+                }
+            }
+        }
+
+        private static string GetServiceUrl(IDialogContext context)
+        {
+            string serviceUrl;
+            if (context.Activity.ChannelId == ActivityHelper.SmsChannelId)
+            {
+                // switch service url and trust it
+                serviceUrl = ActivityHelper.TeamsServiceEndpoint;
+                MicrosoftAppCredentials.TrustServiceUrl(serviceUrl);
+            }
+            else
+            {
+                serviceUrl = context.Activity.ServiceUrl;
+            }
+
+            return serviceUrl;
         }
 
         public static async Task<ConversationResourceResponse> CreateAgentConversation(ChannelInfo targetChannelInfo,

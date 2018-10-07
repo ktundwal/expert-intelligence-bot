@@ -195,6 +195,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     mobilePhone = userProfile.MobilePhone;
                     alias = userProfile.Alias;
                 }
+                else
+                {
+                    throw new System.Exception("user profile not found");
+                }
 
                 var vsoTicketNumber = await VsoHelper.CreateTaskInVso(VsoHelper.ResearchTaskType,
                     context.Activity.From.Name,
@@ -210,11 +214,16 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
                 try
                 {
-                    string agentConversationId = await CreateAgentConversation(context,
-                        additionalInfoFromUser,
-                        description,
-                        deadline,
-                        vsoTicketNumber);
+                    var conversationTitle = $"New web research request from {userProfile.Name} " +
+                                            $"[alias: {userProfile.Alias} phone: {userProfile.MobilePhone}] via {context.Activity.ChannelId} ";
+                    string agentConversationId = await ConversationHelpers.CreateAgentConversationEx(context,
+                        conversationTitle,
+                        CreateCardForAgent(context,
+                            additionalInfoFromUser,
+                            description,
+                            deadline,
+                            vsoTicketNumber), 
+                        userProfile);
 
                     EndUserAndAgentConversationMappingState state =
                         new EndUserAndAgentConversationMappingState(vsoTicketNumber.ToString(),
@@ -243,26 +252,6 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 await context.PostWithRetryAsync("Okay, I have cancelled this request.");
                 context.Done<object>(false);
-            }
-        }
-
-        private static async Task<string> CreateAgentConversation(IDialogContext context,
-            string additionalInfoFromUser,
-            string description,
-            DateTime deadline,
-            int vsoTicketNumber)
-        {
-            using (var connectorClient = await BotConnectorUtility.BuildConnectorClientAsync(context.Activity.ServiceUrl))
-            {
-                var conversationResourceResponse = await ConversationHelpers.CreateAgentConversation(
-                    await GetAgentChannelId(),
-                    CreateCardForAgent(context, additionalInfoFromUser, description, deadline, vsoTicketNumber),
-                    $"New research request from {context.Activity.From.Name}",
-                    connectorClient,
-                    vsoTicketNumber,
-                    context.Activity as IMessageActivity);
-
-                return conversationResourceResponse.Id;
             }
         }
 
@@ -298,11 +287,6 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         private static ChannelInfo GetHardcodedChannelId()
         {
             return new ChannelInfo("19:c20b196747424d8db51f6c00a8a9efa8@thread.skype", "Research Agents");
-        }
-
-        private static async Task<ChannelInfo> GetAgentChannelId()
-        {
-            return await IdTable.GetAgentChannelInfo();
         }
 
         private static string GetCurrentCultureCode()
