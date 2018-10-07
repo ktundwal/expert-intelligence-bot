@@ -21,7 +21,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     public class HelloDialog : IDialog<object>
     {
         private const string ProjectTypeKey = "projectType";
-        private bool isSms;
+        private bool _isSms;
 
         public async Task StartAsync(IDialogContext context)
         {
@@ -30,7 +30,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 throw new ArgumentNullException(nameof(context));
             }
 
-            isSms = context.Activity.ChannelId == ActivityHelper.SmsChannelId;
+            _isSms = context.Activity.ChannelId == ActivityHelper.SmsChannelId;
 
             if (await ConversationHelpers.RelayMessageToAgentIfThereIsAnOpenResearchProject(context))
             {
@@ -40,7 +40,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             else
             {
                 // introduce the bot
-                IMessageActivity message = isSms ? BuildIntroMessageForSms(context) : BuildIntroMessageForTeams(context);
+                IMessageActivity message = _isSms ? BuildIntroMessageForSms(context) : BuildIntroMessageForTeams(context);
                 await context.PostWithRetryAsync(message);
                 context.Wait(OnProjectTypeReceivedAsync);
             }
@@ -51,8 +51,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             var message = context.MakeMessage();
             message.Text = "Hello, I am Expert Intelligence Bot. I'll collect some information to get started, " +
                            "then a human project manager will review your request and follow up. \n\n" +
-                           "What would you like help with?\n\n" +
-                           "You can say: research";
+                           "Would you like web research?\n\n" +
+                           "You can say: 'yes' or 'no'";
             message.TextFormat = "plain";
             return message;
         }
@@ -119,7 +119,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             //Prompt the user with welcome message before game starts
             IMessageActivity resultActivity = await result;
 
-            string projectType = resultActivity.Text;
+            string projectType = resultActivity.Text.ToLower();
 
             WebApiConfig.TelemetryClient.TrackEvent("OnProjectTypeReceivedAsync", new Dictionary<string, string>()
             {
@@ -128,16 +128,23 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 {ProjectTypeKey, projectType },
             });
 
-            if (projectType != DialogMatches.PerformInternetResearchMatch)
+            switch (projectType)
             {
-                await context.PostWithRetryAsync($"Sorry, I don't support {projectType}. Please say '{DialogMatches.PerformInternetResearchMatch}' to proceed");
-                context.Wait(OnProjectTypeReceivedAsync);
+                case DialogMatches.PerformInternetResearchMatch:
+                case "yes":
+                    context.ConversationData.SetValue(ProjectTypeKey, projectType);
+                    context.Call(new UserProfileDialog(), OnUserProfileReceivedAsync); //run user profile wizard
+                    break;
+                case "no":
+                    await context.PostWithRetryAsync("Sure. Have a nice day!");
+                    context.Done<object>(null);
+                    break;
+                default:
+                    await context.PostWithRetryAsync($"Sorry, I don't support {projectType}. " +
+                                                     $"Please say '{DialogMatches.PerformInternetResearchMatch}' to proceed");
+                    context.Wait(OnProjectTypeReceivedAsync);
+                    break;
             }
-
-            context.ConversationData.SetValue(ProjectTypeKey, projectType);
-
-            //run user profile wizard
-            context.Call(new UserProfileDialog(), OnUserProfileReceivedAsync);
         }
 
         private async Task OnUserProfileReceivedAsync(IDialogContext context, IAwaitable<UserProfile> userProfileResult)
@@ -154,9 +161,17 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 {"class", "HelloDialog" },
                 {"from", context.Activity.From.Name },
+                {"userProfile", userProfile.ToString() },
             });
 
+            context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
+        }
+
+        private async Task ProcessNonResearchProjectTypes(IDialogContext context)
+        {
             string projectType = context.ConversationData.GetValue<string>(ProjectTypeKey);
+
+            if (projectType == "yes") projectType = "research"; // this is for sms
 
             if (projectType.ToLower().StartsWith("closeproject"))
             {
