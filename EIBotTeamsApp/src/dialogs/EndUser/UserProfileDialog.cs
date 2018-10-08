@@ -137,8 +137,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         private void PromptForNameAndAlias(IDialogContext context)
         {
             context.Call(new PromptText(
-                    "Okay, since this is your first freelancer request, can you please tell us your name?",
-                    "Please try again", "Wrong again. Too many attempts.", 2, 2), OnNameReceivedAsync);
+                    "Okay, since this is your first freelancer request, can you please tell us your Microsoft Alias?",
+                    "Please try again", "Wrong again. Too many attempts.", 2, 2), OnAliasReceivedOverSmsAsync);
         }
 
         private async Task OnNameReceivedAsync(IDialogContext nameDialogContext, IAwaitable<string> nameResult)
@@ -158,10 +158,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             nameDialogContext.UserData.SetValue(NameKey, name);
             nameDialogContext.Call(new PromptText(
                     "Can you also please tell us your Microsoft alias?  That way we can reach you by email if need to.",
-                    "Please try again", "Wrong again. Too many attempts.", 2, 10), OnAliasReceivedAfterNameAsync);
+                    "Please try again", "Wrong again. Too many attempts.", 2, 10), OnAliasReceivedOverSmsAsync);
         }
 
-        private async Task OnAliasReceivedAfterNameAsync(IDialogContext aliasDialogContext, IAwaitable<string> aliasResult)
+        private async Task OnAliasReceivedOverSmsAsync(IDialogContext aliasDialogContext, IAwaitable<string> aliasResult)
         {
             if (aliasDialogContext == null)
             {
@@ -176,6 +176,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 {"alias", alias }
             });
             aliasDialogContext.UserData.SetValue(AliasKey, alias);
+            aliasDialogContext.UserData.SetValue(NameKey, ""); // on SMS we are not going to ask name. Use alias instead
 
             UserProfile userProfile = await StoreInUserTable(aliasDialogContext);
 

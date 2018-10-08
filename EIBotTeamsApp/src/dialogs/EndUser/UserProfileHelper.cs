@@ -15,7 +15,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 if (!string.IsNullOrEmpty(userProfile.Name))
                     return userProfile.Name.Split(' ')[0];
-                throw new System.Exception("User name isn't available");
+                return userProfile.Alias;
             }
             throw new System.Exception("User name isn't available");
         }
