@@ -50,8 +50,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         {
             var message = context.MakeMessage();
             message.Text = "Hello, I am Expert Intelligence Bot. I'll collect some information to get started, " +
-                           "then a human project manager will review your request and follow up. \n\n" +
-                           "Would you like web research?\n\n" +
+                           "then a human project manager will review your request and follow up. \n\n\n\n" +
+                           "Would you like web research?\n\n\n\n" +
                            "You can say: 'yes' or 'no'";
             message.TextFormat = "plain";
             return message;

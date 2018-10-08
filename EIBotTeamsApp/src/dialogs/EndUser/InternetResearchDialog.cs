@@ -133,9 +133,9 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         private IMessageActivity BuildWhoWhatWhenSummaryMessageForSms(IDialogContext context, DateTime targetDate, string description)
         {
             var responseMessage = context.MakeMessage();
-            responseMessage.Text = "Okay, this is what I have so far.\n\n" +
-                                   $"Who: {userProfile}\n"+
-                                   $"What: {description}\n"+
+            responseMessage.Text = "Okay, this is what I have so far.\n\n\n\n" +
+                                   $"Who: {userProfile}\n\n" +
+                                   $"What: {description}\n\n" +
                                    $"When: {targetDate}";
             responseMessage.TextFormat = "plain";
             return responseMessage;

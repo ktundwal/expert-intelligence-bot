@@ -46,11 +46,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         private IMessageActivity BuildConfirmationMessageForSms(IDialogContext context)
         {
             var responseMessage = context.MakeMessage();
-            responseMessage.Text = "Okay, here is what I will send to the freelancer.\n\n" +
-                                   $"Who: {_userProfile}\n" +
-                                   $"What: {_description}\n" +
-                                   $"Additional Info: {_additionalInfoFromUser}\n" +
-                                   $"When: {_deadline}\n\n" +
+            responseMessage.Text = "Okay, here is what I will send to the freelancer.\n\n\n\n" +
+                                   $"Who: {_userProfile}\n\n" +
+                                   $"What: {_description}\n\n" +
+                                   $"Additional Info: {_additionalInfoFromUser}\n\n" +
+                                   $"When: {_deadline}\n\n\n\n" +
                                    $"Shall I send this to freelancer now? You can say 'yes' or 'no'";
             responseMessage.TextFormat = "plain";
             return responseMessage;
