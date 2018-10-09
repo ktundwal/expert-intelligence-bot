@@ -318,6 +318,7 @@
     <Compile Include="src\dialogs\EndUser\UserProfileHelper.cs" />
     <Compile Include="src\dialogs\EndUser\UserProfileDialog.cs" />
     <Compile Include="utility\BotJwtRefreshWorker.cs" />
+    <Compile Include="utility\ChatLogger.cs" />
     <Compile Include="utility\DateTimeUtility.cs" />
     <Compile Include="utility\DialogContextExtensions.cs" />
     <Compile Include="src\dialogs\EndUser\CloudTableExtensions.cs" />
