@@ -7,10 +7,10 @@ using AdaptiveCards;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Teams.Models;
+using Microsoft.Office.EIBot.Service.dialogs.examples.moderate;
 using Microsoft.Office.EIBot.Service.Properties;
 using Microsoft.Office.EIBot.Service.utility;
 using Microsoft.Teams.TemplateBotCSharp;
-using Microsoft.Teams.TemplateBotCSharp.Dialogs;
 
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
@@ -53,7 +53,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             context.ConversationData.SetValue("description", message.Text);
 
             // Prompt for delivery date
-            var prompt = new DeadlinePrompt(Convert.ToInt32(ConfigurationManager.AppSettings["ResearchProjectViaSmsMinHours"]), GetCurrentCultureCode());
+            var prompt = new DeadlinePrompt(
+                Convert.ToInt32(ConfigurationManager.AppSettings["ResearchProjectViaSmsMinHours"]), GetCurrentCultureCode());
             context.Call(prompt, this.OnDeadlineSelected);
         }
 

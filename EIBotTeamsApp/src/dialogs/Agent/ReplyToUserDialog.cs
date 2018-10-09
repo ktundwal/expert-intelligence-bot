@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
@@ -34,7 +31,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.Agent
             {
                 await context.PostWithRetryAsync(
                     $"Sending file attachments to user is not supported. " +
-                    $"Please send it via SharePoint > Share > Email. Alias is in VSO ticket");
+                    $"Please send it via SharePoint > Share > Email. Email is in VSO ticket");
             }
             else
             {

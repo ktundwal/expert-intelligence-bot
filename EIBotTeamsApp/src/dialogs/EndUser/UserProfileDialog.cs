@@ -1,17 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Office.EIBot.Service.utility;
 using Microsoft.Teams.TemplateBotCSharp;
-
-public class UserProfileKeys
-{
-    public const string AliasKey = "Alias";
-    public const string NameKey = "Name";
-    public const string PhoneKey = "Phone";
-}
 
 // https://github.com/Microsoft/BotBuilder-V3/blob/master/CSharp/Tests/Microsoft.Bot.Builder.Tests/ChainTests.cs
 
@@ -20,7 +14,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     [Serializable]
     public class UserProfileDialog : IDialog<UserProfile>
     {
-        private const string AliasKey = "Alias";
+        private const string EmailKey = "Email";
         private const string NameKey = "Name";
         private const string PhoneKey = "Phone"; 
 
@@ -46,7 +40,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 switch (context.Activity.ChannelId)
                 {
                     case ActivityHelper.SmsChannelId:
-                        context.UserData.SetValue(PhoneKey, context.Activity.From.Id);  // if SMS, id is same as phone
+                        context.UserData.SetValue(PhoneKey, PromptPhoneNumber.FormatPhoneNumber(context.Activity.From.Id));  // if SMS, id is same as phone
                         PromptForNameAndAlias(context);
                         break;
                     case ActivityHelper.MsTeamChannelId:
@@ -72,45 +66,63 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         /// <param name="context"></param>
         private void PromptForAliasAndMobilePhone(IDialogContext context)
         {
-            context.Call(new PromptText(
-                "Okay, since this is your first freelancer request, can you please tell us your Microsoft alias?",
-                "Please try again", "Wrong again. Too many attempts.", 2, 2), OnAliasReceivedAsync);
+            context.Call(new PromptEmail(
+                "Okay, since this is your first freelancer request, can you please tell us your Microsoft email?",
+                "Please try again", "Wrong again. Too many attempts.", 2), OnEmailReceivedAsync);
         }
 
         /// <summary>
         /// This will call phone prompt afterwards
-        /// </summary>
-        /// <param name="aliasDialogContext"></param>
-        /// <param name="aliasResult"></param>
+        /// </summary>``````
+        /// <param name="emailDialogContext"></param>
+        /// <param name="emailResult"></param>
         /// <returns></returns>
-        private async Task OnAliasReceivedAsync(IDialogContext aliasDialogContext, IAwaitable<string> aliasResult)
+        private async Task OnEmailReceivedAsync(IDialogContext emailDialogContext, IAwaitable<string> emailResult)
         {
-            if (aliasDialogContext == null)
+            if (emailResult == null)
             {
-                throw new ArgumentNullException(nameof(aliasDialogContext));
+                throw new ArgumentNullException(nameof(emailResult));
             }
 
-            var alias = await aliasResult;
+            string email = await ProcessEmailResponse(emailDialogContext, emailResult);
+
             WebApiConfig.TelemetryClient.TrackEvent("PromptForAlias", new Dictionary<string, string>
             {
-                {"name",  aliasDialogContext.Activity.From.Name},
-                {"alias", alias }
+                {"name",  emailDialogContext.Activity.From.Name},
+                {"email", email }
             });
-            aliasDialogContext.UserData.SetValue(AliasKey, alias);
+            emailDialogContext.UserData.SetValue(EmailKey, email);
 
-            aliasDialogContext.Call(new PromptPhoneNumber(
+            emailDialogContext.Call(new PromptPhoneNumber(
                 "Can you also please tell us your mobile phone number?  That way you can reach us via SMS as well.",
                 "Please try again", "Wrong again. Too many attempts."), OnPhoneReceivedAsync);
         }
 
-        private async Task OnPhoneReceivedAsync(IDialogContext phoneDialogContext, IAwaitable<string> phoneResult)
+        private static async Task<string> ProcessEmailResponse(IDialogContext emailDialogContext, IAwaitable<string> emailResult)
         {
-            if (phoneDialogContext == null)
+            string email = "Not available";
+            try
             {
-                throw new ArgumentNullException(nameof(phoneDialogContext));
+                email = await emailResult;
+            }
+            catch (TooManyAttemptsException)
+            {
+                await emailDialogContext.PostWithRetryAsync("Sorry, I had trouble understanding. " +
+                                                            "Lets proceed and agent can clarify email later");
             }
 
-            var phone = await phoneResult;
+            return email;
+        }
+
+        private async Task OnPhoneReceivedAsync(IDialogContext phoneDialogContext, IAwaitable<string> phoneResult)
+        {
+            if (phoneResult == null)
+            {
+                throw new ArgumentNullException(nameof(phoneResult));
+            }
+
+            string phone = await ProcessPhoneNumberResponse(phoneDialogContext, phoneResult);
+
             WebApiConfig.TelemetryClient.TrackEvent("PromptForPhone", new Dictionary<string, string>
             {
                 {"name",  phoneDialogContext.Activity.From.Name
@@ -125,6 +137,22 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             phoneDialogContext.Done(userProfile);
         }
 
+        private static async Task<string> ProcessPhoneNumberResponse(IDialogContext phoneDialogContext, IAwaitable<string> phoneResult)
+        {
+            string phone = "Not available";
+            try
+            {
+                phone = await phoneResult;
+            }
+            catch (TooManyAttemptsException)
+            {
+                await phoneDialogContext.PostWithRetryAsync("Sorry, I had trouble understanding. " +
+                                                            "Lets proceed and agent can clarify phone number later");
+            }
+
+            return phone;
+        }
+
         #endregion
 
         #region PromptForNameAndAlias
@@ -136,9 +164,9 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         private void PromptForNameAndAlias(IDialogContext context)
         {
-            context.Call(new PromptText(
-                    "Okay, since this is your first freelancer request, can you please tell us your Microsoft Alias?",
-                    "Please try again", "Wrong again. Too many attempts.", 2, 2), OnAliasReceivedOverSmsAsync);
+            context.Call(new PromptEmail(
+                    "Okay, since this is your first freelancer request, can you please tell us your Microsoft email?",
+                    "Please try email again", "Sorry I couldnt understand email. Too many attempts.", 2), OnEmailReceivedOverSmsAsync);
         }
 
         private async Task OnNameReceivedAsync(IDialogContext nameDialogContext, IAwaitable<string> nameResult)
@@ -158,29 +186,41 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             nameDialogContext.UserData.SetValue(NameKey, name);
             nameDialogContext.Call(new PromptText(
                     "Can you also please tell us your Microsoft alias?  That way we can reach you by email if need to.",
-                    "Please try again", "Wrong again. Too many attempts.", 2, 10), OnAliasReceivedOverSmsAsync);
+                    "Please try again", "Wrong again. Too many attempts.", 2, 10), OnEmailReceivedOverSmsAsync);
         }
 
-        private async Task OnAliasReceivedOverSmsAsync(IDialogContext aliasDialogContext, IAwaitable<string> aliasResult)
+        private async Task OnEmailReceivedOverSmsAsync(IDialogContext emailDialogContext, IAwaitable<string> emailResult)
         {
-            if (aliasDialogContext == null)
+            if (emailDialogContext == null)
             {
-                throw new ArgumentNullException(nameof(aliasDialogContext));
+                throw new ArgumentNullException(nameof(emailDialogContext));
             }
 
-            var alias = await aliasResult;
+            string email = await ProcessEmailResponse(emailDialogContext, emailResult);
             WebApiConfig.TelemetryClient.TrackEvent("PromptForAlias", new Dictionary<string, string>
             {
-                {"name",  aliasDialogContext.Activity.From.Name
+                {"name",  emailDialogContext.Activity.From.Name
                 },
-                {"alias", alias }
+                {"email", email }
             });
-            aliasDialogContext.UserData.SetValue(AliasKey, alias);
-            aliasDialogContext.UserData.SetValue(NameKey, ""); // on SMS we are not going to ask name. Use alias instead
+            emailDialogContext.UserData.SetValue(EmailKey, email);
+            emailDialogContext.UserData.SetValue(NameKey, ParseAliasFromEmail(email)); // on SMS we are not going to ask name. Use alias instead
 
-            UserProfile userProfile = await StoreInUserTable(aliasDialogContext);
+            UserProfile userProfile = await StoreInUserTable(emailDialogContext);
 
-            aliasDialogContext.Done(userProfile);
+            emailDialogContext.Done(userProfile);
+        }
+
+        private string ParseAliasFromEmail(string email)
+        {
+            try
+            {
+                return new MailAddress(email).User;
+            }
+            catch (System.Exception)
+            {
+                return "";
+            }
         }
 
         #endregion
@@ -194,7 +234,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 context.Activity.From.Id,
                 context.UserData.GetValue<string>(NameKey),
                 context.UserData.GetValue<string>(PhoneKey),
-                context.UserData.GetValue<string>(AliasKey));
+                context.UserData.GetValue<string>(EmailKey));
         }
     }
 }

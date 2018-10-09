@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Builder.Dialogs.Internals;
 using Microsoft.Bot.Connector;
@@ -11,6 +11,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     [Serializable]
     public class PromptPhoneNumber : Prompt<string, string>
     {
+        private const string PhoneNumberKey = "phonenumber";
+
         public PromptPhoneNumber(string prompt,
             string retry = null,
             string tooManyAttempts = null,
@@ -23,10 +25,53 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         {
             text = message.Text;
 
-            var entities = SequenceRecognizer.RecognizePhoneNumber(text, Culture.English);
-            return IsValidDescription(message.Text);
+            try
+            {
+                string phoneNumber = GetPhoneNumber(text);
+                if (!string.IsNullOrEmpty(phoneNumber))
+                {
+                    text = phoneNumber;
+                    return true;
+                }
+
+                promptOptions.DefaultRetry =
+                    $"I'm sorry, '{text}' doesn't seem to be a valid phone number. Please retry.";
+                return false;
+            }
+            catch (System.Exception e)
+            {
+                Console.WriteLine(e);
+                promptOptions.DefaultRetry =
+                    $"I'm sorry, I couldn't understand '{text}'. Please retry.";
+                return false;
+            }
         }
 
-        private bool IsValidDescription(string text) => SequenceRecognizer.RecognizePhoneNumber(text, Culture.English).Any();
+        string GetPhoneNumber(string text)
+        {
+            var entities = SequenceRecognizer.RecognizePhoneNumber(text, Culture.English);
+            //entities.Dump();
+            foreach (var entity in entities)
+            {
+                if (entity.TypeName != PhoneNumberKey) break;
+                if (entity.Resolution.TryGetValue("score", out object scoreObject))
+                {
+                    double score = Convert.ToDouble(scoreObject);
+                    if (score >= 0.4)
+                    {
+                        if (entity.Resolution.TryGetValue("value", out object valueObject))
+                        {
+                            return FormatPhoneNumber(valueObject);
+                        }
+                    }
+                }
+            }
+            return "";
+        }
+
+        public static string FormatPhoneNumber(object valueObject)
+        {
+            return Regex.Replace(valueObject.ToString(), @"(?:\+1\D*)?([2-9]\d{2})\D*([2-9]\d{2})\D*(\d{4})", "+1-$1-$2-$3");
+        }
     }
 }

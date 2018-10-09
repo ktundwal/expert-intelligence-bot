@@ -30,7 +30,7 @@ namespace Microsoft.Office.EIBot.Service.utility
 
         public override string ToString()
         {
-            return $"{Name}: [alias: {Alias}, MobilePhone: {MobilePhone}]";
+            return $"{Name} {Alias}: [MobilePhone: {MobilePhone}]";
         }
     }
 

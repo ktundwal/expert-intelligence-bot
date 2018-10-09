@@ -101,7 +101,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 var workItems = await VsoHelper.GetWorkItemsForUser(
                     VsoHelper.ResearchTaskType,
                     channelId,
-                    uniqueName);
+                    channelId == ActivityHelper.SmsChannelId ? PromptPhoneNumber.FormatPhoneNumber(uniqueName) : uniqueName);
                 if (workItems != null)
                 {
                     vsoId = workItems.Select(wi => wi.Id).FirstOrDefault();

@@ -1,17 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
-using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using AdaptiveCards;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
-using Microsoft.Bot.Connector.Teams.Models;
+using Microsoft.Office.EIBot.Service.dialogs.examples.moderate;
 using Microsoft.Office.EIBot.Service.Properties;
 using Microsoft.Office.EIBot.Service.utility;
 using Microsoft.Teams.TemplateBotCSharp;
-using Microsoft.Teams.TemplateBotCSharp.Dialogs;
 
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
@@ -31,6 +29,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         private bool isSms;
         private UserProfile userProfile;
+        private int minHoursToCompleteResearch;
 
         /// <summary>
         /// This is start of the Dialog and Prompting for User name
@@ -46,6 +45,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             isSms = context.Activity.ChannelId == ActivityHelper.SmsChannelId;
             userProfile = await UserProfileHelper.GetUserProfile(context);
+            minHoursToCompleteResearch = Convert.ToInt32(ConfigurationManager.AppSettings["ResearchProjectViaTeamsMinHours"]);
 
             //// This will Prompt for Name of the user.
             //var message = isSms ? BuildIntroMessageForSms(context) : BuildIntroMessageForTeams(context);
@@ -78,25 +78,27 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             await context.PostWithRetryAsync($"Got it. When do you need this research to be completed? We'll need at least 48 hrs");
 
             // Prompt for delivery date
-            var prompt = new DeadlinePrompt(Convert.ToInt32(ConfigurationManager.AppSettings["ResearchProjectViaTeamsMinHours"]), GetCurrentCultureCode());
+
+            var prompt = new DeadlinePrompt(minHoursToCompleteResearch, GetCurrentCultureCode());
             context.Call(prompt, OnDeadlineSelected);
         }
 
-        private async Task OnDeadlineSelected(IDialogContext context, IAwaitable<IEnumerable<DateTime>> result)
+        private async Task OnDeadlineSelected(IDialogContext context, IAwaitable<IEnumerable<DateTime>> deadlineResult)
         {
+            if (deadlineResult == null)
+            {
+                throw new InvalidOperationException((nameof(deadlineResult)) + Strings.NullException);
+            }
+
+            DateTime targetDate = await ProcessUserResponseToDeadline(context, deadlineResult);
+
             try
             {
-                // "result" contains the date (or array of dates) returned from the prompt
-                IEnumerable<DateTime> momentOrRange = await result;
-
-                // pick the datetime which give us most time to complete the research
-                var targetDate = momentOrRange.OrderByDescending(date => date.Ticks).First();
-
                 // Store date
                 context.ConversationData.SetValue(DeadlineKey, targetDate);
 
                 var description = context.ConversationData.GetValue<string>(DescriptionKey);
-                
+
                 IMessageActivity responseMessage = isSms
                     ? BuildWhoWhatWhenSummaryMessageForSms(context,
                         targetDate,
@@ -111,14 +113,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     "Do you have anything else to add, before I submit this task to the freelancer? " +
                     "Like success criteria, or formatting requests. You can also add hyperlinks if you like. " +
                     "Please say 'none' if you don't have anything else to add. You can clarify later if needed.",
-                    "Please try again", "Wrong again. Too many attempts.", 2, 0);
+                    "Please try sending additional info again.", "Error understanding additional info. Too many attempts.", 2, 0);
 
                 context.Call(promptAdditionalInfo, OnAdditionalInfoReceivedAsync);
             }
-            catch (TooManyAttemptsException)
-            {
-                await context.PostWithRetryAsync("TooManyAttemptsException. Restarting now...");
-            }
+
             catch (System.Exception e)
             {
                 WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
@@ -128,6 +127,38 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 });
                 throw;
             }
+        }
+
+        private async Task<DateTime> ProcessUserResponseToDeadline(IDialogContext context, IAwaitable<IEnumerable<DateTime>> deadlineResult)
+        {
+            DateTime targetDate = DateTime.UtcNow.AddHours(minHoursToCompleteResearch);
+            var messageForUserWhenUserDidntSpecifyExpectedDeadline = "Sorry, I had trouble understanding. " +
+                                                                     $"Lets move forward with {minHoursToCompleteResearch} from now " +
+                                                                     "and you can clarify this with project manager later.";
+
+            try
+            {
+                // "deadlineResult" contains the date (or array of dates) returned from the prompt
+                IEnumerable<DateTime> momentOrRange = await deadlineResult;
+                var momentOrRangeArray = momentOrRange as DateTime[] ?? momentOrRange.ToArray();
+
+                // check if we have any dates. If not, select 48 hours for user
+                if (momentOrRangeArray.Any())
+                {
+                    // pick the datetime which give us most time to complete the research
+                    targetDate = momentOrRangeArray.OrderByDescending(date => date.Ticks).FirstOrDefault();
+                }
+                else
+                {
+                    await context.PostWithRetryAsync(messageForUserWhenUserDidntSpecifyExpectedDeadline);
+                }
+            }
+            catch (TooManyAttemptsException)
+            {
+                await context.PostWithRetryAsync(messageForUserWhenUserDidntSpecifyExpectedDeadline);
+            }
+
+            return targetDate;
         }
 
         private IMessageActivity BuildWhoWhatWhenSummaryMessageForSms(IDialogContext context, DateTime targetDate, string description)
@@ -222,14 +253,14 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
                 try
                 {
-                    var conversationTitle = $"New web research request from {userProfile} via {context.Activity.ChannelId} ";
+                    var conversationTitle = $"Web research request from {userProfile} via {context.Activity.ChannelId} due {deadline}";
                     string agentConversationId = await ConversationHelpers.CreateAgentConversationEx(context,
                         conversationTitle,
                         CreateCardForAgent(context,
                             additionalInfoFromUser,
                             description,
                             deadline,
-                            vsoTicketNumber), 
+                            vsoTicketNumber),
                         userProfile);
 
                     EndUserAndAgentConversationMappingState state =
@@ -251,7 +282,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 catch (System.Exception e)
                 {
                     await context.PostWithRetryAsync("Sorry, I ran into an issue while connecting with agent. Please try again later.");
-                    WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string> {{"function", "OnConfirmResearchDialog.CreateAgentConversation" } });
+                    WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string> { { "function", "OnConfirmResearchDialog.CreateAgentConversation" } });
                     context.Done<object>(false);
                 }
             }
@@ -267,7 +298,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             AdaptiveCard card = new AdaptiveCard();
             card.Body.Add(new AdaptiveTextBlock
             {
-                Text = $"New research request from {userProfile}. VSO:{vsoTicketNumber}",
+                Text = $"Web research request from {userProfile} via {context.Activity.ChannelId} due {deadline}",
                 Size = AdaptiveTextSize.Large,
                 Wrap = true,
                 Separator = true
@@ -287,22 +318,24 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 Url = new Uri($"{Uri}/{Project}/_workitems/edit/{vsoTicketNumber}"),
                 Title = $"Vso: {vsoTicketNumber}"
             });
-            card.Body.Add(new AdaptiveTextBlock {Text = "Tips", Wrap = true});
-            card.Body.Add(new AdaptiveTextBlock {Text = "- Please use **reply to user** command to send message to user.", Wrap = true});
-            card.Body.Add(new AdaptiveTextBlock {Text = "- Please post jobs to UpWork manually. Support to posting via bot is coming soon.", Wrap = true});
-            card.Body.Add(new AdaptiveTextBlock {Text = "- Sending attachments is not supported. " +
+            card.Body.Add(new AdaptiveTextBlock { Text = "Tips", Wrap = true });
+            card.Body.Add(new AdaptiveTextBlock { Text = "- Please use **reply to user** command to send message to user.", Wrap = true });
+            card.Body.Add(new AdaptiveTextBlock { Text = "- Please post jobs to UpWork manually. Support to posting via bot is coming soon.", Wrap = true });
+            card.Body.Add(new AdaptiveTextBlock
+            {
+                Text = "- Sending attachments is not supported. " +
                                                         "Please send research documents as a **link**. " +
                                                         "Upload file in 'files' tab, use it to go to SharePoint site. From there 'Share > Email'. " +
-                                                        "User alias is in VSO ticket", Wrap = true});
-            card.Body.Add(new AdaptiveTextBlock {Text = "- When research is complete, please seek acknowledgement from end user. " +
-                                                        "Once done, please **close VSO ticket**, else user wont be able to create new one", Wrap = true});
+                                                        "User alias is in VSO ticket",
+                Wrap = true
+            });
+            card.Body.Add(new AdaptiveTextBlock
+            {
+                Text = "- When research is complete, please seek acknowledgement from end user. " +
+                                                        "Once done, please **close VSO ticket**, else user wont be able to create new one",
+                Wrap = true
+            });
             return card;
-        }
-
-        // todo: katundwa remove hardcoded channel id
-        private static ChannelInfo GetHardcodedChannelId()
-        {
-            return new ChannelInfo("19:c20b196747424d8db51f6c00a8a9efa8@thread.skype", "Research Agents");
         }
 
         private static string GetCurrentCultureCode()
