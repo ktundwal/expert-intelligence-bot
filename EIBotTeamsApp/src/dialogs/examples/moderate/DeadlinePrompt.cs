@@ -160,7 +160,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.examples.moderate
         private bool IsFuture(DateTime date)
         {
             // at least one hour
-            return date > DateTime.Now.AddHours(_minHours);
+            return date > DateTime.UtcNow.AddHours(_minHours);
         }
 
         private string MomentOrRangeToString(IEnumerable<DateTime> moments, string momentPrefix = "on ")
