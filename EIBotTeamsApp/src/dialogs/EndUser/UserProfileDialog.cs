@@ -108,7 +108,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             catch (TooManyAttemptsException)
             {
                 await emailDialogContext.PostWithRetryAsync("Sorry, I had trouble understanding. " +
-                                                            "Lets proceed and agent can clarify email later");
+                                                            "Lets proceed. Project manager will clarify email later.");
             }
 
             return email;
@@ -147,7 +147,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             catch (TooManyAttemptsException)
             {
                 await phoneDialogContext.PostWithRetryAsync("Sorry, I had trouble understanding. " +
-                                                            "Lets proceed and agent can clarify phone number later");
+                                                            "Lets proceed. Project manager will clarify phone number later.");
             }
 
             return phone;
@@ -166,7 +166,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         {
             context.Call(new PromptEmail(
                     "Okay, since this is your first freelancer request, can you please tell us your Microsoft email?",
-                    "Please try email again", "Sorry I couldnt understand email. Too many attempts.", 2), OnEmailReceivedOverSmsAsync);
+                    "Please try email again", "Sorry I couldn't understand email. Too many attempts.", 2), OnEmailReceivedOverSmsAsync);
         }
 
         private async Task OnNameReceivedAsync(IDialogContext nameDialogContext, IAwaitable<string> nameResult)
