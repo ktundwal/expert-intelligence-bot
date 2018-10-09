@@ -13,8 +13,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.examples.moderate
     public class DeadlinePrompt : Prompt<IEnumerable<DateTime>, DateTime>
     {
         private const string Option1 = "2 days from now";
-        private const string Option2 = "3 days from now";
-        private const string Option3 = "4 days from now";
+        private const string Option2 = "4 days from now";
+        private const string Option3 = "7 days from now";
 
         public static readonly string DeliveryPromptMessage = "Here are some valid options. You can type 1, 2 or 3 or some other time:\n\n" +
                                                               $"1. {Option1}\n\n" +
