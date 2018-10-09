@@ -152,7 +152,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                     );
 
                 // Execute the insert operation.
-                await _retryPolicy.ExecuteAsync(async() => await UserTableClient.ExecuteAsync(TableOperation.Insert(userIdentity)));
+                await _retryPolicy.ExecuteAsync(async() => await UserTableClient.ExecuteAsync(TableOperation.InsertOrReplace(userIdentity)));
 
                 properties.Add("uniqueId", uniqueId.ToString());
                 WebApiConfig.TelemetryClient.TrackEvent("AddOrGetTeamsUser", properties);
