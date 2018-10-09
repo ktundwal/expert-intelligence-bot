@@ -140,8 +140,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     context.Done<object>(null);
                     break;
                 default:
-                    await context.PostWithRetryAsync($"Sorry, I don't support {projectType}. " +
-                                                     $"Please say '{DialogMatches.PerformInternetResearchMatch}' to proceed");
+                    await context.PostWithRetryAsync($"Sorry, I don't support {projectType}. Please say 'yes' to proceed");
                     context.Wait(OnProjectTypeReceivedAsync);
                     break;
             }
