@@ -71,7 +71,8 @@ namespace Microsoft.Office.EIBot.Service.utility
             string assignedTo,
             DateTime targetDate,
             string teamsConversationId,
-            UserProfile userProfile)
+            UserProfile userProfile,
+            string channelId)
         {
             var properties = new Dictionary<string, string>
             {
@@ -95,7 +96,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                 {
                     Operation = Operation.Add,
                     Path = "/fields/System.Title",
-                    Value = $"Request from {requestedBy} @ {DateTime.Now}"
+                    Value = $"Web research request from {userProfile} via {channelId} due {targetDate}"
                 },
                 new JsonPatchOperation()
                 {

@@ -86,7 +86,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
                     deadline,
                     "",
-                    null);
+                    null,
+                    context.Activity.ChannelId);
 
                 MicrosoftAppCredentials.TrustServiceUrl(ActivityHelper.TeamsServiceEndpoint);
 

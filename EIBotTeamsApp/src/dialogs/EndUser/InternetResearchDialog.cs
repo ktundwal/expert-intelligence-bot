@@ -269,7 +269,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
                     deadline,
                     "",
-                    userProfile);
+                    userProfile,
+                    context.Activity.ChannelId);
 
                 context.ConversationData.SetValue(VsoIdKey, vsoTicketNumber);
                 context.ConversationData.SetValue(EndUserConversationIdKey, context.Activity.Conversation.Id);
