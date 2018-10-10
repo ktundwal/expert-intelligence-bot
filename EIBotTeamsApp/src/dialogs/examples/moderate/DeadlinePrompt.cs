@@ -16,8 +16,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.examples.moderate
         private const string Option2 = "4 days from now";
         private const string Option3 = "7 days from now";
 
-        public static readonly string DeliveryPromptMessage = "Got it. When do you need this research to be completed? We'll need at least 48 hrs.\n\n" +
-                                                              "Here are some valid options. You can type 1, 2 or 3 or some other time:\n\n" +
+        public static readonly string DeliveryPromptMessage = "Got it. When do you need this research to be completed? We'll need at least 48 hrs.\n\nHere are some valid options. You can type 1, 2 or 3 or some other time:\n\n" +
                                                               $"1. {Option1}\n\n" +
                                                               $"2. {Option2}\n\n" +
                                                               $"3. {Option3}";
@@ -68,7 +67,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.examples.moderate
         private static string ConvertOptionToTimeString(IMessageActivity message)
         {
             string textToParse;
-            switch (message.Text)
+            var cleanedText = message.Text.Trim().Replace("'", "");
+            switch (cleanedText)
             {
                 case "1":
                     textToParse = Option1;

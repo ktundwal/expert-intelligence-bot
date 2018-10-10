@@ -20,7 +20,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         protected override bool TryParse(IMessageActivity message, out bool result)
         {
-            var text = message.Text;
+            var text = message.Text.Trim();
 
             try
             {
