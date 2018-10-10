@@ -51,7 +51,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                                    $"What: {_description}\n\n" +
                                    $"Additional Info: {_additionalInfoFromUser}\n\n" +
                                    $"When: {_deadline}\n\n\n\n" +
-                                   $"Shall I send this to freelancer now? You can say 'yes' or 'no'";
+                                   $"Shall I send this to freelancer now?  You can clarify later if needed. \n\n" +
+                                   $"You can say 'yes' or 'no'";
             responseMessage.TextFormat = "plain";
             return responseMessage;
         }
