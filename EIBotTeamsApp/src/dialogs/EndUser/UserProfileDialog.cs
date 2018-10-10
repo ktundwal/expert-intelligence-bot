@@ -166,49 +166,54 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         {
             context.Call(new PromptEmail(
                     "Okay, since this is your first freelancer request, can you please tell us your Microsoft email?",
-                    "Please try email again", "Sorry I couldn't understand email. Too many attempts.", 2), OnEmailReceivedOverSmsAsync);
-        }
-
-        private async Task OnNameReceivedAsync(IDialogContext nameDialogContext, IAwaitable<string> nameResult)
-        {
-            if (nameDialogContext == null)
-            {
-                throw new ArgumentNullException(nameof(nameDialogContext));
-            }
-
-            var name = await nameResult;
-            WebApiConfig.TelemetryClient.TrackEvent("PromptForName", new Dictionary<string, string>
-            {
-                {"id",  nameDialogContext.Activity.From.Id
-                },
-                {"name", name }
-            });
-            nameDialogContext.UserData.SetValue(NameKey, name);
-            nameDialogContext.Call(new PromptText(
-                    "Can you also please tell us your Microsoft alias?  That way we can reach you by email if need to.",
-                    "Please try again", "Wrong again. Too many attempts.", 2, 10), OnEmailReceivedOverSmsAsync);
+                    "Please try email again", "Sorry I couldn't understand email. Too many attempts."), OnEmailReceivedOverSmsAsync);
         }
 
         private async Task OnEmailReceivedOverSmsAsync(IDialogContext emailDialogContext, IAwaitable<string> emailResult)
         {
-            if (emailDialogContext == null)
+            if (emailResult == null)
             {
-                throw new ArgumentNullException(nameof(emailDialogContext));
+                throw new ArgumentNullException(nameof(emailResult));
             }
 
             string email = await ProcessEmailResponse(emailDialogContext, emailResult);
+
+            emailDialogContext.UserData.SetValue(EmailKey, email);
+            emailDialogContext.UserData.SetValue(NameKey, ParseAliasFromEmail(email)); // on SMS we are not going to ask name. Use alias instead
+
             WebApiConfig.TelemetryClient.TrackEvent("PromptForAlias", new Dictionary<string, string>
             {
                 {"name",  emailDialogContext.Activity.From.Name
                 },
                 {"email", email }
             });
-            emailDialogContext.UserData.SetValue(EmailKey, email);
-            emailDialogContext.UserData.SetValue(NameKey, ParseAliasFromEmail(email)); // on SMS we are not going to ask name. Use alias instead
 
-            UserProfile userProfile = await StoreInUserTable(emailDialogContext);
+            // confirm
+            emailDialogContext.Call(new PromptYesNo(
+                    $"Did I get this right. Your email address is {email}",
+                    "Sorry I didn't get that. Please say 'yes' if you want to continue.",
+                    "Sorry I still don't get it if you want to continue. Please reply to start again."),
+                OnEmailConfirmationAsync);
+        }
 
-            emailDialogContext.Done(userProfile);
+        private async Task OnEmailConfirmationAsync(IDialogContext context, IAwaitable<bool> result)
+        {
+            if (result == null)
+            {
+                throw new ArgumentNullException(nameof(result));
+            }
+
+            var shouldProceed = await result;
+
+            if (shouldProceed)
+            {
+                UserProfile userProfile = await StoreInUserTable(context);
+                context.Done(userProfile);
+            }
+            else
+            {
+                context.Done<UserProfile>(null);
+            }
         }
 
         private string ParseAliasFromEmail(string email)

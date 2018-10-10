@@ -157,6 +157,9 @@
     <Reference Include="Microsoft.Recognizers.Text, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Recognizers.Text.1.1.1\lib\net452\Microsoft.Recognizers.Text.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.Recognizers.Text.Choice, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Recognizers.Text.Choice.1.1.1\lib\net452\Microsoft.Recognizers.Text.Choice.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.Recognizers.Text.DateTime, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Recognizers.Text.DateTime.1.0.11\lib\net452\Microsoft.Recognizers.Text.DateTime.dll</HintPath>
     </Reference>
@@ -315,6 +318,7 @@
     <Compile Include="src\dialogs\EndUser\ConfirmResearchRequestDialog.cs" />
     <Compile Include="src\dialogs\EndUser\PromptEmail.cs" />
     <Compile Include="src\dialogs\EndUser\PromptPhoneNumber.cs" />
+    <Compile Include="src\dialogs\EndUser\PromptYesNo.cs" />
     <Compile Include="src\dialogs\EndUser\UserProfileHelper.cs" />
     <Compile Include="src\dialogs\EndUser\UserProfileDialog.cs" />
     <Compile Include="utility\BotJwtRefreshWorker.cs" />

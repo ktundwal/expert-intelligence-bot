@@ -39,10 +39,52 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
             else
             {
+                var smsPrompt = "Hello, I am Expert Intelligence Bot. I'll collect some information to get started, " +
+                             "then a human project manager will review your request and follow up. \n\n\n\n" +
+                             "Would you like web research?\n\n\n\n" +
+                             "You can say: 'yes' or 'no'";
+                var teamsPrompt = "Hello! I am Expert Intelligence Bot.\n\nI am supported by experts who can work for you.\n\n " +
+                             "I'll collect some information to get started, then a human project manager will review your request and follow up. " +
+                             $"You can also send me a text request via SMS text message on your phone at {ConfigurationManager.AppSettings["BotPhoneNumber"]}";
+                var choiceDialog = new PromptYesNo(
+                    _isSms ? smsPrompt : teamsPrompt, 
+                    "Sorry I didn't get that. Please say 'yes' if you want to continue with requesting web research", 
+                    "Sorry I still don't get it if you want to continue with web research. Please reply to start again.", 2);
+                context.Call(choiceDialog, OnResearchConfirmationReceivedAsync);
+
                 // introduce the bot
-                IMessageActivity message = _isSms ? BuildIntroMessageForSms(context) : BuildIntroMessageForTeams(context);
-                await context.PostWithRetryAsync(message);
-                context.Wait(OnProjectTypeReceivedAsync);
+                //IMessageActivity message = _isSms ? BuildIntroMessageForSms(context) : BuildIntroMessageForTeams(context);
+                //await context.PostWithRetryAsync(message);
+                //context.Wait(OnProjectTypeReceivedAsync);
+            }
+        }
+
+        private async Task OnResearchConfirmationReceivedAsync(IDialogContext context, IAwaitable<bool> result)
+        {
+            if (result == null)
+            {
+                throw new InvalidOperationException((nameof(result)) + Strings.NullException);
+            }
+
+            //Prompt the user with welcome message before game starts
+            bool shouldContinueWithResearch = await result;
+
+            WebApiConfig.TelemetryClient.TrackEvent("OnResearchConfirmationReceivedAsync", new Dictionary<string, string>()
+            {
+                {"class", "HelloDialog" },
+                {"from", context.Activity.From.Name },
+                {"shouldContinueWithResearch", shouldContinueWithResearch.ToString() },
+            });
+
+            if (shouldContinueWithResearch)
+            {
+                context.ConversationData.SetValue(ProjectTypeKey, "research");
+                context.Call(new UserProfileDialog(), OnUserProfileReceivedAsync); //run user profile wizard
+            }
+            else
+            {
+                await context.PostWithRetryAsync("Sure. Have a nice day!. Please reply to start again.");
+                context.Done<object>(null);
             }
         }
 
@@ -69,7 +111,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     {
                         new CardAction(ActionTypes.ImBack,
                             $"I need web {DialogMatches.PerformInternetResearchMatch}",
-                            value: DialogMatches.PerformInternetResearchMatch)
+                            value: "yes")
                     },
                 //Images = new List<CardImage>
                 //{
@@ -153,17 +195,36 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 throw new InvalidOperationException((nameof(userProfileResult)) + Strings.NullException);
             }
 
-            UserProfile userProfile = await userProfileResult;
-            context.UserData.SetValue(UserProfileHelper.UserProfileKey, userProfile);
-
-            WebApiConfig.TelemetryClient.TrackEvent("OnUserProfileReceivedAsync", new Dictionary<string, string>()
+            UserProfile userProfile = null;
+            try
             {
-                {"class", "HelloDialog" },
-                {"from", context.Activity.From.Name },
-                {"userProfile", userProfile.ToString() },
-            });
+                userProfile = await userProfileResult;
+            }
+            catch (System.Exception e)
+            {
+                WebApiConfig.TelemetryClient.TrackException(e);
+                throw;
+            }
 
-            context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
+            if (userProfile == null)
+            {
+                // dont proceed
+                await context.PostWithRetryAsync($"Sure. Have a nice day! Please reply back to start again");
+                context.Done<object>(null);
+            }
+            else
+            {
+                context.UserData.SetValue(UserProfileHelper.UserProfileKey, userProfile);
+
+                WebApiConfig.TelemetryClient.TrackEvent("OnUserProfileReceivedAsync", new Dictionary<string, string>()
+                {
+                    {"class", "HelloDialog" },
+                    {"from", context.Activity.From.Name },
+                    {"userProfile", userProfile.ToString() },
+                });
+
+                context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
+            }
         }
 
         private async Task ProcessNonResearchProjectTypes(IDialogContext context)

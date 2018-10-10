@@ -53,7 +53,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             var minLength = isSms ? 5 : 150;
             var maxLength = 1000;
-            var charLimitGuidance = $"I need a minimum of {minLength} characters and maximum of {maxLength} characters to process";
+            var charLimitGuidance = $"I need a minimum of {minLength} characters and maximum of {maxLength} characters to process.";
             var promptDescription = new PromptText(
                 "Okay, I'll find a human freelancer who can do the research for you. " +
                 $"Tell me what kind of research you'd like the freelancer to do?. {(isSms ? "" : charLimitGuidance)}",
@@ -75,12 +75,35 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             // Store description
             context.ConversationData.SetValue(DescriptionKey, descriptionFromUser);
 
-            await context.PostWithRetryAsync($"Got it. When do you need this research to be completed? We'll need at least 48 hrs");
+            // confirm back again
+            context.Call(new PromptYesNo(
+                    $"Did I get research request right?\n\n{descriptionFromUser}",
+                    "Sorry I didn't get that. Please say 'yes' if you want to continue.",
+                    "Sorry I still don't get it if you want to continue. Please reply to start again."),
+                OnDescriptionConfirmationReceivedAsync);
+        }
 
-            // Prompt for delivery date
+        private async Task OnDescriptionConfirmationReceivedAsync(IDialogContext context, IAwaitable<bool> result)
+        {
+            if (result == null)
+            {
+                throw new InvalidOperationException((nameof(result)) + Strings.NullException);
+            }
 
-            var prompt = new DeadlinePrompt(minHoursToCompleteResearch, GetCurrentCultureCode());
-            context.Call(prompt, OnDeadlineSelected);
+            var confirmed = await result;
+
+            if (confirmed)
+            {
+                // Prompt for delivery date
+                var prompt = new DeadlinePrompt(minHoursToCompleteResearch, GetCurrentCultureCode());
+                context.Call(prompt, OnDeadlineSelected);
+            }
+            else
+            {
+                // dont proceed
+                await context.PostWithRetryAsync($"Sure. Have a nice day! Please reply back to start again");
+                context.Done<object>(false);
+            }
         }
 
         private async Task OnDeadlineSelected(IDialogContext context, IAwaitable<IEnumerable<DateTime>> deadlineResult)

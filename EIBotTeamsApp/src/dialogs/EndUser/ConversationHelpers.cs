@@ -85,7 +85,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         private static void SetAutoReplySentOnTimeStamp(IBotData context) => context.ConversationData.SetValue(AutoReplySentOnKey, DateTime.UtcNow);
 
-        private static async Task<int?> GetResearchVsoIdFromVso(string channelId, string uniqueName)
+        public static async Task<int?> GetResearchVsoIdFromVso(string channelId, string uniqueName)
         {
             var properties = new Dictionary<string, string>
             {
