@@ -122,19 +122,23 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
                 var description = context.ConversationData.GetValue<string>(DescriptionKey);
 
-                IMessageActivity responseMessage = isSms
-                    ? BuildWhoWhatWhenSummaryMessageForSms(context,
-                        targetDate,
-                        description)
-                    : BuildWhoWhatWhenSummaryMessageForTeams(context,
-                        targetDate,
-                        description);
+                //IMessageActivity responseMessage = isSms
+                //    ? BuildWhoWhatWhenSummaryMessageForSms(context,
+                //        targetDate,
+                //        description)
+                //    : BuildWhoWhatWhenSummaryMessageForTeams(context,
+                //        targetDate,
+                //        description);
 
-                await context.PostWithRetryAsync(responseMessage);
+                //await context.PostWithRetryAsync(responseMessage);
 
                 var promptAdditionalInfo = new PromptText(
+                    "Okay, this is what I have so far.\n\n\n\n" +
+                    $"Who: {userProfile}\n\n" +
+                    $"What: {description}\n\n" +
+                    $"When: {targetDate}\n\n\n\n" + 
                     "Do you have anything else to add, before I submit this task to the freelancer? " +
-                    "Like success criteria, or formatting requests. You can also add hyperlinks if you like. " +
+                    "Like success criteria, or formatting requests. You can also add hyperlinks if you like. \n\n\n\n" +
                     "Please say 'none' if you don't have anything else to add. You can clarify later if needed.",
                     "Please try sending additional info again.", "Error understanding additional info. Too many attempts.", 2, 0);
 
