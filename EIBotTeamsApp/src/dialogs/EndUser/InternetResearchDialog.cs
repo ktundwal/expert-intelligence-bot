@@ -56,7 +56,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             var charLimitGuidance = $"I need a minimum of {minLength} characters and maximum of {maxLength} characters to process.";
             var promptDescription = new PromptText(
                 "Okay, I'll find a human freelancer who can do the research for you. " +
-                $"Tell me what kind of research you'd like the freelancer to do?. {(isSms ? "" : charLimitGuidance)}",
+                $"Tell me what kind of research you'd like the freelancer to do? {(isSms ? "" : charLimitGuidance)}",
                 charLimitGuidance,
                 "Wrong again. Too many attempts.",
                 3, minLength, maxLength);
@@ -134,7 +134,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
                 var promptAdditionalInfo = new PromptText(
                     "Okay, this is what I have so far.\n\n\n\n" +
-                    $"Who: {userProfile}\n\n" +
+                    $"Who: {userProfile.Alias}\n\n" +
                     $"What: {description}\n\n" +
                     $"When: {targetDate}\n\n\n\n" + 
                     "Do you have anything else to add, before I submit this task to the freelancer? " +
