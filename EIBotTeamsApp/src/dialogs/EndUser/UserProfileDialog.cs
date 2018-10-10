@@ -166,7 +166,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         {
             context.Call(new PromptEmail(
                     "Okay, since this is your first freelancer request, can you please tell us your Microsoft email?",
-                    "Please try email again", "Sorry I couldn't understand email. Too many attempts."), OnEmailReceivedOverSmsAsync);
+                    "I didn't get that. Please try email again.", "Sorry I couldn't understand email. Too many attempts."), OnEmailReceivedOverSmsAsync);
         }
 
         private async Task OnEmailReceivedOverSmsAsync(IDialogContext emailDialogContext, IAwaitable<string> emailResult)
@@ -190,7 +190,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             // confirm
             emailDialogContext.Call(new PromptYesNo(
-                    $"Did I get your email right? \n\n{email}. \n\n\n\nPlease say 'yes' or 'no'",
+                    $"Did I get your email right? \n\n{email}. \n\n\n\nPlease say 'yes' or 'no'.",
                     "Sorry I didn't get that. Please say 'yes' if you want to continue.",
                     "Sorry I still don't get it if you want to continue. Please reply to start again."),
                 OnEmailConfirmationAsync);

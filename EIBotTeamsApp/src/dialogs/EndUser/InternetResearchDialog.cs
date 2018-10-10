@@ -77,7 +77,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             // confirm back again
             context.Call(new PromptYesNo(
-                    $"Did I get your research request right?\n\n{descriptionFromUser}. \n\n\n\nPlease say 'yes' or 'no'.",
+                    $"Did I get your research request right?\n\n'{descriptionFromUser}'. \n\n\n\nPlease say 'yes' or 'no'.",
                     "Sorry I didn't get that. Please say 'yes' if you want to continue.",
                     "Sorry I still don't get it if you want to continue. Please reply to start again."),
                 OnDescriptionConfirmationReceivedAsync);
@@ -139,7 +139,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     $"When: {targetDate}\n\n\n\n" + 
                     "Do you have anything else to add, before I submit this task to the freelancer, " +
                     "like success criteria, or formatting requests? You can also add hyperlinks if you like. \n\n\n\n" +
-                    "Please say 'none' if you don't have anything else to add. You can clarify later if needed.",
+                    "Please say 'no' if you don't have anything else to add. You can clarify later if needed.",
                     "Please try sending additional info again.", "Error understanding additional info. Too many attempts.", 2, 0);
 
                 context.Call(promptAdditionalInfo, OnAdditionalInfoReceivedAsync);
