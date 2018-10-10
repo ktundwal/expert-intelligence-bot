@@ -59,7 +59,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     if (valueString.Contains("microsoft")) return valueObject.ToString();
                 }
             }
-            return "none";
+            return "";
         }
     }
 }
