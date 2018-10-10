@@ -137,8 +137,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     $"Who: {userProfile.Alias}\n\n" +
                     $"What: {description}\n\n" +
                     $"When: {targetDate}\n\n\n\n" + 
-                    "Do you have anything else to add, before I submit this task to the freelancer? " +
-                    "Like success criteria, or formatting requests. You can also add hyperlinks if you like. \n\n\n\n" +
+                    "Do you have anything else to add, before I submit this task to the freelancer, " +
+                    "like success criteria, or formatting requests? You can also add hyperlinks if you like. \n\n\n\n" +
                     "Please say 'none' if you don't have anything else to add. You can clarify later if needed.",
                     "Please try sending additional info again.", "Error understanding additional info. Too many attempts.", 2, 0);
 
