@@ -181,7 +181,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             emailDialogContext.UserData.SetValue(EmailKey, email);
             emailDialogContext.UserData.SetValue(NameKey, ParseAliasFromEmail(email)); // on SMS we are not going to ask name. Use alias instead
 
-            WebApiConfig.TelemetryClient.TrackEvent("PromptForAlias", new Dictionary<string, string>
+            WebApiConfig.TelemetryClient.TrackEvent("PromptForEmail", new Dictionary<string, string>
             {
                 {"name",  emailDialogContext.Activity.From.Name
                 },
@@ -190,7 +190,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             // confirm
             emailDialogContext.Call(new PromptYesNo(
-                    $"Did I get this right. Your email address is {email}",
+                    $"Did I get your email right? \n\n{email}. \n\n\n\nPlease say 'yes' or 'no'",
                     "Sorry I didn't get that. Please say 'yes' if you want to continue.",
                     "Sorry I still don't get it if you want to continue. Please reply to start again."),
                 OnEmailConfirmationAsync);

@@ -77,7 +77,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             // confirm back again
             context.Call(new PromptYesNo(
-                    $"Did I get research request right?\n\n{descriptionFromUser}",
+                    $"Did I get your research request right?\n\n{descriptionFromUser}. \n\n\n\nPlease say 'yes' or 'no'.",
                     "Sorry I didn't get that. Please say 'yes' if you want to continue.",
                     "Sorry I still don't get it if you want to continue. Please reply to start again."),
                 OnDescriptionConfirmationReceivedAsync);
