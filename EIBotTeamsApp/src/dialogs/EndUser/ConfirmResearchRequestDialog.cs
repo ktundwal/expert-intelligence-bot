@@ -47,12 +47,12 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         {
             var responseMessage = context.MakeMessage();
             responseMessage.Text = "Okay, here is what I will send to the freelancer.\n\n\n\n" +
-                                   $"Who: {_userProfile}\n\n" +
+                                   $"Who: {_userProfile.Alias}\n\n" +
                                    $"What: {_description}\n\n" +
                                    $"Additional Info: {_additionalInfoFromUser}\n\n" +
                                    $"When: {_deadline}\n\n\n\n" +
-                                   $"Shall I send this to freelancer now?  You can add more information after freelancer contacts you. \n\n" +
-                                   $"You can say 'yes' or 'no'";
+                                   $"Shall I send this to a freelancer now?  You can add more information after freelancer contacts you. \n\n" +
+                                   $"You can say 'yes' or 'no'.";
             responseMessage.TextFormat = "plain";
             return responseMessage;
         }
@@ -115,7 +115,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
             else
             {
-                await context.PostWithRetryAsync("Sorry, I didn't get that. Please say 'yes' to send or 'no' to cancel");
+                await context.PostWithRetryAsync("Sorry, I didn't get that. Please say 'yes' to send or 'no' to cancel.");
                 context.Wait(OnConfirmationAsync);
             }
         }

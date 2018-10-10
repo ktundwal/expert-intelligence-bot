@@ -300,10 +300,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
                     await state.SaveInVso(vsoTicketNumber.ToString());
 
-                    await context.PostWithRetryAsync("Sure. I have sent your request to project manager. " +
+                    await context.PostWithRetryAsync("Sure. I have sent your request to a freelancer. " +
                                                      $"Please use #{vsoTicketNumber} for referencing this request in future. " +
-                                                     "At this point, any message you send will be sent directly to project manager. They may take time to respond. " +
-                                                     "They may have clarifying questions which I will relay back to you.");
+                                                     "At this point, any message you send will be sent directly to the freelancer. They may take time to respond, " +
+                                                     "or may have clarifying questions which I will relay back to you.");
 
                     context.Done<object>(true);
                 }
