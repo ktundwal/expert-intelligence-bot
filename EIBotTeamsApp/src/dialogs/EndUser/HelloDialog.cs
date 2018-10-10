@@ -40,14 +40,14 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             else
             {
                 var smsPrompt = "Hello, I am Expert Intelligence Bot. I'll collect some information to get started, " +
-                             "then a human project manager will review your request and follow up. \n\n\n\n" +
+                             "then a human freelancer will review your request and follow up. \n\n\n\n" +
                              "Would you like web research?\n\n\n\n" +
-                             "You can say: 'yes' or 'no'";
+                             "You can say: 'yes' or 'no'.";
                 var teamsPrompt = "Hello! I am Expert Intelligence Bot.\n\nI am supported by experts who can work for you.\n\n " +
-                             "I'll collect some information to get started, then a human project manager will review your request and follow up. " +
+                             "I'll collect some information to get started, then a human freelancer will review your request and follow up. " +
                              $"You can also send me a text request via SMS text message on your phone at {ConfigurationManager.AppSettings["BotPhoneNumber"]} \n\n\n\n" +
                                   "Would you like web research?\n\n\n\n" +
-                                  "You can say: 'yes' or 'no'";
+                                  "You can say: 'yes' or 'no'.";
                 var choiceDialog = new PromptYesNo(
                     _isSms ? smsPrompt : teamsPrompt, 
                     "Sorry I didn't get that. Please say 'yes' if you want to continue with requesting web research", 
