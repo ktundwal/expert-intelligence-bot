@@ -56,10 +56,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             var charLimitGuidance = $"I need a minimum of {minLength} characters and maximum of {maxLength} characters to process.";
             var promptDescription = new PromptText(
                 "Okay, I'll find a human freelancer who can do the research for you. " +
-                $"Tell me what kind of research you'd like the freelancer to do? {(isSms ? "" : charLimitGuidance)}",
-                charLimitGuidance,
-                "Wrong again. Too many attempts.",
-                3, minLength, maxLength);
+                $"What would you like a freelancer to research? {(isSms ? "" : charLimitGuidance)}",
+                charLimitGuidance + " Please try again.",
+                "Sorry, I didn't understand that description. Please reply to start over again.",
+                2, minLength, maxLength);
             context.Call(promptDescription, OnDescriptionReceivedAsync);
         }
 
