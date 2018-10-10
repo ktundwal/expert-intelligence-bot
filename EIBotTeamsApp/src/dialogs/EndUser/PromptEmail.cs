@@ -34,14 +34,14 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 }
 
                 promptOptions.DefaultRetry =
-                    $"I'm sorry, '{text}' doesn't seem to be a valid Microsoft email address. Please retry.";
+                    $"I'm sorry, '{message.Text}' doesn't seem to be a valid Microsoft email address. Please retry.";
                 return false;
             }
             catch (System.Exception e)
             {
                 Console.WriteLine(e);
                 promptOptions.DefaultRetry =
-                    $"I'm sorry, I couldn't understand '{text}'. Please retry.";
+                    $"I'm sorry, I couldn't understand '{message.Text}'. Please retry.";
                 return false;
             }
         }
