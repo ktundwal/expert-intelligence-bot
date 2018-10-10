@@ -15,12 +15,12 @@ namespace Microsoft.Office.EIBot.Service.utility
     [Serializable]
     public class UserProfile
     {
-        public long Id { get; private set; }
+        public string Id { get; private set; }
         public string  Alias { get; private set; }
         public string Name { get; private set; }
         public string MobilePhone { get; private set; }
 
-        public UserProfile(long id, string alias, string name, string mobilePhone)
+        public UserProfile(string id, string alias, string name, string mobilePhone)
         {
             Id = id;
             Alias = alias;
@@ -85,9 +85,9 @@ namespace Microsoft.Office.EIBot.Service.utility
 
         public class UserEntity : TableEntity
         {
-            public UserEntity(long uniqueId, string alias, string name, string mobilePhone, string teamsUserId, string smsUserId)
+            public UserEntity(string uniqueId, string alias, string name, string mobilePhone, string teamsUserId, string smsUserId)
             {
-                PartitionKey = uniqueId.ToString();
+                PartitionKey = uniqueId;
                 RowKey = "";
                 Alias = alias;
                 Name = name;
@@ -142,7 +142,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                 }
 
                 // add user
-                var uniqueId = _uniqueIdGenerator.NextId($"{alias}-{name}-{mobilePhone}");
+                var uniqueId = ($"{alias}-{name}-{mobilePhone}");
                 var userIdentity = new UserEntity(uniqueId,
                     alias,
                     name,
@@ -152,7 +152,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                     );
 
                 // Execute the insert operation.
-                await _retryPolicy.ExecuteAsync(async() => await UserTableClient.ExecuteAsync(TableOperation.InsertOrReplace(userIdentity)));
+                await _retryPolicy.ExecuteAsync(async() => await UserTableClient.ExecuteAsync(TableOperation.InsertOrMerge(userIdentity)));
 
                 properties.Add("uniqueId", uniqueId.ToString());
                 WebApiConfig.TelemetryClient.TrackEvent("AddOrGetTeamsUser", properties);
@@ -199,7 +199,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                 {
                     properties.Add("numUsers", queryResults.Count.ToString());
                     WebApiConfig.TelemetryClient.TrackEvent("GetUserByColumn", properties);
-                    return queryResults.Select(r => new UserProfile(long.Parse(r.PartitionKey), r.Alias, r.Name, r.MobilePhone));
+                    return queryResults.Select(r => new UserProfile(r.PartitionKey, r.Alias, r.Name, r.MobilePhone));
                 }
 
                 return new List<UserProfile>();
