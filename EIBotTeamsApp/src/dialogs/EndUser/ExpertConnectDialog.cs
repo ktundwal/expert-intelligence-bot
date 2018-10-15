@@ -64,10 +64,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     var user = botUsers.First();
                     context.UserData.SetValue(UserProfileHelper.UserProfileKey, user);
                     context.Call(new PromptText(
-                        $"Hey {user.Alias}, let's get started. \n\n" +
-                        "Tell me what you want to know, and I'll kick off a research project.\n\n" +
-                        "OR\n\n" +
-                        "Say 'example' and I'll show you some good (and bad) research requests.",
+                        $"Hey {user.Alias}, got it. Now tell me what you want to know and I'll kick off a research project.\n\n\n\n" +
+                        "Or say 'example' to see some examples.",
                         $"Please try again. Response needs to be at least {MinDescriptionCharLength} characters long.",
                         "Sorry, I didn't get that. too many attempts. Please try again later.", 2, MinDescriptionCharLength),
                         OnDescriptionOrExampleRequestReceivedAsync);
@@ -85,8 +83,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             context.UserData.SetValue(UserProfileHelper.UserProfileKey, user);
 
             context.Call(new PromptText(
-                "Got it. Now, tell me what you want to know, and I'll kick off a research project. \n\nOR \n\n" +
-                "Say 'example' and I'll show you some good (and bad) research requests.",
+                    "Got it. Now tell me what you want to know and I'll kick off a research project.\n\n\n\n" +
+                    "Or say 'example' to see some examples.",
                     $"Please try again. Response needs to be at least {MinDescriptionCharLength} characters long.",
                     "Sorry, I didn't get that. too many attempts. Please try again later.", 2, MinDescriptionCharLength),
                 OnDescriptionOrExampleRequestReceivedAsync);
@@ -99,10 +97,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             var descriptionFromUser = await result;
             if (descriptionFromUser.ToLower().Trim().Replace("'","") == "example")
             {
-                context.Call(new PromptText("Here you go. \n\n" +
+                context.Call(new PromptText("Here you go. \n\n\n\n" +
                                         "Good: \n\n" +
-                                        "What are the top 5 gig economy platforms in Singapore?\n\n" +
-                                        "What are the top 10 browsers focused on privacy? Include funding, traction, and target users\n\n" +
+                                        "What are the top 5 gig economy platforms in Singapore?\n\n\n\n" +
+                                        "What are the top 10 browsers focused on privacy? Include funding, traction, and target users\n\n\n\n" +
                                         "Bad: \n\n" +
                                         "What's a good app?",
                                         $"Please try again. Response needs to be at least {MinDescriptionCharLength} characters long.",
@@ -173,10 +171,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     {VsoIdKey, vsoTicketNumber.ToString()},
                 });
 
-                await context.PostWithRetryAsync($"OK, I've created Project {vsoTicketNumber} for you. " +
-                                                 "We'll get to work on this shortly and send you a confirmation email. " +
-                                                 "In the meantime, feel free to tell me more. " +
-                                                 "Like: what do you want to do with this info ?");
+                await context.PostWithRetryAsync($"OK, your research project is #{vsoTicketNumber}. " +
+                                                 $"We'll get to work on this shortly and send you a confirmation email.\n\n\n\n" +
+                                                 $"In the meantime, feel free to tell me more, like: " +
+                                                 $"what do you want to do with this info?");
 
                 context.Done<object>(true);
             }

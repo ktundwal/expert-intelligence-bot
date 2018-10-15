@@ -134,7 +134,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                     message.From = botAccount;
                     message.Recipient = userAccount;
                     message.Conversation = new ConversationAccount(id: conversation.Id);
-                    message.Text = $"[Human - {activity.From.Name}] {messageToSend}";
+                    message.Text = $"[Mary (human)] {messageToSend}";
                     message.TextFormat = "plain";
                     message.Locale = "en-Us";
                     message.ChannelId = isSms ? SmsChannelId : MsTeamChannelId;
