@@ -97,7 +97,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             ThrowExceptionIfResultIsNull(result);
 
             var descriptionFromUser = await result;
-            if (descriptionFromUser.ToLower() == "example")
+            if (descriptionFromUser.ToLower().Trim().Replace("'","") == "example")
             {
                 context.Call(new PromptText("Here you go. \n\n" +
                                         "Good: \n\n" +
