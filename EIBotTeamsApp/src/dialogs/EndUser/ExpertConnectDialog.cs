@@ -270,7 +270,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 context.Activity.ChannelId,
                 context.Activity.From.Id,
                 string.Empty, //name
-                context.Activity.From.Id,
+                _isSms ? context.Activity.From.Id : string.Empty,
                 context.UserData.GetValue<string>(AliasKey));
         }
     }
