@@ -39,7 +39,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         [ScorableGroup(1)]
         public void RunHelloDialog(IDialogContext context, IActivity activity)
         {
-            context.Call(new HelloDialog(), EndHelloDialog);
+            //context.Call(new HelloDialog(), EndHelloDialog);
+            context.Call(new ExpertConnectDialog(), EndHelloDialog);
         }
 
         #endregion

@@ -32,8 +32,9 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             string agentConversationId = await VsoHelper.GetAgentConversationIdForVso((int)vsoId);
             if (string.IsNullOrEmpty(agentConversationId)) return false;
-            
-            await SendAutoReplyIfNeeded(context, vsoId);
+
+            await context.PostWithRetryAsync("OK, I'll add that to the project.");
+            //await SendAutoReplyIfNeeded(context, vsoId);
 
             IMessageActivity messageActivity = (IMessageActivity)context.Activity;
             if (ActivityHelper.HasAttachment(messageActivity))
@@ -101,7 +102,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 var workItems = await VsoHelper.GetWorkItemsForUser(
                     VsoHelper.ResearchTaskType,
                     channelId,
-                    channelId == ActivityHelper.SmsChannelId ? PromptPhoneNumber.FormatPhoneNumber(uniqueName) : uniqueName);
+                    //channelId == ActivityHelper.SmsChannelId ? PromptPhoneNumber.FormatPhoneNumber(uniqueName) : uniqueName);
+                    uniqueName);
                 if (workItems != null)
                 {
                     vsoId = workItems.Select(wi => wi.Id).FirstOrDefault();

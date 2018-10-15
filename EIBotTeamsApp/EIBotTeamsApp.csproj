@@ -316,6 +316,7 @@
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="src\dialogs\EndUser\ConfirmResearchRequestDialog.cs" />
+    <Compile Include="src\dialogs\EndUser\ExpertConnectDialog.cs" />
     <Compile Include="src\dialogs\EndUser\PromptEmail.cs" />
     <Compile Include="src\dialogs\EndUser\PromptPhoneNumber.cs" />
     <Compile Include="src\dialogs\EndUser\PromptYesNo.cs" />
