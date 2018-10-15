@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using AdaptiveCards;
 using Microsoft.Bot.Builder.Dialogs;
-using Microsoft.Bot.Connector;
 using Microsoft.Office.EIBot.Service.Properties;
 using Microsoft.Office.EIBot.Service.utility;
 using Microsoft.Teams.TemplateBotCSharp;
@@ -26,6 +25,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         private const string EndUserConversationIdKey = "EndUserConversationId";
         private bool _isSms;
         private readonly int MinAliasCharLength = 3;
+        private readonly int MinDescriptionCharLength = 6;
         private int _minHoursToCompleteResearch;
         static readonly string Uri = ConfigurationManager.AppSettings["VsoOrgUrl"];
         static readonly string Project = ConfigurationManager.AppSettings["VsoProject"];
@@ -68,8 +68,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                         "Tell me what you want to know, and I'll kick off a research project.\n\n" +
                         "OR\n\n" +
                         "Say 'example' and I'll show you some good (and bad) research requests.",
-                        "Please try again. Response needs to be at least 5 characters long.",
-                        "Sorry, I didn't get that. too many attempts. Please try again later.", 2, 5),
+                        $"Please try again. Response needs to be at least {MinDescriptionCharLength} characters long.",
+                        "Sorry, I didn't get that. too many attempts. Please try again later.", 2, MinDescriptionCharLength),
                         OnDescriptionOrExampleRequestReceivedAsync);
                 }
             }
@@ -87,8 +87,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             context.Call(new PromptText(
                 "Got it. Now, tell me what you want to know, and I'll kick off a research project. \n\nOR \n\n" +
                 "Say 'example' and I'll show you some good (and bad) research requests.",
-                    "Please try again. Response needs to be at least 5 characters long.",
-                    "Sorry, I didn't get that. too many attempts. Please try again later.", 2, 5),
+                    $"Please try again. Response needs to be at least {MinDescriptionCharLength} characters long.",
+                    "Sorry, I didn't get that. too many attempts. Please try again later.", 2, MinDescriptionCharLength),
                 OnDescriptionOrExampleRequestReceivedAsync);
         }
 
@@ -99,13 +99,15 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             var descriptionFromUser = await result;
             if (descriptionFromUser.ToLower() == "example")
             {
-                await context.PostAsync("Here you go. \n\n" +
+                context.Call(new PromptText("Here you go. \n\n" +
                                         "Good: \n\n" +
                                         "What are the top 5 gig economy platforms in Singapore?\n\n" +
                                         "What are the top 10 browsers focused on privacy? Include funding, traction, and target users\n\n" +
                                         "Bad: \n\n" +
-                                        "What's a good app?");
-                context.Wait(OnDescriptionReceivedAsync);
+                                        "What's a good app?",
+                                        $"Please try again. Response needs to be at least {MinDescriptionCharLength} characters long.",
+                                        "Sorry, I didn't get that. too many attempts. Please try again later.", 2, MinDescriptionCharLength),
+                    OnDescriptionReceivedAsync);
             }
             else
             {
@@ -114,7 +116,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
         }
 
-        private async Task OnDescriptionReceivedAsync(IDialogContext context, IAwaitable<IMessageActivity> result)
+        private async Task OnDescriptionReceivedAsync(IDialogContext context, IAwaitable<string> result)
         {
             ThrowExceptionIfResultIsNull(result);
 
@@ -125,24 +127,24 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
         private async Task CreateProject(IDialogContext context)
         {
-            var description = context.ConversationData.GetValue<string>(DescriptionKey);
-            var userProfile = context.UserData.GetValue<UserProfile>(UserProfileHelper.UserProfileKey);
-            var deadline = DateTime.UtcNow.AddHours(_minHoursToCompleteResearch);
-
-            var vsoTicketNumber = await VsoHelper.CreateTaskInVso(VsoHelper.ResearchTaskType,
-                context.Activity.From.Name,
-                description,
-                ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
-                deadline,
-                "",
-                userProfile,
-                context.Activity.ChannelId);
-
-            context.ConversationData.SetValue(VsoIdKey, vsoTicketNumber);
-            context.ConversationData.SetValue(EndUserConversationIdKey, context.Activity.Conversation.Id);
-
             try
             {
+                var description = context.ConversationData.GetValue<string>(DescriptionKey);
+                var userProfile = context.UserData.GetValue<UserProfile>(UserProfileHelper.UserProfileKey);
+                var deadline = DateTime.UtcNow.AddHours(_minHoursToCompleteResearch);
+
+                var vsoTicketNumber = await VsoHelper.CreateTaskInVso(VsoHelper.ResearchTaskType,
+                    context.Activity.From.Name,
+                    description,
+                    ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
+                    deadline,
+                    "",
+                    userProfile,
+                    context.Activity.ChannelId);
+
+                context.ConversationData.SetValue(VsoIdKey, vsoTicketNumber);
+                context.ConversationData.SetValue(EndUserConversationIdKey, context.Activity.Conversation.Id);
+
                 var conversationTitle = $"Web research request from {userProfile} via {context.Activity.ChannelId} due {deadline}";
                 string agentConversationId = await ConversationHelpers.CreateAgentConversationEx(context,
                     conversationTitle,
@@ -162,15 +164,40 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
                 await state.SaveInVso(vsoTicketNumber.ToString());
 
+                WebApiConfig.TelemetryClient.TrackEvent("CreateProject", new Dictionary<string, string>()
+                {
+                    {"from", context.Activity.From.Name },
+                    {UserProfileHelper.UserProfileKey, userProfile.ToString() },
+                    {DescriptionKey, description },
+                    {"deadline", deadline.ToString() },
+                    {VsoIdKey, vsoTicketNumber.ToString()},
+                });
+
                 await context.PostWithRetryAsync($"OK, I've created Project {vsoTicketNumber} for you. " +
                                                  "We'll get to work on this shortly and send you a confirmation email. " +
-                                                 "In the meantime, feel free to tell me more.Like: what do you want to do " +
-                                                 "with this info ?");
+                                                 "In the meantime, feel free to tell me more. " +
+                                                 "Like: what do you want to do with this info ?");
 
                 context.Done<object>(true);
             }
             catch (System.Exception e)
             {
+                try
+                {
+                    if (context.ConversationData.TryGetValue(VsoIdKey, out string vsoTicketNumber))
+                    {
+                        // close this ticket
+                        await VsoHelper.CloseProject(Convert.ToInt32(vsoTicketNumber));
+                    }
+                }
+                catch (System.Exception exception)
+                {
+                    WebApiConfig.TelemetryClient.TrackException(exception, new Dictionary<string, string>
+                    {
+                        {"debugNote", "Error closing project during exception received in CreateProject" },
+                        {"CreateProjectException", e.ToString() },
+                    });
+                }
                 await context.PostWithRetryAsync("Sorry, I ran into an issue while connecting with agent. Please try again later.");
                 WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string> { { "function", "OnConfirmResearchDialog.CreateAgentConversation" } });
                 context.Done<object>(false);
