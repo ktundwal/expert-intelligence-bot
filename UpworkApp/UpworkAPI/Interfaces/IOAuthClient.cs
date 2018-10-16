@@ -74,5 +74,12 @@ namespace UpworkAPI.Interfaces
         /// </remarks>
         /// <returns>the nonce</returns>
         string GenerateNonce();
+
+        /// <summary>
+        /// Generate string with params for GET reuqest
+        /// </summary>
+        /// <param name="requestParams">Request params</param>
+        /// <returns>System.Strng</returns>
+        string GenerateRequestQuery(Dictionary<string, string> requestParams);
     }
 }

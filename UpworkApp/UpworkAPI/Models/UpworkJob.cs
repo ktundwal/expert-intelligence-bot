@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,11 +15,13 @@ namespace UpworkAPI.Models
         /// <summary>
         /// The client's team ID
         /// </summary>
+        [JsonProperty(PropertyName = "buyer_team__reference")]
         public string BuyerTeamReference { get; set; }
 
         /// <summary>
         /// Job type
         /// </summary>
+        [JsonProperty(PropertyName = "job_type")]
         public string JobType { get; set; }
 
         /// <summary>
@@ -67,7 +70,14 @@ namespace UpworkAPI.Models
         public string ContractorType { get; set; }
 
         /// <summary>
-        /// Public Constructor for UpworkJob instance
+        /// Initializes a new instance of the UpworkAPI.UpworkJob class
+        /// </summary>
+        public UpworkJob()
+        {
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the UpworkAPI.UpworkJob class with specified parameters
         /// </summary>
         /// <param name="title">
         /// Title of the job. Example: `Development of API ecosystem`

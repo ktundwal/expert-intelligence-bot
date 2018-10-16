@@ -69,6 +69,19 @@ namespace UpworkApp
 
             Console.WriteLine($"New job URL: {postedJob.PublicUrl}");
 
+            // Get jobs
+            List<JobInfo> postedJobs = await upworkApi.GetJobs(teams.FirstOrDefault().Reference, status:"filled");
+
+
+            // Get engagements
+            var engagements = await upworkApi.GetEngagements(buyerTeamReference: teams.FirstOrDefault().Reference, jobReference:postedJobs.LastOrDefault()?.Reference);
+
+
+            //Create new milestone
+            string newMilestone = await upworkApi.CreateMilestone(engagements.FirstOrDefault().Reference, "Documentation", 5, DateTime.Now.AddDays(5));
+            
+            
+
             Console.ReadKey();
         }
     }

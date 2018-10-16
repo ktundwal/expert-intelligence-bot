@@ -113,19 +113,20 @@ namespace UpworkAPI.OAuthClientTests.Test
         }
         #endregion
 
-        //[TestMethod]
-        //public void GetRequestTokensTest(string url)
-        //{
-        //    // arrange
-        //    OAuthClient client = TestUtils.GetOAuthClient();
-        //    Dictionary<string, string> data = new Dictionary<string, string> { { "first_param_key", "firts_param_value" }, { "second_param_key", "second_param_value" } };
+        [TestMethod]
+        public void GenerateRequestQueryTest()
+        {
+            // arrange
+            OAuthClient client = TestUtils.GetOAuthClient();
+            Dictionary<string, string> data = new Dictionary<string, string> { { "first_param_key", "firts_param_value" }, { "second_param_key", "second_param_value" } };
 
-        //    //act
-        //    string signature = client.GenerateSignature(url, method, data);
+            //act
+            string query = client.GenerateRequestQuery(data);
 
-        //    // assert
-        //    signature.Should().NotBeNullOrEmpty();
-        //    signature.Should().NotBeNullOrWhiteSpace();
-        //}
+            // assert
+            query.Should().NotBeNullOrEmpty();
+            query.Should().NotBeNullOrWhiteSpace();
+            query.Should().Be("?first_param_key=firts_param_value&second_param_key=second_param_value");
+        }
     }
 }

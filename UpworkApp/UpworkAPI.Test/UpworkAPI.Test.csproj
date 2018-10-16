@@ -80,6 +80,10 @@
     <Compile Include="UpworkAPITests\ConstructorTest.cs" />
     <Compile Include="UpworkAPITests\CategoriesTest.cs" />
     <Compile Include="UpworkAPITests\PostingJobTest.cs" />
+    <Compile Include="UpworkAPITests\JobsListTest.cs" />
+    <Compile Include="UpworkAPITests\EngagementsListTest.cs" />
+    <Compile Include="UpworkAPITests\AddMilestoneTest.cs" />
+    <Compile Include="UpworkAPITests\SkillsListTest.cs" />
     <Compile Include="UpworkAPITests\UserTeamsTest.cs" />
     <Compile Include="UpworkAPITests\UserInfoTest.cs" />
   </ItemGroup>

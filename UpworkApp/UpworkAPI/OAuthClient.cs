@@ -112,7 +112,11 @@ namespace UpworkAPI
             // Build the form data (exclude OAuth stuff that's already in the header).
             var formData = new FormUrlEncodedContent(data.Where(kvp => !kvp.Key.StartsWith("oauth_")));
 
-            return SendRequest(url, method, oAuthHeader, formData);
+            //Build the string with request params for GET method
+            string requestQuery = GenerateRequestQuery(data);
+
+
+            return SendRequest(url, method, oAuthHeader, formData, requestQuery);
         }
 
         /// <summary>
@@ -123,7 +127,7 @@ namespace UpworkAPI
         /// <param name="oAuthHeader">String wirh OAuth 1.0 header params</param>
         /// <param name="formData">Request data</param>
         /// <returns></returns>
-        async Task<string> SendRequest(string fullUrl, string method, string oAuthHeader, FormUrlEncodedContent formData)
+        async Task<string> SendRequest(string fullUrl, string method, string oAuthHeader, FormUrlEncodedContent formData, string requestQuery)
         {
             using (var http = new HttpClient())
             {
@@ -131,7 +135,7 @@ namespace UpworkAPI
                 string respBody = "";
                 if (method == "GET")
                 {
-                    var httpResp = await http.GetAsync(fullUrl);
+                    var httpResp = await http.GetAsync(fullUrl + requestQuery);
                     respBody = await httpResp.Content.ReadAsStringAsync();
                 }
                 else
@@ -192,6 +196,21 @@ namespace UpworkAPI
                     .Select(kvp => string.Format("{0}=\"{1}\"", Uri.EscapeDataString(kvp.Key), Uri.EscapeDataString(kvp.Value)))
                     .OrderBy(s => s)
             );
+        }
+
+        /// <summary>
+        /// Generate string with params for GET reuqest
+        /// </summary>
+        /// <param name="requestParams">Request params</param>
+        /// <returns>System.Strng</returns>
+        public string GenerateRequestQuery(Dictionary<string, string> requestParams)
+        {
+            string result = "";
+            if(requestParams != null && requestParams.Count > 0)
+            {
+                result = String.Join("&", requestParams.Where(kvp => !kvp.Key.StartsWith("oauth_")).Select(kpv => $"{kpv.Key}={kpv.Value}"));
+            }
+            return $"?{result}";
         }
 
         /// <summary>
