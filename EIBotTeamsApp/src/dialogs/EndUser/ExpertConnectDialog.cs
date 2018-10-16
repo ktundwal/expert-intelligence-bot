@@ -64,7 +64,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                     var user = botUsers.First();
                     context.UserData.SetValue(UserProfileHelper.UserProfileKey, user);
                     context.Call(new PromptText(
-                        $"Hey {user.Alias}, got it. Now tell me what you want to know and I'll kick off a research project.\n\n\n\n" +
+                        $"Hey {user.Alias}, tell me what you want to know and I'll kick off a research project.\n\n\n\n" +
                         "Or say 'example' to see some examples.",
                         $"Please try again. Response needs to be at least {MinDescriptionCharLength} characters long.",
                         "Sorry, I didn't get that. too many attempts. Please try again later.", 2, MinDescriptionCharLength),
