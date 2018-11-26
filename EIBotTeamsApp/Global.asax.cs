@@ -9,6 +9,8 @@ using System.Web.Http;
 using Microsoft.Bot.Builder.Azure;
 using Microsoft.Office.EIBot.Service.utility;
 using Microsoft.Teams.TemplateBotCSharp;
+using Microsoft.WindowsAzure.Storage;
+using TableLoggerModule = Microsoft.Office.EIBot.Service.utility.TableLoggerModule;
 
 namespace Microsoft.Office.EIBot.Service
 {
@@ -38,7 +40,11 @@ namespace Microsoft.Office.EIBot.Service
             });
             */
 
-            var tableStore = new TableBotDataStore(ConfigurationManager.AppSettings["StorageConnectionString"]);
+            string connectionString = ConfigurationManager.AppSettings["StorageConnectionString"];
+            var tableStore = new TableBotDataStore(connectionString);
+
+            var tableName = "ChatHistory";
+            var account = CloudStorageAccount.Parse(connectionString);
 
             Conversation.UpdateContainer(
                 builder =>
@@ -54,6 +60,8 @@ namespace Microsoft.Office.EIBot.Service
                         .As<IBotDataStore<BotData>>()
                         .AsSelf()
                         .InstancePerLifetimeScope();
+
+                    builder.RegisterModule(new TableLoggerModule(account, tableName));
                 });
 
             _botJwtRefreshWorker = new BotJwtRefreshWorker();

@@ -3,6 +3,7 @@ using System.Configuration;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Bot.Connector;
+using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.Office.EIBot.Service.dialogs.EndUser;
 using Microsoft.Teams.TemplateBotCSharp;
 using Microsoft.WindowsAzure.Storage;
@@ -154,6 +155,42 @@ namespace Microsoft.Office.EIBot.Service.utility
             {
                 WebApiConfig.TelemetryClient.TrackException(e, properties);
             }
+        }
+
+        public static async Task<ChannelInfo> GetAgentChannelInfo()
+        {
+            var properties = new Dictionary<string, string>
+            {
+                {"function", "GetAgentChannelInfo" },
+                {"memberType", BotMemberType },
+            };
+
+            ChannelInfo agentChannelInfo = null;
+
+            try
+            {
+                // Construct the query operation for all customer entities where PartitionKey="Smith".
+                TableQuery<IdEntity> rangeQuery = new TableQuery<IdEntity>()
+                    .Where(TableQuery.GenerateFilterCondition("PartitionKey", QueryComparisons.Equal, AgentResearchChannel));
+
+                // Execute the retrieve operation.
+                var queryResults = await IdTableClient.ExecuteQueryAsync(rangeQuery);
+
+                if (queryResults != null)
+                {
+                    agentChannelInfo = queryResults.Select(r => new ChannelInfo(r.Id, r.RowKey)).FirstOrDefault();
+                }
+
+                properties.Add("channelId", agentChannelInfo != null ? agentChannelInfo.Id : "not set");
+                properties.Add("channelName", agentChannelInfo != null ? agentChannelInfo.Name : "not set");
+
+                WebApiConfig.TelemetryClient.TrackEvent("GetAgentChannelInfo", properties);
+            }
+            catch (System.Exception e)
+            {
+                WebApiConfig.TelemetryClient.TrackException(e, properties);
+            }
+            return agentChannelInfo;
         }
     }
 }

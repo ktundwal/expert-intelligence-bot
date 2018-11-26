@@ -23,7 +23,8 @@ namespace Microsoft.Office.EIBot.Service.utility
             Trace.TraceInformation($"MicrosoftAppId is {ConfigurationManager.AppSettings["MicrosoftAppId"]} and " +
                                    $"MicrosoftAppPassword is {ConfigurationManager.AppSettings["MicrosoftAppPassword"]}");
             var jwtToken = await account.GetTokenAsync();
-            return new ConnectorClient(new Uri(serviceUrl), handlers: new AddAuthorizationHeaderHandler(jwtToken));
+            return new ConnectorClient(new Uri(serviceUrl), ConfigurationManager.AppSettings["MicrosoftAppId"],
+                ConfigurationManager.AppSettings["MicrosoftAppPassword"], handlers: new AddAuthorizationHeaderHandler(jwtToken));
         }
 
         private class AddAuthorizationHeaderHandler : DelegatingHandler

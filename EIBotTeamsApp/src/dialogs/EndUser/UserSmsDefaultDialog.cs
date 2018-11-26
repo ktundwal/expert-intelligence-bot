@@ -7,10 +7,10 @@ using AdaptiveCards;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Teams.Models;
+using Microsoft.Office.EIBot.Service.dialogs.examples.moderate;
 using Microsoft.Office.EIBot.Service.Properties;
 using Microsoft.Office.EIBot.Service.utility;
 using Microsoft.Teams.TemplateBotCSharp;
-using Microsoft.Teams.TemplateBotCSharp.Dialogs;
 
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
@@ -53,7 +53,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             context.ConversationData.SetValue("description", message.Text);
 
             // Prompt for delivery date
-            var prompt = new DeadlinePrompt(GetCurrentCultureCode());
+            var prompt = new DeadlinePrompt(
+                Convert.ToInt32(ConfigurationManager.AppSettings["ResearchProjectViaSmsMinHours"]), GetCurrentCultureCode());
             context.Call(prompt, this.OnDeadlineSelected);
         }
 
@@ -70,12 +71,23 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
                 var description = context.ConversationData.GetValue<string>("description");
 
+                string mobilePhone = string.Empty;
+                string alias = string.Empty;
+
+                if (!context.UserData.TryGetValue(UserProfileHelper.UserProfileKey, out UserProfile userProfile))
+                {
+                    mobilePhone = userProfile.MobilePhone;
+                    alias = userProfile.Alias;
+                }
+
                 var vsoTicketNumber = await VsoHelper.CreateTaskInVso(VsoHelper.VirtualAssistanceTaskType,
                     context.Activity.From.Name,
                     description,
                     ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"],
                     deadline,
-                    "");
+                    "",
+                    null,
+                    context.Activity.ChannelId);
 
                 MicrosoftAppCredentials.TrustServiceUrl(ActivityHelper.TeamsServiceEndpoint);
 

@@ -8,6 +8,9 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     [Serializable]
     public class PromptText : Prompt<string, string>
     {
+        private readonly int _minLength;
+        private readonly int _maxLength;
+
         public PromptText(string prompt,
             string retry = null,
             string tooManyAttempts = null,
@@ -16,8 +19,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             int maxLength = 500)
             : base(new PromptOptions<string>(prompt, retry, tooManyAttempts, attempts: attempts))
         {
-            MinLength = minLength;
-            MaxLength = maxLength;
+            _minLength = minLength;
+            _maxLength = maxLength;
         }
 
         protected override bool TryParse(IMessageActivity message, out string text)
@@ -26,9 +29,6 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             return IsValidDescription(message.Text);
         }
 
-        private bool IsValidDescription(string text) => !string.IsNullOrWhiteSpace(text) && text.Length > MinLength && text.Length < MaxLength;
-
-        private readonly int MinLength;
-        private readonly int MaxLength;
+        private bool IsValidDescription(string text) => text.Length >= _minLength && !string.IsNullOrWhiteSpace(text) && text.Length < _maxLength;
     }
 }

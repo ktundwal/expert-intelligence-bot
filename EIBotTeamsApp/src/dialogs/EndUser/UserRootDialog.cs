@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Configuration;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Builder.Scorables;
@@ -8,7 +10,7 @@ using Microsoft.Office.EIBot.Service.utility;
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
     /// <summary>
-    /// This is Root Dialog, its a triggring point for every Child dialog based on the RexEx Match with user input command
+    /// This is Root Dialog for user
     /// </summary>
 
     [Serializable]
@@ -16,48 +18,48 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     {
         #region Internet research Pattern
 
-        [RegexPattern(DialogMatches.PerformInternetResearchMatch)]
-        [ScorableGroup(1)]
-        public void PerformInternetResearch(IDialogContext context, IActivity activity)
-        {
-            context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
-        }
+        //[RegexPattern(DialogMatches.PerformInternetResearchMatch)]
+        //[ScorableGroup(1)]
+        //public void PerformInternetResearch(IDialogContext context, IActivity activity)
+        //{
+        //    context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
+        //}
 
-        public async Task EndInternetResearchDialog(IDialogContext context, IAwaitable<bool> awaitable)
-        {
-            await context.PostWithRetryAsync("Have a nice day!");
-            context.Done<object>(null);
-        }
+        //public async Task EndInternetResearchDialog(IDialogContext context, IAwaitable<bool> awaitable)
+        //{
+        //    await context.PostWithRetryAsync("Have a nice day!");
+        //    context.Done<object>(null);
+        //}
 
         #endregion
 
         #region Hello Dialog
 
-        [RegexPattern(DialogMatches.HelloDialogMatch1)]
-        [RegexPattern(DialogMatches.HelloDialogMatch2)]
+        [MethodBind]
         [ScorableGroup(1)]
         public void RunHelloDialog(IDialogContext context, IActivity activity)
         {
-            context.Call(new HelloDialog(), this.EndHelloDialog);
+            //context.Call(new HelloDialog(), EndHelloDialog);
+            context.Call(new ExpertConnectDialog(), EndHelloDialog);
         }
 
         #endregion
 
         #region Help Dialog
 
-        [RegexPattern(DialogMatches.Help)]
-        [ScorableGroup(1)]
-        public void Help(IDialogContext context, IActivity activity)
-        {
-            context.Call(new UserHelpDialog(), this.EndHelpDialog);
-        }
+        //[RegexPattern(DialogMatches.Help)]
+        //[ScorableGroup(1)]
+        //public void Help(IDialogContext context, IActivity activity)
+        //{
+        //    context.Call(new UserHelpDialog(), this.EndHelpDialog);
+        //}
 
-        [MethodBind]
-        [ScorableGroup(2)]
-        public void Default(IDialogContext context, IActivity activity)
-        {
-            context.Call(new UserDefaultDialog(), this.EndDefaultDialog);
-        }
+        //[MethodBind]
+        //[ScorableGroup(2)]
+        //public void Default(IDialogContext context, IActivity activity)
+        //{
+        //    context.Call(new UserDefaultDialog(), this.EndDefaultDialog);
+        //}
 
         public Task EndHelpDialog(IDialogContext context, IAwaitable<object> result)
         {

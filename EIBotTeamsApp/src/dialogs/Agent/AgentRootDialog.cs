@@ -46,11 +46,12 @@ namespace Microsoft.Office.EIBot.Service.dialogs.Agent
         [ScorableGroup(2)]
         public async Task Default(IDialogContext context, IActivity activity)
         {
+            await context.PostWithRetryAsync("Please use **reply to user** command to send message to user.");
             await SaveAgentChannelIdInAzureStore(context);
             await SaveBotIdInAzureStorage(context);
 
             // grab the channel ids here and store in our table store
-            context.Call(new AgentHelpDialog(), this.EndDefaultDialog);
+            //context.Call(new AgentHelpDialog(), this.EndDefaultDialog);
         }
 
         private async Task SaveBotIdInAzureStorage(IDialogContext context)

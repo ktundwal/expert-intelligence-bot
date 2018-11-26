@@ -17,11 +17,24 @@ namespace Microsoft.Office.EIBot.Service.utility
 {
     public static class VsoHelper
     {
+        public const string EndUserConversationIdFieldName = "Custom.EndUserConversationId";
+        public const string EndUserNameFieldName = "Custom.EndUserName";
+        public const string EndUserIdFieldName = "Custom.EndUserId";
+        public const string EndUserMobilePhoneFieldName = "Custom.MobilePhone";
+        public const string EndUserAliasFieldName = "Custom.Alias";
+        private const string StateFieldName = "System.State";
+        private const string TitleFieldName = "System.Title";
+        private const string FreelancerplatformFieldName = "Custom.Freelancerplatform";
+        private const string FreelancerplatformJobIdFieldName = "Custom.FreelancerPlatformJobId";
+        private const string RequestedByFieldName = "Custom.RequestedBy";
         public static readonly string Uri = ConfigurationManager.AppSettings["VsoOrgUrl"];
         public static readonly string Project = ConfigurationManager.AppSettings["VsoProject"];
         public static readonly string ResearchTaskType = "Research";
         public static readonly string VirtualAssistanceTaskType = "Virtual Assistance";
         public static readonly string[] TaskTypes = {ResearchTaskType, VirtualAssistanceTaskType};
+
+        public static readonly string AgentConversationIdFieldName = "Custom.AgentConversationId";
+        public static readonly string DescriptionFieldName = "System.Description";
 
         private static bool IsSupportedTask(string taskType) => TaskTypes.Any(taskType.Contains);
 
@@ -57,7 +70,9 @@ namespace Microsoft.Office.EIBot.Service.utility
             string description,
             string assignedTo,
             DateTime targetDate,
-            string teamsConversationId)
+            string teamsConversationId,
+            UserProfile userProfile,
+            string channelId)
         {
             var properties = new Dictionary<string, string>
             {
@@ -81,11 +96,11 @@ namespace Microsoft.Office.EIBot.Service.utility
                 {
                     Operation = Operation.Add,
                     Path = "/fields/System.Title",
-                    Value = $"Request from {requestedBy} @ {DateTime.Now}"
+                    Value = $"Web research request from {userProfile} via {channelId} due {targetDate}"
                 },
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = "/fields/System.Description", Value = description
+                    Operation = Operation.Add, Path = $"/fields/{DescriptionFieldName}", Value = description
                 },
                 new JsonPatchOperation()
                 {
@@ -95,16 +110,24 @@ namespace Microsoft.Office.EIBot.Service.utility
                 },
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = "/fields/Custom.AgentConversationId", Value = teamsConversationId
+                    Operation = Operation.Add, Path = $"/fields/{EndUserAliasFieldName}", Value = userProfile.Alias
                 },
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = "/fields/Custom.Freelancerplatform", Value = "UpWork"
+                    Operation = Operation.Add, Path = $"/fields/{EndUserMobilePhoneFieldName}", Value = userProfile.MobilePhone
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add, Path = $"/fields/{AgentConversationIdFieldName}", Value = teamsConversationId
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add, Path = $"/fields/{FreelancerplatformFieldName}", Value = "UpWork"
                 },
                 new JsonPatchOperation()
                 {
                     Operation = Operation.Add,
-                    Path = "/fields/Custom.FreelancerPlatformJobId",
+                    Path = $"/fields/{FreelancerplatformJobIdFieldName}",
                     Value = "not assigned"
                 },
                 new JsonPatchOperation()
@@ -150,7 +173,7 @@ namespace Microsoft.Office.EIBot.Service.utility
         }
 
         private static string GetRequestedByFieldNameBasedOnTaskType(string taskType) => taskType == ResearchTaskType
-            ? "Custom.RequestedBy"
+            ? RequestedByFieldName
             : taskType == VirtualAssistanceTaskType
                 ? "Custom.RequestedByPhoneNo"
                 : "not-set";
@@ -181,7 +204,7 @@ namespace Microsoft.Office.EIBot.Service.utility
 
                     return (int)result.Id;
                 }
-                catch (AggregateException ex)
+                catch (Exception ex)
                 {
                     Trace.TraceError(@"Error creating research task: {0}", ex.InnerException.Message);
                     throw;
@@ -193,22 +216,22 @@ namespace Microsoft.Office.EIBot.Service.utility
         /// Execute a WIQL query to return a list of bugs using the .NET client library
         /// </summary>
         /// <returns>List of Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem</returns>
-        public static async Task<List<WorkItem>> GetWorkItemsForUser(string taskType, string fromName)
+        public static async Task<List<WorkItem>> GetWorkItemsForUser(string taskType, string channelId, string fromName)
         {
             //create a wiql object and build our query
             Wiql wiql = new Wiql()
             {
                 Query = "Select [State], [Title], [Description], [Microsoft.VSTS.Scheduling.TargetDate], " +
-                        "[Custom.EndUserConversationId], " +
-                        "[Custom.AgentConversationId], " +
-                        "[Custom.EndUserId], " +
-                        "[Custom.EndUserName], " +
-                        "[Custom.RequestedBy] " +
+                        $"[{EndUserConversationIdFieldName}], " +
+                        $"[{AgentConversationIdFieldName}], " +
+                        $"[{EndUserIdFieldName}], " +
+                        $"[{EndUserNameFieldName}], " +
+                        $"[{RequestedByFieldName}] " +
                         "From WorkItems " +
                         $"Where [Work Item Type] = '{taskType}' " +
-                        "And [System.TeamProject] = '" + Project + "' " +
-                        "And [Custom.RequestedBy] = '" + fromName + "' " +
-                        "And [System.State] <> 'Closed' " +
+                        $"And [System.TeamProject] = '{Project}' " +
+                        $"And [{(channelId == ActivityHelper.SmsChannelId ? EndUserMobilePhoneFieldName : RequestedByFieldName)}] = '{fromName}' "  +
+                        $"And [{StateFieldName}] <> 'Closed' " +
                         "Order By [State] Asc, [Changed Date] Desc"
             };
 
@@ -233,14 +256,14 @@ namespace Microsoft.Office.EIBot.Service.utility
                         //build a list of the fields we want to see
                         string[] fields = new string[10];
                         fields[0] = "System.Id";
-                        fields[1] = "System.Title";
-                        fields[2] = "System.State";
-                        fields[3] = "System.Description";
+                        fields[1] = TitleFieldName;
+                        fields[2] = StateFieldName;
+                        fields[3] = DescriptionFieldName;
                         fields[4] = "Microsoft.VSTS.Scheduling.TargetDate";
-                        fields[5] = "Custom.EndUserConversationId";
-                        fields[6] = "Custom.AgentConversationId";
-                        fields[7] = "Custom.EndUserId";
-                        fields[8] = "Custom.EndUserName";
+                        fields[5] = EndUserConversationIdFieldName;
+                        fields[6] = AgentConversationIdFieldName;
+                        fields[7] = EndUserIdFieldName;
+                        fields[8] = EndUserNameFieldName;
                         fields[9] = GetRequestedByFieldNameBasedOnTaskType(taskType);
 
                         //get work items for the ids found in query
@@ -251,7 +274,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                         //loop though work items and write to console
                         foreach (var workItem in workItems)
                         {
-                            Trace.TraceInformation("{0}          {1}                     {2}", workItem.Id, workItem.Fields["System.Title"], workItem.Fields["System.State"]);
+                            Trace.TraceInformation("{0}          {1}                     {2}", workItem.Id, workItem.Fields[TitleFieldName], workItem.Fields[StateFieldName]);
                         }
 
                         return workItems;
@@ -283,7 +306,7 @@ namespace Microsoft.Office.EIBot.Service.utility
                 using (WorkItemTrackingHttpClient workItemTrackingHttpClient = GetWorkItemTrackingHttpClient())
                 {
                     WorkItem workitem = await workItemTrackingHttpClient.GetWorkItemAsync(vsoId);
-                    return workitem.Fields["System.State"].ToString();
+                    return workitem.Fields[StateFieldName].ToString();
                 }
             }
             catch (Exception e)
@@ -309,15 +332,15 @@ namespace Microsoft.Office.EIBot.Service.utility
             Wiql wiql = new Wiql()
             {
                 Query = "Select " +
-                        "[Custom.EndUserConversationId], " +
-                        "[Custom.AgentConversationId], " +
-                        "[Custom.EndUserId], " +
-                        "[Custom.EndUserName] " +
+                        $"[{EndUserConversationIdFieldName}], " +
+                        $"[{AgentConversationIdFieldName}], " +
+                        $"[{EndUserIdFieldName}], " +
+                        $"[{EndUserNameFieldName}] " +
                         "From WorkItems " +
                         $"Where " +
                         //$"[Work Item Type] = '{taskType}' And " +
                         "[System.TeamProject] = '" + Project + "' " +
-                        "And [Custom.AgentConversationId] = '" + agentConversationId + "' "
+                        $"And [{AgentConversationIdFieldName}] = '" + agentConversationId + "' "
             };
 
             using (WorkItemTrackingHttpClient workItemTrackingHttpClient = GetWorkItemTrackingHttpClient())
@@ -340,10 +363,10 @@ namespace Microsoft.Office.EIBot.Service.utility
 
                         //build a list of the fields we want to see
                         string[] fields = new string[4];
-                        fields[0] = "Custom.EndUserConversationId";
-                        fields[1] = "Custom.AgentConversationId";
-                        fields[2] = "Custom.EndUserId";
-                        fields[3] = "Custom.EndUserName";
+                        fields[0] = EndUserConversationIdFieldName;
+                        fields[1] = AgentConversationIdFieldName;
+                        fields[2] = EndUserIdFieldName;
+                        fields[3] = EndUserNameFieldName;
 
                         //get work items for the ids found in query
                         List<WorkItem> workItems = await workItemTrackingHttpClient.GetWorkItemsAsync(arr, fields, workItemQueryResult.AsOf);
@@ -356,10 +379,10 @@ namespace Microsoft.Office.EIBot.Service.utility
                         {
                             return new EndUserAndAgentConversationMappingState(
                                 firstWorkItem.Id.ToString(),
-                                firstWorkItem.Fields["Custom.EndUserName"].ToString(),
-                                firstWorkItem.Fields["Custom.EndUserId"].ToString(),
-                                firstWorkItem.Fields["Custom.EndUserConversationId"].ToString(),
-                                firstWorkItem.Fields["Custom.AgentConversationId"].ToString()
+                                firstWorkItem.Fields[EndUserNameFieldName].ToString(),
+                                firstWorkItem.Fields[EndUserIdFieldName].ToString(),
+                                firstWorkItem.Fields[EndUserConversationIdFieldName].ToString(),
+                                firstWorkItem.Fields[AgentConversationIdFieldName].ToString()
                             );
                         }
 
@@ -399,7 +422,7 @@ namespace Microsoft.Office.EIBot.Service.utility
 
                     Trace.TraceInformation($"Task successfully closed: Research task {result.Id}");
                 }
-                catch (AggregateException ex)
+                catch (Exception ex)
                 {
                     WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
                     {
@@ -420,16 +443,16 @@ namespace Microsoft.Office.EIBot.Service.utility
                 {
                     WorkItem workitem = await workItemTrackingHttpClient.GetWorkItemAsync(vsoId);
 
-                    string projectStatus = $"<b>Description</b>: {workitem.Fields["System.Description"]}\n\n" + 
+                    string projectStatus = $"<b>Description</b>: {workitem.Fields[DescriptionFieldName]}\n\n" + 
                                            $"<b>Assigned to</b>: {workitem.Fields["System.AssignedTo"]}\n\n" + 
                                            $"<b>Due on</b>: {workitem.Fields["Microsoft.VSTS.Scheduling.TargetDate"]}\n\n" + 
-                                           $"<b>Current State</b>: {workitem.Fields["System.State"]}\n\n";
+                                           $"<b>Current State</b>: {workitem.Fields[StateFieldName]}\n\n";
 
                     Trace.TraceInformation($"Task successfully fetched task {workitem.Id}");
 
                     return projectStatus;
                 }
-                catch (AggregateException ex)
+                catch (Exception ex)
                 {
                     WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
                     {
@@ -460,6 +483,31 @@ namespace Microsoft.Office.EIBot.Service.utility
                 });
 
                 throw;
+            }
+        }
+
+        public static async Task<string> GetAgentConversationIdForVso(int vsoId)
+        {
+            using (WorkItemTrackingHttpClient workItemTrackingHttpClient = VsoHelper.GetWorkItemTrackingHttpClient())
+            {
+                try
+                {
+                    WorkItem workitem = await workItemTrackingHttpClient.GetWorkItemAsync(vsoId);
+
+                    return (string) (workitem.Fields.TryGetValue(AgentConversationIdFieldName, out object conversationId)
+                        ? conversationId
+                        : "");
+                }
+                catch (Exception ex)
+                {
+                    WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
+                    {
+                        {"function", "GetAgentConversationIdForVso" },
+                        {"vsoId", vsoId.ToString() },
+                    });
+
+                    throw;
+                }
             }
         }
     }

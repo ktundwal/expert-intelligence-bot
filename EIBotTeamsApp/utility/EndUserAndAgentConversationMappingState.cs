@@ -64,12 +64,12 @@ namespace Microsoft.Office.EIBot.Service.utility
                         await workItemTrackingHttpClient.GetWorkItemAsync(vsoId);
 
                     return new EndUserAndAgentConversationMappingState(vsoId.ToString(),
-                        workitem.Fields["Custom.EndUserName"].ToString(),
-                        workitem.Fields["Custom.EndUserId"].ToString(),
-                        workitem.Fields["Custom.EndUserConversationId"].ToString(),
-                        workitem.Fields["Custom.AgentConversationId"].ToString());
+                        workitem.Fields[VsoHelper.EndUserNameFieldName].ToString(),
+                        workitem.Fields[VsoHelper.EndUserIdFieldName].ToString(),
+                        workitem.Fields[VsoHelper.EndUserConversationIdFieldName].ToString(),
+                        workitem.Fields[VsoHelper.AgentConversationIdFieldName].ToString());
                 }
-                catch (AggregateException ex)
+                catch (Exception ex)
                 {
                     WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
                         {
@@ -103,19 +103,19 @@ namespace Microsoft.Office.EIBot.Service.utility
                 {
                     new JsonPatchOperation
                     {
-                        Operation = Operation.Add, Path = "/fields/Custom.EndUserConversationId", Value = EndUserConversationId
+                        Operation = Operation.Add, Path = $"/fields/{VsoHelper.EndUserConversationIdFieldName}", Value = EndUserConversationId
                     },
                     new JsonPatchOperation
                     {
-                        Operation = Operation.Add, Path = "/fields/Custom.AgentConversationId", Value = AgentConversationId
+                        Operation = Operation.Add, Path = $"/fields/{VsoHelper.AgentConversationIdFieldName}", Value = AgentConversationId
                     },
                     new JsonPatchOperation
                     {
-                        Operation = Operation.Add, Path = "/fields/Custom.EndUserId", Value = EndUserId
+                        Operation = Operation.Add, Path = $"/fields/{VsoHelper.EndUserIdFieldName}", Value = EndUserId
                     },
                     new JsonPatchOperation
                     {
-                        Operation = Operation.Add, Path = "/fields/Custom.EndUserName", Value = EndUserName
+                        Operation = Operation.Add, Path = $"/fields/{VsoHelper.EndUserNameFieldName}", Value = EndUserName
                     },
                 };
 
@@ -128,7 +128,7 @@ namespace Microsoft.Office.EIBot.Service.utility
 
                     Trace.TraceInformation($"Project {vsoId} successfully updated. {this}");
                 }
-                catch (AggregateException ex)
+                catch (Exception ex)
                 {
                     WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
                         {

@@ -5,43 +5,89 @@ using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Builder.Dialogs.Internals;
 using Microsoft.Bot.Connector;
 using Microsoft.Recognizers.Text.DateTime;
+using Microsoft.Teams.TemplateBotCSharp;
 
-namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
+namespace Microsoft.Office.EIBot.Service.dialogs.examples.moderate
 {
     [Serializable]
     public class DeadlinePrompt : Prompt<IEnumerable<DateTime>, DateTime>
     {
-        public const string DeliveryPromptMessage =
-            "When do you want to this done by?\n\n" +
-            "Some valid options are:\n\n" +
-            " - Tomorrow morning\n\n" +
-            " - 10/08/2018\n\n" +
-            " - 9PM Tomorrow\n\n" +
-            " - Five hours from now";
+        private const string Option1 = "2 days from now";
+        private const string Option2 = "4 days from now";
+        private const string Option3 = "7 days from now";
+
+        public static readonly string DeliveryPromptMessage = "Got it. When do you need this research to be completed? We'll need at least 48 hrs.\n\nHere are some valid options. You can type 1, 2 or 3 or some other time:\n\n" +
+                                                              $"1. {Option1}\n\n" +
+                                                              $"2. {Option2}\n\n" +
+                                                              $"3. {Option3}";
 
         public const string PastValueErrorMessage =
-            "I'm sorry, but I need at least 3 hours to complete this research.\n\n $moment$ is no good for me.\n\nWhat other moment suits you best?";
-
+            "You have requested $moment$.\n\nI'm sorry, but I need at least 48 hours to complete this work.\n\nWhat other time suits you best?";
+        private readonly int _minHours;
         private readonly string _culture;
 
-        public DeadlinePrompt(string culture) : base(new PromptOptions<DateTime>(DeliveryPromptMessage, attempts: 5))
+        public DeadlinePrompt(int minHours, string culture) : base(new PromptOptions<DateTime>(DeliveryPromptMessage, attempts: 2))
         {
-            this._culture = culture;
+            _culture = culture;
+            _minHours = minHours;
         }
 
         protected override bool TryParse(IMessageActivity message, out IEnumerable<DateTime> result)
         {
-            var extraction = ValidateAndExtract(message.Text, this._culture);
-            if (!extraction.IsValid)
-            {
-                this.promptOptions.DefaultRetry = extraction.ErrorMessage;
-            }
+            var properties = new Dictionary<string, string> { { "from", message.From.Name }, { "textFromUser", message.Text } };
+            string textToParse = ConvertOptionToTimeString(message);
 
-            result = extraction.Values;
-            return extraction.IsValid;
+            try
+            {
+                var extraction = ValidateAndExtract(textToParse, _culture);
+                if (!extraction.IsValid)
+                {
+                    promptOptions.DefaultRetry = extraction.ErrorMessage;
+                }
+
+                result = extraction.Values;
+
+                properties.Add("result", string.Join(", ", result.Select(r => r.ToString(_culture))));
+                properties.Add("IsValid", extraction.IsValid.ToString());
+                var eventName = extraction.IsValid ? "DeadlinePrompt.TryParse.Success" : "DeadlinePrompt.TryParse.Fail";
+                WebApiConfig.TelemetryClient.TrackEvent(eventName, properties);
+                return extraction.IsValid;
+            }
+            catch (System.Exception e)
+            {
+                WebApiConfig.TelemetryClient.TrackException(e, properties);
+
+                // don't throw, just return false
+                promptOptions.DefaultRetry = $"Sorry, I couldn't understand {message.Text}. Please try again.";
+                result = new DateTime[0];
+                return false;
+            }
         }
 
-        public static Extraction ValidateAndExtract(string input, string culture)
+        private static string ConvertOptionToTimeString(IMessageActivity message)
+        {
+            string textToParse;
+            var cleanedText = message.Text.Trim().Replace("'", "");
+            switch (cleanedText)
+            {
+                case "1":
+                    textToParse = Option1;
+                    break;
+                case "2":
+                    textToParse = Option2;
+                    break;
+                case "3":
+                    textToParse = Option3;
+                    break;
+                default:
+                    textToParse = message.Text;
+                    break;
+            }
+
+            return textToParse;
+        }
+
+        private Extraction ValidateAndExtract(string input, string culture)
         {
             // Get DateTime for the specified culture
             var results = DateTimeRecognizer.RecognizeDateTime(input, culture);
@@ -84,7 +130,7 @@ namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
                     // range
                     var from = DateTime.Parse(resolutionValues.First()["start"]);
                     var to = DateTime.Parse(resolutionValues.First()["end"]);
-                    if (IsFuture(from) && IsFuture(to))
+                    if (/*IsFuture(from) && */IsFuture(to))
                     {
                         // future
                         return new Extraction
@@ -108,17 +154,17 @@ namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
             {
                 IsValid = false,
                 Values = Enumerable.Empty<DateTime>(),
-                ErrorMessage = "I'm sorry, that doesn't seem to be a valid delivery date and time"
+                ErrorMessage = $"I'm sorry, '{input}' doesn't seem to be a valid delivery date and time"
             };
         }
 
-        public static bool IsFuture(DateTime date)
+        private bool IsFuture(DateTime date)
         {
             // at least one hour
-            return date > DateTime.Now.AddHours(1);
+            return date > DateTime.UtcNow.AddHours(_minHours);
         }
 
-        public static string MomentOrRangeToString(IEnumerable<DateTime> moments, string momentPrefix = "on ")
+        private string MomentOrRangeToString(IEnumerable<DateTime> moments, string momentPrefix = "on ")
         {
             if (moments.Count() == 1)
             {
@@ -128,12 +174,12 @@ namespace Microsoft.Teams.TemplateBotCSharp.Dialogs
             return "from " + string.Join(" to ", moments.Select(m => MomentOrRangeToString(m, "")));
         }
 
-        public static string MomentOrRangeToString(DateTime moment, string momentPrefix = "on ")
+        private string MomentOrRangeToString(DateTime moment, string momentPrefix = "on ")
         {
             return momentPrefix + moment.ToString();
         }
 
-        public class Extraction
+        private class Extraction
         {
             public bool IsValid { get; set; }
 

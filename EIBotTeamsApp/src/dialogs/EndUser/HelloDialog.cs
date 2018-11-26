@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
+using Microsoft.Bot.Builder.Dialogs.Internals;
 using Microsoft.Bot.Connector;
 using Microsoft.Office.EIBot.Service.Properties;
 using Microsoft.Office.EIBot.Service.utility;
@@ -19,12 +20,17 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     [Serializable]
     public class HelloDialog : IDialog<object>
     {
+        private const string ProjectTypeKey = "projectType";
+        private bool _isSms;
+
         public async Task StartAsync(IDialogContext context)
         {
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
+
+            _isSms = context.Activity.ChannelId == ActivityHelper.SmsChannelId;
 
             if (await ConversationHelpers.RelayMessageToAgentIfThereIsAnOpenResearchProject(context))
             {
@@ -33,20 +39,29 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
             else
             {
-                await EngageBot(context);
+                var smsPrompt = "Hello, I am Expert Intelligence Bot. I'll collect some information to get started, " +
+                             "then a human freelancer will review your request and follow up. \n\n\n\n" +
+                             "Would you like web research?\n\n\n\n" +
+                             "You can say: 'yes' or 'no'.";
+                var teamsPrompt = "Hello! I am Expert Intelligence Bot.\n\nI am supported by experts who can work for you.\n\n " +
+                             "I'll collect some information to get started, then a human freelancer will review your request and follow up. " +
+                             $"You can also send me a text request via SMS text message on your phone at {ConfigurationManager.AppSettings["BotPhoneNumber"]} \n\n\n\n" +
+                                  "Would you like web research?\n\n\n\n" +
+                                  "You can say: 'yes' or 'no'.";
+                var choiceDialog = new PromptYesNo(
+                    _isSms ? smsPrompt : teamsPrompt, 
+                    "Sorry I didn't get that. Please say 'yes' if you want to continue with requesting web research", 
+                    "Sorry I still don't get it if you want to continue with web research. Please reply to start again.", 2);
+                context.Call(choiceDialog, OnResearchConfirmationReceivedAsync);
+
+                // introduce the bot
+                //IMessageActivity message = _isSms ? BuildIntroMessageForSms(context) : BuildIntroMessageForTeams(context);
+                //await context.PostWithRetryAsync(message);
+                //context.Wait(OnProjectTypeReceivedAsync);
             }
         }
 
-        private async Task EngageBot(IDialogContext context)
-        {
-            var message = context.MakeMessage();
-            Attachment attachment = BuildOptionsForNewUser();
-            message.Attachments.Add(attachment);
-            await context.PostWithRetryAsync(message);
-            context.Wait(MessageReceivedAsync);
-        }
-
-        private async Task MessageReceivedAsync(IDialogContext context, IAwaitable<IMessageActivity> result)
+        private async Task OnResearchConfirmationReceivedAsync(IDialogContext context, IAwaitable<bool> result)
         {
             if (result == null)
             {
@@ -54,72 +69,249 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
 
             //Prompt the user with welcome message before game starts
-            IMessageActivity message = await result;
+            bool shouldContinueWithResearch = await result;
 
-            WebApiConfig.TelemetryClient.TrackEvent("Message received", new Dictionary<string, string>()
+            WebApiConfig.TelemetryClient.TrackEvent("OnResearchConfirmationReceivedAsync", new Dictionary<string, string>()
             {
                 {"class", "HelloDialog" },
                 {"from", context.Activity.From.Name },
-                {"message", message.Text },
+                {"shouldContinueWithResearch", shouldContinueWithResearch.ToString() },
             });
 
-            if (message.Text.ToLower().StartsWith("closeproject"))
+            if (shouldContinueWithResearch)
             {
-                if (TryParseVsoId(message.Text, out int vsoId))
-                {
-                    await context.PostWithRetryAsync($"Sure I can help close project #{vsoId}");
-                    await VsoHelper.CloseProject(vsoId);
-                    await context.PostWithRetryAsync($"{vsoId} project is now closed.");
-                    await PromptForCreatingNewProjectAfterClosingExistingOne(context);
-                }
-                else
-                {
-                    await context.PostWithRetryAsync("Sorry, I ran into an error");
-                    context.Call(new UserHelpDialog(), EndDialog);
-                }
+                context.ConversationData.SetValue(ProjectTypeKey, "research");
+                context.Call(new UserProfileDialog(), OnUserProfileReceivedAsync); //run user profile wizard
             }
-            else if (message.Text.ToLower().StartsWith("getproject"))
+            else
             {
-                if (TryParseVsoId(message.Text, out int vsoId))
-                {
-                    await context.PostWithRetryAsync($"Let me get the status of {vsoId}");
-                    try
+                await context.PostWithRetryAsync("Sure. Have a nice day!. Please reply to start again.");
+                context.Done<object>(null);
+            }
+        }
+
+        private IMessageActivity BuildIntroMessageForSms(IBotToUser context)
+        {
+            var message = context.MakeMessage();
+            message.Text = "Hello, I am Expert Intelligence Bot. I'll collect some information to get started, " +
+                           "then a human project manager will review your request and follow up. \n\n\n\n" +
+                           "Would you like web research?\n\n\n\n" +
+                           "You can say: 'yes' or 'no'";
+            message.TextFormat = "plain";
+            return message;
+        }
+
+        private static IMessageActivity BuildIntroMessageForTeams(IDialogContext context)
+        {
+            var introCard = new HeroCard
+            {
+                Title = "Hello! I am Expert Intelligence Bot.",
+                Subtitle = "I am supported by experts who can work for you.",
+                Text = "I'll collect some information to get started, then a human project manager will review your request and follow up. " +
+                                       $"You can also send me a text request via SMS text message on your phone at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
+                Buttons = new List<CardAction>
                     {
-                        string projectDetails = await VsoHelper.GetProjectSummary(vsoId);
-                        await context.PostWithRetryAsync(projectDetails);
-                        await PromptForConnectToAgentAfterGettingProjectDetails(context);
-                    }
-                    catch (System.Exception e)
-                    {
-                        Trace.TraceInformation($"Sorry, I ran into an error closing project #{vsoId}. Exception = {e.Message}");
-                        context.Call(new UserHelpDialog(), EndDialog);
-                    }
-                }
-                else
-                {
-                    await LetUserKnowWeRanIntoAnIssueAndSendToAgentDialog(context);
-                }
-            }
-            else if (message.Text.ToLower().StartsWith("research"))
+                        new CardAction(ActionTypes.ImBack,
+                            $"I need web {DialogMatches.PerformInternetResearchMatch}",
+                            value: "yes")
+                    },
+                //Images = new List<CardImage>
+                //{
+                //    new CardImage(
+                //        url:
+                //        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFN_PjNlFuUyf0Q35ahXce4KuslRhb3F1XNutFTLcCet8cFlix",
+                //        alt: "Top strategies to stand-out on Linked In",
+                //        tap: new CardAction()
+                //        {
+                //            Value = $"https://microsoft.sharepoint.com/:w:/t/OfficeandtheGigEconomy/EaupzMfIrlRMiJ821DGbkqIBTMSkqlUduR85E6boQRK43w?e=opeRjW",
+                //            Type = "openUrl",
+                //            Title = "Top strategies to stand-out on Linked In"
+                //        }),
+                //    new CardImage(
+                //        url:
+                //        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSFN_PjNlFuUyf0Q35ahXce4KuslRhb3F1XNutFTLcCet8cFlix",
+                //        alt: "Average price for a Raspberry Pi 3 in Washington",
+                //        tap: new CardAction()
+                //        {
+                //            Value = $"https://microsoft.sharepoint.com/:w:/t/OfficeandtheGigEconomy/EcrZDqoBqzxDrRsdQoKsNNYBrspa7e7uZYNoosFqxNJyrA?e=2a6BX6",
+                //            Type = "openUrl",
+                //            Title = "Average price for a Raspberry Pi 3 in Washington"
+                //        }),
+                //}
+            };
+            var message = context.MakeMessage();
+            message.Attachments.Add(introCard.ToAttachment());
+            return message;
+        }
+
+        private async Task EngageBot(IDialogContext context)
+        {
+            var message = context.MakeMessage();
+            Attachment attachment = BuildOptionsForNewUserWithResearchPptApptOptions(context);
+            message.Attachments.Add(attachment);
+            await context.PostWithRetryAsync(message);
+            context.Wait(OnProjectTypeReceivedAsync);
+        }
+
+        private async Task OnProjectTypeReceivedAsync(IDialogContext context, IAwaitable<IMessageActivity> result)
+        {
+            if (result == null)
             {
-                context.Call(new InternetResearchDialog(), EndDialog);
+                throw new InvalidOperationException((nameof(result)) + Strings.NullException);
             }
-            else if (message.Text.ToLower().StartsWith("ppt"))
+
+            //Prompt the user with welcome message before game starts
+            IMessageActivity resultActivity = await result;
+
+            string projectType = resultActivity.Text.ToLower();
+
+            WebApiConfig.TelemetryClient.TrackEvent("OnProjectTypeReceivedAsync", new Dictionary<string, string>()
+            {
+                {"class", "HelloDialog" },
+                {"from", context.Activity.From.Name },
+                {ProjectTypeKey, projectType },
+            });
+
+            switch (projectType)
+            {
+                case DialogMatches.PerformInternetResearchMatch:
+                case "yes":
+                    context.ConversationData.SetValue(ProjectTypeKey, projectType);
+                    context.Call(new UserProfileDialog(), OnUserProfileReceivedAsync); //run user profile wizard
+                    break;
+                case "no":
+                    await context.PostWithRetryAsync("Sure. Have a nice day!");
+                    context.Done<object>(null);
+                    break;
+                default:
+                    await context.PostWithRetryAsync($"Sorry, I don't support {projectType}. Please say 'yes' to proceed");
+                    context.Wait(OnProjectTypeReceivedAsync);
+                    break;
+            }
+        }
+
+        private async Task OnUserProfileReceivedAsync(IDialogContext context, IAwaitable<UserProfile> userProfileResult)
+        {
+            if (userProfileResult == null)
+            {
+                throw new InvalidOperationException((nameof(userProfileResult)) + Strings.NullException);
+            }
+
+            UserProfile userProfile = null;
+            try
+            {
+                userProfile = await userProfileResult;
+            }
+            catch (System.Exception e)
+            {
+                WebApiConfig.TelemetryClient.TrackException(e);
+                throw;
+            }
+
+            if (userProfile == null)
+            {
+                // dont proceed
+                await context.PostWithRetryAsync($"Sure. Have a nice day! Please reply back to start again");
+                context.Done<object>(null);
+            }
+            else
+            {
+                context.UserData.SetValue(UserProfileHelper.UserProfileKey, userProfile);
+
+                WebApiConfig.TelemetryClient.TrackEvent("OnUserProfileReceivedAsync", new Dictionary<string, string>()
+                {
+                    {"class", "HelloDialog" },
+                    {"from", context.Activity.From.Name },
+                    {"userProfile", userProfile.ToString() },
+                });
+
+                context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
+            }
+        }
+
+        private async Task ProcessNonResearchProjectTypes(IDialogContext context)
+        {
+            string projectType = context.ConversationData.GetValue<string>(ProjectTypeKey);
+
+            if (projectType == "yes") projectType = "research"; // this is for sms
+
+            if (projectType.ToLower().StartsWith("closeproject"))
+            {
+                await CloseProject(context);
+            }
+            else if (projectType.ToLower().StartsWith("getproject"))
+            {
+                await GetProject(context);
+            }
+            else if (projectType.ToLower().StartsWith(DialogMatches.PerformInternetResearchMatch))
+            {
+                context.Call(new InternetResearchDialog(), EndInternetResearchDialog);
+            }
+            else if (projectType.ToLower().StartsWith("ppt"))
             {
                 await context.PostWithRetryAsync("'PowerPoint improvement' functionality is still under development.");
                 context.Done<object>(null);
             }
-            else if (message.Text.ToLower().StartsWith("appointment"))
+            else if (projectType.ToLower().StartsWith("appointment"))
             {
                 await context.PostWithRetryAsync("'virtual assistant' functionality is still under development.");
                 context.Done<object>(null);
             }
-            else if (message.Text.ToLower().StartsWith("agent"))
+            else if (projectType.ToLower().StartsWith("agent"))
             {
                 context.Call(new TalkToAnAgentDialog(), EndDialog);
             }
             else
             {
+                context.Call(new UserHelpDialog(), EndDialog);
+            }
+        }
+
+        private Task GetProject(IDialogContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        private Task CloseProject(IDialogContext context)
+        {
+            throw new NotImplementedException();
+        }
+
+        private async Task GetProject(IDialogContext context, IMessageActivity message)
+        {
+            if (TryParseVsoId(message.Text, out int vsoId))
+            {
+                await context.PostWithRetryAsync($"Let me get the status of {vsoId}");
+                try
+                {
+                    string projectDetails = await VsoHelper.GetProjectSummary(vsoId);
+                    await context.PostWithRetryAsync(projectDetails);
+                    await PromptForConnectToAgentAfterGettingProjectDetails(context);
+                }
+                catch (System.Exception e)
+                {
+                    Trace.TraceInformation($"Sorry, I ran into an error closing project #{vsoId}. Exception = {e.Message}");
+                    context.Call(new UserHelpDialog(), EndDialog);
+                }
+            }
+            else
+            {
+                await LetUserKnowWeRanIntoAnIssueAndSendToAgentDialog(context);
+            }
+        }
+
+        private async Task CloseProject(IDialogContext context, IMessageActivity message)
+        {
+            if (TryParseVsoId(message.Text, out int vsoId))
+            {
+                await context.PostWithRetryAsync($"Sure I can help close project #{vsoId}");
+                await VsoHelper.CloseProject(vsoId);
+                await context.PostWithRetryAsync($"{vsoId} project is now closed.");
+                await PromptForCreatingNewProjectAfterClosingExistingOne(context);
+            }
+            else
+            {
+                await context.PostWithRetryAsync("Sorry, I ran into an error");
                 context.Call(new UserHelpDialog(), EndDialog);
             }
         }
@@ -194,10 +386,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             if (message.Text == "yes")
             {
                 var newMessage = context.MakeMessage();
-                Attachment attachment = BuildOptionsForNewUser();
+                Attachment attachment = BuildOptionsForNewUserWithResearchPptApptOptions(context);
                 newMessage.Attachments.Add(attachment);
                 await context.PostWithRetryAsync(newMessage);
-                context.Wait(MessageReceivedAsync);
+                //context.Wait(MessageReceivedAsync);
             }
             else if (message.Text == "no")
             {
@@ -231,10 +423,16 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             return Task.CompletedTask;
         }
 
-        private Task EndDialog(IDialogContext context, IAwaitable<bool> result)
+        private async Task EndInternetResearchDialog(IDialogContext context, IAwaitable<bool> result)
         {
+            if (result == null)
+            {
+                throw new InvalidOperationException((nameof(result)) + Strings.NullException);
+            }
+
+            var requestCompleted = await result;
+
             context.Done<object>(null);
-            return Task.CompletedTask;
         }
 
         private static Attachment BuildYesNoHeroCard(string question)
@@ -250,16 +448,15 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }.ToAttachment();
         }
 
-        private static Attachment BuildOptionsForNewUser()
+        private static Attachment BuildOptionsForNewUserWithResearchPptApptOptions(IDialogContext context)
         {
             var heroCard = new HeroCard
             {
-                Title = "Hello! I am Expert Intelligence Bot.",
+                Title = $"Hello {UserProfileHelper.GetFriendlyName(context)}! I am Expert Intelligence Bot.",
                 Subtitle = "I am supported by experts who can work for you.",
                 Text = "We can do a few things. Please select one of the options so I can collect few information to get started. " +
                        "After that a project manager will review your request and follow up." +
-                       "You can also request virtual assistance such as booking an appointment with car dealer. " +
-                       $"Send me a SMS at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
+                       $"You can also reach out to me by sending SMS at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
                 Buttons = new List<CardAction>
                 {
                     new CardAction(ActionTypes.ImBack, "Internet Research", value: "research"),
@@ -277,12 +474,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             var heroCard = new HeroCard
             {
                 Title = "Hello! I am Expert Intelligence Bot.",
-                Subtitle = "I am supported by experts who can work for you." + 
-                           "You can also request virtual assistance such as booking an appointment with car dealer. " +
-                           $"Send me a SMS at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
+                Subtitle = "I am supported by experts who can work for you." +
+                           $"You can also reach out to me by sending SMS at {ConfigurationManager.AppSettings["BotPhoneNumber"]}",
                 Text = $"I am tracking project #{workItem.Id} " +
                        $"due on {workItem.Fields["Microsoft.VSTS.Scheduling.TargetDate"]} " +
-                       $"Description: {workItem.Fields["System.Description"]}). " +
+                       $"Description: {workItem.Fields[VsoHelper.DescriptionFieldName]}). " +
                        "Before we begin working on new one, we need to first close existing project one",
                 Buttons = new List<CardAction>
                 {

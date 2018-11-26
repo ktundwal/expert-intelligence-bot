@@ -19,6 +19,8 @@ namespace Microsoft.Office.EIBot.Service.utility
 {
     public static class ActivityHelper
     {
+        public const string SmsChannelId = "sms";
+        public const string MsTeamChannelId = "msteams";
         private const string SmsServiceEndpoint = "https://sms.botframework.com";
         public const string TeamsServiceEndpoint = "https://smba.trafficmanager.net/amer/";
 
@@ -28,16 +30,18 @@ namespace Microsoft.Office.EIBot.Service.utility
 
             var properties = new Dictionary<string, string>
             {
-                { "channelId", activity.ChannelId },
-                { "fromName", activity.From.Name},
-                { "recipientName", activity.Recipient.Name},
+                {"channelId", activity.ChannelId},
+                {"fromName", activity.From.Name},
+                {"recipientName", activity.Recipient.Name},
             };
 
-            if (activity.ChannelId == "sms")
+            if (activity.ChannelId == SmsChannelId)
             {
-                properties.Add("dialog", "UserSmsRootDialog");
-                dialog = new ExceptionHandlerDialog<object>(new UserSmsRootDialog(),
-                displayException: true);
+                //properties.Add("dialog", "UserSmsRootDialog");
+                //dialog = new ExceptionHandlerDialog<object>(new UserSmsRootDialog(),
+                //displayException: true);
+                dialog = new ExceptionHandlerDialog<object>(new UserRootDialog(),
+                    displayException: true);
             }
             else
             {
@@ -71,7 +75,7 @@ namespace Microsoft.Office.EIBot.Service.utility
         public static bool IsConversationPersonal(IMessageActivity activity)
         {
             Trace.TraceInformation($"IsConversationPersonal called from channel: {activity.ChannelId}");
-            if (activity.ChannelId == "sms") return true;
+            if (activity.ChannelId == SmsChannelId) return true;
             try
             {
                 foreach (var property in activity.Conversation.Properties)
@@ -85,9 +89,12 @@ namespace Microsoft.Office.EIBot.Service.utility
             {
                 WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
                 {
-                    {"function", "IsConversationPersonal" },
-                    {"debugNote", "Unable to determine if conversation is personal from activity in MessageController. " +
-                        $"Treating this as personal chat" },
+                    {"function", "IsConversationPersonal"},
+                    {
+                        "debugNote",
+                        "Unable to determine if conversation is personal from activity in MessageController. " +
+                        $"Treating this as personal chat"
+                    },
                 });
 
                 return true;
@@ -127,14 +134,15 @@ namespace Microsoft.Office.EIBot.Service.utility
                     message.From = botAccount;
                     message.Recipient = userAccount;
                     message.Conversation = new ConversationAccount(id: conversation.Id);
-                    message.Text = messageToSend;
+                    message.Text = $"[Mary (human)] {messageToSend}";
+                    message.TextFormat = "plain";
                     message.Locale = "en-Us";
-                    message.ChannelId = isSms ? "sms" : "msteam";
+                    message.ChannelId = isSms ? SmsChannelId : MsTeamChannelId;
                     message.ServiceUrl = serviceUrl;
 
-                    var endUserMessageActivity = (Activity)message;
+                    var endUserMessageActivity = (Activity) message;
                     var retryPolicy = BotConnectorUtility.BuildRetryPolicy();
-                    ResourceResponse response = await retryPolicy.ExecuteAsync(async () => 
+                    ResourceResponse response = await retryPolicy.ExecuteAsync(async () =>
                         await connector.Conversations.SendToConversationAsync(endUserMessageActivity));
 
                     Trace.TraceInformation($"[SUCCESS]: SendMessageToUserEx. Message={messageToSend}. " +
@@ -142,10 +150,10 @@ namespace Microsoft.Office.EIBot.Service.utility
 
                     WebApiConfig.TelemetryClient.TrackEvent("SendMessageToUserEx", new Dictionary<string, string>
                     {
-                        { "endUser", username},
-                        { "messageToSend", messageToSend},
-                        { "endUserConversationId", response.Id},
-                        { "vsoId", vsoId},
+                        {"endUser", username},
+                        {"messageToSend", messageToSend},
+                        {"endUserConversationId", response.Id},
+                        {"vsoId", vsoId},
                     });
 
                     return response;
@@ -155,10 +163,10 @@ namespace Microsoft.Office.EIBot.Service.utility
             {
                 WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
                 {
-                    {"function", "SendMessageToUserEx" },
-                    { "endUser", username},
-                    {"messageToSend", messageToSend },
-                    {"vsoId", vsoId },
+                    {"function", "SendMessageToUserEx"},
+                    {"endUser", username},
+                    {"messageToSend", messageToSend},
+                    {"vsoId", vsoId},
                 });
                 throw;
             }
@@ -174,11 +182,11 @@ namespace Microsoft.Office.EIBot.Service.utility
         {
             var propertiesForLogging = new Dictionary<string, string>
             {
-                {"function", "SendMessageToAgentAsReplyToConversationInAgentsChannel" },
+                {"function", "SendMessageToAgentAsReplyToConversationInAgentsChannel"},
                 {"endUser", activity.From.Name},
-                {"messageToSend", messageToSend },
-                {"agentConversationId", agentConversationId },
-                {"vsoId", vsoId.ToString() },
+                {"messageToSend", messageToSend},
+                {"agentConversationId", agentConversationId},
+                {"vsoId", vsoId.ToString()},
             };
 
             try
@@ -215,16 +223,18 @@ namespace Microsoft.Office.EIBot.Service.utility
                     message.ChannelData = new Dictionary<string, object>
                     {
                         ["teamsChannelId"] = "19:c20b196747424d8db51f6c00a8a9efa8@thread.skype",
-                        ["notification"] = new Dictionary<string, object> { { "alert", true } }
+                        ["notification"] = new Dictionary<string, object> {{"alert", true}}
                     };
 
-                    ResourceResponse response = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(async () 
-                        => await connector.Conversations.SendToConversationAsync((Activity)message));
-                    Trace.TraceInformation($"[SUCCESS]: SendMessageToAgentAsReplyToConversationInAgentsChannel. Message={messageToSend}. " +
-                                           $"response id ={response.Id} agentConversationId={agentConversationId} ");
+                    ResourceResponse response = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(async ()
+                        => await connector.Conversations.SendToConversationAsync((Activity) message));
+                    Trace.TraceInformation(
+                        $"[SUCCESS]: SendMessageToAgentAsReplyToConversationInAgentsChannel. Message={messageToSend}. " +
+                        $"response id ={response.Id} agentConversationId={agentConversationId} ");
 
                     propertiesForLogging.Add("replyMessageId", response.Id);
-                    WebApiConfig.TelemetryClient.TrackEvent("SendMessageToAgentAsReplyToConversationInAgentsChannel", propertiesForLogging);
+                    WebApiConfig.TelemetryClient.TrackEvent("SendMessageToAgentAsReplyToConversationInAgentsChannel",
+                        propertiesForLogging);
 
                     return response;
                 }
@@ -255,18 +265,18 @@ namespace Microsoft.Office.EIBot.Service.utility
                 var channelData = new Dictionary<string, object>
                 {
                     ["teamsChannelId"] = "19:c20b196747424d8db51f6c00a8a9efa8@thread.skype",
-                    ["notification"] = new Dictionary<string, object>() { { "alert", true } }
+                    ["notification"] = new Dictionary<string, object>() {{"alert", true}}
                 };
 
                 IMessageActivity agentMessage = Activity.CreateMessageActivity();
                 agentMessage.From = botAccount;
                 agentMessage.Type = ActivityTypes.Message;
                 agentMessage.Text = messageToSend;
-                agentMessage.ChannelId = "msteam";
+                agentMessage.ChannelId = MsTeamChannelId;
                 agentMessage.ServiceUrl = endUserActivity.ServiceUrl;
                 agentMessage.ReplyToId = agentConversationId;
 
-                var agentMessageActivity = (Activity)agentMessage;
+                var agentMessageActivity = (Activity) agentMessage;
 
                 var conversationParams = new ConversationParameters()
                 {
@@ -277,7 +287,8 @@ namespace Microsoft.Office.EIBot.Service.utility
                     ChannelData = channelData,
                 };
 
-                using (ConnectorClient connector = await BotConnectorUtility.BuildConnectorClientAsync(endUserActivity.ServiceUrl))
+                using (ConnectorClient connector =
+                    await BotConnectorUtility.BuildConnectorClientAsync(endUserActivity.ServiceUrl))
                 {
                     var createResponse = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(async () =>
                         await connector.Conversations.CreateConversationAsync(conversationParams));
@@ -288,13 +299,19 @@ namespace Microsoft.Office.EIBot.Service.utility
             {
                 WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
                 {
-                    {"function", "CreateAConversation" },
-                    {"messageToSend", messageToSend },
-                    {"agentConversationId", agentConversationId },
+                    {"function", "CreateAConversation"},
+                    {"messageToSend", messageToSend},
+                    {"agentConversationId", agentConversationId},
                 });
 
                 throw;
             }
+        }
+
+        public static bool HasAttachment(IMessageActivity activity)
+        {
+            // todo: find way to determine if activity has attachment
+            return false; //activity.Attachments.Any();
         }
     }
 }
