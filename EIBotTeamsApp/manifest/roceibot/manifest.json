@@ -1,9 +1,9 @@
 {
     "$schema": "https://statics.teams.microsoft.com/sdk/v1.3.0-beta.2/manifest/MicrosoftTeams.schema.json",
     "manifestVersion": "1.3",
-    "version": "0.5.1126",
-    "id": "801bf31e-1421-48aa-bafc-45d2046503ad",
-    "packageName": "com.microsoft.teams.expertconnect.dev",
+    "version": "0.5.10082018",
+    "id": "c7588e30-90b5-4be0-9bc9-5cab5bcf58d2",
+    "packageName": "com.microsoft.teams.eibot.roc",
     "developer": {
         "name": "Microsoft",
         "websiteUrl": "https://www.microsoft.com",
@@ -11,12 +11,12 @@
         "termsOfUseUrl": "https://www.microsoft.com/en-us/legal/intellectualproperty/copyright/default.aspx"
     },
     "name": {
-        "short": "Expert Connect (dev)",
-        "full": "Expert Connect (For development)"
+        "short": "RocEIBot",
+        "full": "Expert Intelligence Bot (For ROC4)"
     },
     "description": {
-        "short": "Expert Connect from Office (For development)",
-        "full": "I can help you find experts who do can do web research and Powerpoint Improvements (For development)"
+        "short": "Expert Intelligence bot from Office (For ROC4)",
+        "full": "My experts can  help you do Web research (For ROC4)"
     },
     "icons": {
         "outline": "Ei_Bot_logo.png",
@@ -25,7 +25,7 @@
     "accentColor": "#ffffff",
     "staticTabs": [
         {
-            "contentUrl": "https://64838c6a.ngrok.io/public/tab/tabConfig/tab.aspx",
+            "contentUrl": "https://roceibot.azurewebsites.net/public/tab/tabConfig/tab.aspx",
             "entityId": "statictab",
             "name": "Bot Info",
             "scopes": [
@@ -36,29 +36,25 @@
     ],
     "configurableTabs": [
         {
-            "configurationUrl": "https://64838c6a.ngrok.io/public/tab/tabConfig/index.html",
+            "configurationUrl": "https://roceibot.azurewebsites.net/public/tab/tabConfig/index.html",
             "canUpdateConfiguration": false,
             "scopes": [ "team", "groupchat" ]
         }
     ],
     "bots": [
         {
-            "botId": "801bf31e-1421-48aa-bafc-45d2046503ad",
+            "botId": "c7588e30-90b5-4be0-9bc9-5cab5bcf58d2",
             "isNotificationOnly": false,
             "scopes": [ "team", "personal", "groupchat" ],
-            "commandLists": [
-                {
-                    "scopes": [
-                        "team"
-                    ],
-                    "commands": [
-                        {
-                            "title": "reply to user",
-                            "description": "Sends the message to user. Bot will act as tunnel"
-                        }
-                    ]
-                }
-            ]
+            "commandLists": [{
+                "scopes": [
+                    "team"
+                ],
+                "commands": [{
+                    "title": "reply to user",
+                    "description": "Sends the message to user. Bot will act as tunnel"
+                }]
+            }]
         }
     ],
     "permissions": [
@@ -66,6 +62,6 @@
         "messageTeamMembers"
     ],
     "validDomains": [
-        "64838c6a.ngrok.io"
+        "roceibot.azurewebsites.net"
     ]
 }

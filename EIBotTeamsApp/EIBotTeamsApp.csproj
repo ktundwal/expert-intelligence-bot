@@ -323,6 +323,19 @@
     <Content Include="public\assets\computer_people.jpg" />
     <Content Include="public\assets\computer_person.jpg" />
     <Content Include="public\assets\mascot.png" />
+    <Content Include="public\assets\ppt\personal_tasks_icon.png" />
+    <Content Include="public\assets\ppt\presentation_design_icon.png" />
+    <Content Include="public\assets\ppt\StyleOptions\image_select_illustrations_1.png" />
+    <Content Include="public\assets\ppt\StyleOptions\image_select_photos_1.png" />
+    <Content Include="public\assets\ppt\StyleOptions\image_select_typographic_1.png" />
+    <Content Include="public\assets\ppt\StyleOptions\job_created_graphic_1.png" />
+    <Content Include="public\assets\ppt\StyleOptions\style_select_abstract_1.png" />
+    <Content Include="public\assets\ppt\StyleOptions\style_select_colorful_modern_2.png" />
+    <Content Include="public\assets\ppt\StyleOptions\style_select_corporate_1.png" />
+    <Content Include="public\assets\ppt\StyleOptions\style_select_dark_modern_2.png" />
+    <Content Include="public\assets\ppt\StyleOptions\style_select_light_modern_2.png" />
+    <Content Include="public\assets\ppt\StyleOptions\style_select_modern_1.png" />
+    <Content Include="public\assets\ppt\web_research_icon.png" />
     <Content Include="public\tab\tabConfig\index.html" />
     <Content Include="popUpSignin.html" />
     <Content Include="public\tab\tabConfig\tab.aspx" />
@@ -332,8 +345,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Start\WebApiConfig.cs" />
+    <Compile Include="src\dialogs\EndUser\AdaptiveCardHelper.cs" />
     <Compile Include="src\dialogs\EndUser\ConfirmResearchRequestDialog.cs" />
+    <Compile Include="src\dialogs\EndUser\CardBuilder.cs" />
+    <Compile Include="src\dialogs\EndUser\PresentationDialogStrings.cs" />
+    <Compile Include="src\dialogs\EndUser\PresentationDesignDialog.cs" />
     <Compile Include="src\dialogs\EndUser\ExpertConnectDialog.cs" />
+    <Compile Include="src\dialogs\EndUser\PresentationDialog.cs" />
     <Compile Include="src\dialogs\EndUser\PromptEmail.cs" />
     <Compile Include="src\dialogs\EndUser\PromptPhoneNumber.cs" />
     <Compile Include="src\dialogs\EndUser\PromptYesNo.cs" />

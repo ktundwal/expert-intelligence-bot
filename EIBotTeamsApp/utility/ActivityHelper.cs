@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using AdaptiveCards;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Teams.Models;
@@ -23,6 +24,7 @@ namespace Microsoft.Office.EIBot.Service.utility
         public const string MsTeamChannelId = "msteams";
         private const string SmsServiceEndpoint = "https://sms.botframework.com";
         public const string TeamsServiceEndpoint = "https://smba.trafficmanager.net/amer/";
+        public const string ChatTypeIsPersonal = "personal";
 
         public static IDialog<object> GetRootDialog(Activity activity)
         {
@@ -47,7 +49,7 @@ namespace Microsoft.Office.EIBot.Service.utility
             {
                 try
                 {
-                    if (activity.Conversation.ConversationType == "personal")
+                    if (activity.Conversation.ConversationType == ChatTypeIsPersonal)
                     {
                         dialog = new ExceptionHandlerDialog<object>(new UserRootDialog(),
                             displayException: true);
@@ -312,6 +314,22 @@ namespace Microsoft.Office.EIBot.Service.utility
         {
             // todo: find way to determine if activity has attachment
             return false; //activity.Attachments.Any();
+        }
+
+        public static IMessageActivity CreateResponseMessageWithAdaptiveCard(IDialogContext context, AdaptiveCard card)
+        {
+            var responseMessage = context.MakeMessage();
+
+            responseMessage.Attachments = new List<Attachment>
+            {
+                new Attachment()
+                {
+                    ContentType = AdaptiveCard.ContentType,
+                    Content = card
+                }
+            };
+
+            return responseMessage;
         }
     }
 }
