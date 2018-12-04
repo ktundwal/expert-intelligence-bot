@@ -1,4 +1,5 @@
 ﻿using AdaptiveCards;
+using Microsoft.Bot.Connector;
 
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
@@ -76,7 +77,15 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             AdaptiveSubmitAction action = new AdaptiveSubmitAction()
             {
                 Title = PresentationDialogStrings.LetsBegin,
-                Data = PresentationDialogStrings.LetsBegin
+                Data = new AdaptiveCardHelper.ResponseObject()
+                {
+                    msteams = new CardAction()
+                    {
+                        Text = PresentationDialogStrings.LetsBegin,
+                        DisplayText = PresentationDialogStrings.LetsBegin,
+                        Type = ActionTypes.MessageBack
+                    }
+                }
             };
 
             AdaptiveContainer ctaContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithText(string.Empty, PresentationDialogStrings.LetsBegin);

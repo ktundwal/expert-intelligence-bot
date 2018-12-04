@@ -1,5 +1,6 @@
 ﻿using System;
 using AdaptiveCards;
+using Microsoft.Bot.Connector;
 
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 {
@@ -7,18 +8,14 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
     {
         public static AdaptiveColumn CreateAdaptiveColumnWithText(string ctaHeader, string ctaText)
         {
-            AdaptiveResponseObject data = new AdaptiveResponseObject()
-            {
-                Header = ctaHeader,
-                Text   = ctaText
-            };
-
             AdaptiveColumn column = new AdaptiveColumn();
             AdaptiveSubmitAction action = new AdaptiveSubmitAction()
             {
                 Title = ctaHeader,
-                //Data = data,
-                Data = ctaHeader
+                Data = new ResponseObject()
+                {
+                    msteams = new CardAction(ActionTypes.MessageBack, null, null, null, ctaHeader, ctaHeader)
+                }
             };
 
             AdaptiveContainer ctaContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithText(ctaHeader, ctaText);
@@ -41,10 +38,20 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 return column;
             }
 
+            var data = new ResponseObject()
+            {
+                msteams = new CardAction()
+                {
+                    Type = ActionTypes.MessageBack,
+                    Text = ctaText,
+                    DisplayText = ctaText
+                }
+            };
+
             AdaptiveSubmitAction action = new AdaptiveSubmitAction()
             {
                 Title = ctaText,
-                Data = ctaText
+                Data = data
             };
             AdaptiveContainer ctaContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithText(string.Empty, ctaText);
             ctaContainer.SelectAction = action;
@@ -56,7 +63,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 {
                     ctaContainer.Items.Add(imageContainer);
                     column.Items.Add(ctaContainer);
-                } else
+                }
+                else
                 {
                     ctaContainer.Items.Insert(0, imageContainer);
                     column.Items.Add(ctaContainer);
@@ -144,6 +152,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 Items = { image }
             };
+        }
+
+        public class ResponseObject
+        {
+            public CardAction msteams = null;
         }
     }
 }
