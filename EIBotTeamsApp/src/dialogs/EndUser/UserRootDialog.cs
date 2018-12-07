@@ -77,7 +77,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
             else // if (activity.Text.ToLower() == PresentationDialogStrings.PersonalTasks.ToLower())
             {
-                await context.PostAsync("Please select Web research OR Presentation");
+                await context.PostAsync("Please select Web Research OR Presentation Design");
                 await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context, CardBuilder.IntroductionCard()));
                 context.Wait(this.IntroductionCardResponseMessageReceivedAsync);
             }

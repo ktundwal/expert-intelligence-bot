@@ -79,10 +79,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             return column;
         }
 
-        public static AdaptiveColumn CreateAdaptiveColumnWithImagePreview(string ctaText, string imageUrl)
+        public static (AdaptiveColumn column, AdaptiveAction preview) CreateAdaptiveColumnWithImagePreview(string ctaText, string imageUrl)
         {
             AdaptiveColumn column = CreateAdaptiveColumnWithImage(ctaText, imageUrl, true, true);
-            AdaptiveContainer previewContainer = CreateAdaptiveContainerWithText(string.Empty, "Preview");
+            //AdaptiveContainer previewContainer = CreateAdaptiveContainerWithText(string.Empty, "Preview");
 
             AdaptiveCard previewCard = new AdaptiveCard();
             AdaptiveColumnSet previewImages = new AdaptiveColumnSet()
@@ -97,14 +97,14 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             previewCard.Body.Add(previewImages);
 
-            previewContainer.SelectAction = new AdaptiveShowCardAction()
+            AdaptiveAction preview = new AdaptiveShowCardAction()
             {
-                Title = $"Preview {ctaText}",
+                Title = $"Preview",
                 Card = previewCard
             };
             
-            column.Items.Add(previewContainer);
-            return column;
+            //column.Items.Add(previewContainer);
+            return (column, preview);
         }
 
         public static AdaptiveContainer CreateAdaptiveContainerWithText(string ctaHeader = "", string ctaText = "")
@@ -116,7 +116,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 AdaptiveTextBlock headerBlock = new AdaptiveTextBlock()
                 {
                     Text = $"**{ctaHeader}**",
-                    Size = AdaptiveTextSize.Large,
+                    Size = AdaptiveTextSize.Medium,
                     //Weight = AdaptiveTextWeight.Bolder,
                     Wrap = true,
                     Spacing = AdaptiveSpacing.Large,

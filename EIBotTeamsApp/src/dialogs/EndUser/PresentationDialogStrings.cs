@@ -31,10 +31,13 @@
         public const string NewProjectDesc = "Pitch decks, business plans, financial reports";
 
         public const string ProgressReport = "Progress report";
-        public const string ProgressReportDesc = "Slides for a workshop, webinar or training";
+        public const string ProgressReportDesc = "Company frameworks, guidelines or key resources";
 
-        public const string Educate = "Educate & Instruct";
-        public const string EducateDesc = "Company frameworks, guidelines or key resources";
+        public const string Educate = "Educate & Instruct"; 
+        public const string EducateDesc = "Slides for a workshop, webinar or training";
+
+        public const string OtherOption = "Other";
+        public const string OtherDec = "Tell us how we can help?";
 
         public static string GetImageUrl(string location)
         {
