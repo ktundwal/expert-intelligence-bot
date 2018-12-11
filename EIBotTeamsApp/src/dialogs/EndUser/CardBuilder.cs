@@ -220,36 +220,37 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             AdaptiveTextBlock question = new AdaptiveTextBlock()
             {
-                Text = $"Is there anything that you specifically DON'T want the designer to do? Any pet peeves?",
-                Wrap = true,
+                Text = $"Is there anything that you specifically DON'T want the designer to do? Any pet peeves?" +
+                $"\n\n **Please reply using your text below**",
+                Wrap = true
             };
 
-            AdaptiveTextInput comment = new AdaptiveTextInput()
-            {
-                Id = "comment",
-                IsMultiline = true,
-                MaxLength = 500,
-                Placeholder = "Comments"
-            };
+            //AdaptiveTextInput comment = new AdaptiveTextInput()
+            //{
+            //    Id = "comment",
+            //    IsMultiline = true,
+            //    MaxLength = 500,
+            //    Placeholder = "Comments"
+            //};
 
-            AdaptiveSubmitAction submit = new AdaptiveSubmitAction()
-            {
-                Title = "Submit",
-                Data = new AdaptiveCardHelper.ResponseObject()
-                {
-                    msteams = new CardAction()
-                    {
-                        Type = ActionTypes.MessageBack,
-                        DisplayText = comment.Value
-                    }
-                }
-            };
+            //AdaptiveSubmitAction submit = new AdaptiveSubmitAction()
+            //{
+            //    Title = "Submit",
+            //    Data = new AdaptiveCardHelper.ResponseObject()
+            //    {
+            //        msteams = new CardAction()
+            //        {
+            //            Type = ActionTypes.MessageBack,
+            //            DisplayText = comment.Value
+            //        }
+            //    }
+            //};
 
             card.Body.Add(last);
             card.Body.Add(question);
-            card.Body.Add(comment);
+            //card.Body.Add(comment);
 
-            card.Actions.Add(submit);
+            //card.Actions.Add(submit);
             return card;
         }
 
@@ -353,6 +354,96 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 Title = "Looks good, send the job",
                 Data = "Looks good, send the job"
             });
+            return card;
+        }
+
+
+        /* V2 mockups */
+        public static AdaptiveCard V2PresentationIntro()
+        {
+            string iconCheckmark = "✅";
+            string iconCross = "❌";
+
+            AdaptiveCard card = new AdaptiveCard();
+
+            AdaptiveTextBlock description = new AdaptiveTextBlock()
+            {
+                Text = PresentationDialogStrings.V2Introduction,
+                Wrap = true
+            };
+
+            AdaptiveTextBlock whatWeDoText = new AdaptiveTextBlock("**What we do:**");
+            AdaptiveFactSet whatWeDo = new AdaptiveFactSet();
+            PresentationDialogStrings.V2WhatWeDo.ForEach((string option) =>
+            {
+                whatWeDo.Facts.Add(new AdaptiveFact(iconCheckmark, option));
+            });
+
+            AdaptiveTextBlock whatWeDontDoText = new AdaptiveTextBlock("**What we DON'T do:**");
+            AdaptiveFactSet whatWeDontDo = new AdaptiveFactSet();
+            PresentationDialogStrings.V2WhatWeDontDo.ForEach((string option) =>
+            {
+                whatWeDontDo.Facts.Add(new AdaptiveFact(iconCross, option));
+            });
+
+            AdaptiveTextBlock letsBegin = new AdaptiveTextBlock(PresentationDialogStrings.V2Start);
+
+
+            card.Body.Add(description);
+            card.Body.Add(whatWeDoText);
+            card.Body.Add(whatWeDo);
+            card.Body.Add(whatWeDontDoText);
+            card.Body.Add(whatWeDontDo);
+            card.Body.Add(letsBegin);
+
+            card.Actions = new List<AdaptiveAction>()
+            {
+                AdaptiveCardHelper.CreateSubmitAction(PresentationDialogStrings.V2LetsBegin),
+                AdaptiveCardHelper.CreateSubmitAction(PresentationDialogStrings.V2ShowExamples)
+            };
+            return card;
+        }
+
+        public static AdaptiveCard V2PresentationPurpose()
+        {
+            AdaptiveCard card = new AdaptiveCard();
+            AdaptiveTextBlock description = new AdaptiveTextBlock()
+            {
+                Text = PresentationDialogStrings.V2PurposeDescription,
+                Spacing = AdaptiveSpacing.ExtraLarge,
+                Wrap = true
+            };
+
+            AdaptiveColumnSet options = new AdaptiveColumnSet()
+            {
+                Columns = {
+                    AdaptiveCardHelper.CreateAdaptiveColumnWithText(
+                        PresentationDialogStrings.V2NewProject,
+                        PresentationDialogStrings.V2NewProjectDesc
+                    ),
+                    AdaptiveCardHelper.CreateAdaptiveColumnWithText(
+                        PresentationDialogStrings.V2ProgressReport,
+                        PresentationDialogStrings.V2ProgressReportDesc
+                    )
+                }
+            };
+            AdaptiveColumnSet options2 = new AdaptiveColumnSet()
+            {
+                Columns = {
+                    AdaptiveCardHelper.CreateAdaptiveColumnWithText(
+                        PresentationDialogStrings.V2Educate,
+                        PresentationDialogStrings.V2EducateDesc
+                    ),
+                    AdaptiveCardHelper.CreateAdaptiveColumnWithText(
+                        PresentationDialogStrings.V2Cleanup,
+                        PresentationDialogStrings.V2CleanupDec
+                    )
+                }
+            };
+
+            card.Body.Add(description);
+            card.Body.Add(options);
+            card.Body.Add(options2);
             return card;
         }
     }

@@ -332,5 +332,15 @@ namespace Microsoft.Office.EIBot.Service.utility
 
             return responseMessage;
         }
+
+        public static IMessageActivity CreateResponseMessageWithHeroCard(IDialogContext context, HeroCard card)
+        {
+            var responseMessage = context.MakeMessage();
+            responseMessage.Attachments = new List<Attachment>
+            {
+                card.ToAttachment()
+            };
+            return responseMessage;
+        }
     }
 }

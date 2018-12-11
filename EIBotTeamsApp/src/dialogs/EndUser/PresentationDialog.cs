@@ -24,7 +24,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             }
 
             await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context,
-                CardBuilder.PresentationIntro()));
+                CardBuilder.V2PresentationIntro()));
             context.Wait(this.MessageReceivedAsyncToPurposeSelection);
 
         }
@@ -37,8 +37,13 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             if (activity.Text == PresentationDialogStrings.LetsBegin.ToLower())
             {
-                await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context, CardBuilder.PresentationPurposeOptions()));
+                await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context, CardBuilder.V2PresentationPurpose()));
                 context.Wait(this.MessageReceivedAsyncToStyleSelection);
+            } else
+            {
+                await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context,
+                   CardBuilder.V2PresentationIntro()));
+                context.Wait(this.MessageReceivedAsyncToPurposeSelection);
             }
         }
 
@@ -116,7 +121,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             ThrowExceptionIfResultIsNull(result);
 
             var activity = await result;
-            var comment = ((JObject)activity.Value).Value<string>("comment");
+            var comment = activity.Text;
+            //var comment = ((JObject)activity.Value).Value<string>("comment");
 
             if(comment.Length > 0)
             {

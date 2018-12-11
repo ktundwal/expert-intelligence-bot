@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using AdaptiveCards;
 using Microsoft.Bot.Connector;
 
@@ -100,8 +101,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             AdaptiveAction preview = new AdaptiveShowCardAction()
             {
                 Title = $"Preview",
-                Card = previewCard
+                Card = previewCard,
+                AdditionalProperties = new Dictionary<string, object>()
             };
+            preview.AdditionalProperties.Add("ShowCardActionMode", "popup");
             
             //column.Items.Add(previewContainer);
             return (column, preview);
@@ -151,6 +154,37 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             return new AdaptiveContainer()
             {
                 Items = { image }
+            };
+        }
+
+        /// <summary>
+        ///  Creates a clickble action for the card Action. 
+        /// </summary>
+        /// <param name="displayText">Text to display on the button</param>
+        /// <param name="messageBack">Text to be returned to bot, if null the displayText will be used</param>
+        /// <returns></returns>
+        public static AdaptiveSubmitAction CreateSubmitAction(string displayText, string messageBack = "")
+        {
+            if(string.IsNullOrEmpty(displayText))
+            {
+                throw new SystemException("Incorrect parameters entered");
+            }
+
+            string dPText = displayText;
+            string mBText = !string.IsNullOrEmpty(messageBack) ? messageBack : displayText;
+
+            return new AdaptiveSubmitAction()
+            {
+                Title = dPText,
+                Data = new ResponseObject()
+                {
+                    msteams = new CardAction()
+                    {
+                        Type = ActionTypes.MessageBack,
+                        Text = mBText,
+                        DisplayText = mBText
+                    }
+                }
             };
         }
 
