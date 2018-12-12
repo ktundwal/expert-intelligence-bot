@@ -214,16 +214,17 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             AdaptiveTextBlock last = new AdaptiveTextBlock()
             {
-                Text = $"Great. Last question:",
+                Text = $"Great. Last question: Is there anything that you specifically DON'T want the designer to do? Any pet peeves? \n " +
+                $"**Let us know in the reply box below, in one single message (we'll progress to the next step afterwards)**",
                 Wrap = true,
             };
 
-            AdaptiveTextBlock question = new AdaptiveTextBlock()
-            {
-                Text = $"Is there anything that you specifically DON'T want the designer to do? Any pet peeves?" +
-                $"\n\n **Please reply using your text below**",
-                Wrap = true
-            };
+            //AdaptiveTextBlock question = new AdaptiveTextBlock()
+            //{
+            //    Text = $"Is there anything that you specifically DON'T want the designer to do? Any pet peeves?" +
+            //    $"\n\n **Please reply using your text below**",
+            //    Wrap = true
+            //};
 
             //AdaptiveTextInput comment = new AdaptiveTextInput()
             //{
@@ -247,7 +248,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             //};
 
             card.Body.Add(last);
-            card.Body.Add(question);
+            //card.Body.Add(question);
             //card.Body.Add(comment);
 
             //card.Actions.Add(submit);
@@ -290,11 +291,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             card.Body.AddRange(new AdaptiveElement[] { title, header, information, lastDescription });
 
-            card.Actions.Add(new AdaptiveSubmitAction()
-            {
-                Title = "Okay I've added everthing to the file."
-            });
-
+            card.Actions.Add(CreateSubmitAction("Okay I've added everthing to the file", "Done"));
+            
             return card;
         }
         public static AdaptiveCard PresentationSummaryCard(IDialogContext context)
@@ -308,18 +306,24 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             List<AdaptiveElement> list = new List<AdaptiveElement> { title };
 
-            AdaptiveTextBlock intent = new AdaptiveTextBlock()
+            if (context.UserData.TryGetValue<string>(PresentationDialog.PurposeValue, out string purposeInfo))
             {
-                Text = $"**Intent:**\n\n {context.UserData.GetValue<string>(PresentationDialog.PurposeValue)}",
-                Wrap = true,
-            };
-            list.Add(intent);
+                AdaptiveTextBlock intent = new AdaptiveTextBlock()
+                {
+                    Text = $"**Intent:**\n\n {purposeInfo}",
+                    Wrap = true,
+                };
+                list.Add(intent);
+            }
 
-            AdaptiveTextBlock style = new AdaptiveTextBlock()
+            if (context.UserData.TryGetValue<string>(PresentationDialog.StyleValue, out string styleInfo))
             {
-                Text = $"**Style:**\n\n {context.UserData.GetValue<string>(PresentationDialog.StyleValue)},  {context.UserData.GetValue<string>(PresentationDialog.ThemeValue)}",
-                Wrap = true,
-            };
+                AdaptiveTextBlock style = new AdaptiveTextBlock()
+                {
+                    Text = $"**Style:**\n\n {styleInfo}",
+                    Wrap = true,
+                };
+            }
 
             if (context.UserData.TryGetValue<string>(PresentationDialog.StyleValue, out string visualInfo))
             {
@@ -446,5 +450,83 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             card.Body.Add(options2);
             return card;
         }
+
+        public static IMessageActivity V2ShowExamples(IDialogContext context)
+        {
+            var responseMessage = context.MakeMessage();
+            responseMessage.Text = PresentationDialogStrings.V2ExampleInfo;
+
+            responseMessage.Attachments = new List<Attachment>()
+            {
+                new Attachment()
+                {
+                    ContentType = AdaptiveCard.ContentType,
+                    Content = V2StyleExampleCard("Light, Modern, Photos", "https://www.microsoft.com/", new List<string>()
+                    {
+                        PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_corporate_1.png"),
+                        PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_corporate_1.png"),
+                        PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_corporate_1.png")
+                    })
+                },
+                new Attachment()
+                {
+                    ContentType = AdaptiveCard.ContentType,
+                    Content = V2StyleExampleCard("Dark, Corporate, Photos", "https://www.microsoft.com/", new List<string>()
+                    {
+                        PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_modern_1.png"),
+                        PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_modern_1.png"),
+                        PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_modern_1.png")
+                    })
+                },
+                new Attachment()
+                {
+                    ContentType = AdaptiveCard.ContentType,
+                    Content = V2StyleExampleCard("Colorful, Abstract, Shapes", "https://www.microsoft.com/", new List<string>()
+                    {
+                        PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_abstract_1.png"),
+                        PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_abstract_1.png"),
+                        PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_abstract_1.png")
+                    })
+                },
+                new Attachment()
+                {
+                    ContentType = AdaptiveCard.ContentType,
+                    Content = V2CustomDesignCard()
+                }
+            };
+
+            return responseMessage;
+        }
+
+        private static AdaptiveCard V2StyleExampleCard(string style = "", string templateUrl = "", List<string> imageUrls = null)
+        {
+            AdaptiveCard card = new AdaptiveCard();
+            AdaptiveTextBlock styleTextBlock = new AdaptiveTextBlock($"**Styles:** {style} ([preview]({templateUrl}))");
+            AdaptiveColumnSet imageSet = new AdaptiveColumnSet();
+
+            imageUrls.ForEach((url) =>
+            {
+                imageSet.Columns.Add(CreateAdaptiveColumnWithImage(null, url));
+            });
+
+            card.Body.Add(styleTextBlock);
+            card.Body.Add(imageSet);
+            card.Actions.Add(CreateSubmitAction("Make mine like this", style));
+
+            return card;
+        }
+
+        private static AdaptiveCard V2CustomDesignCard()
+        {
+            AdaptiveCard card = new AdaptiveCard();
+            AdaptiveTextBlock textBlock = new AdaptiveTextBlock(PresentationDialogStrings.V2SomethingDifferent);
+            textBlock.Wrap = true;
+
+            card.Body.Add(textBlock);
+            card.Actions.Add(CreateSubmitAction(PresentationDialogStrings.V2LetsBegin));
+
+            return card;
+        }
+
     }
 }

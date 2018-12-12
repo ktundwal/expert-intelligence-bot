@@ -22,6 +22,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 throw new ArgumentNullException(nameof(context));
             }
+            
 
             await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context,
                 CardBuilder.V2PresentationIntro()));
@@ -39,13 +40,36 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             {
                 await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context, CardBuilder.V2PresentationPurpose()));
                 context.Wait(this.MessageReceivedAsyncToStyleSelection);
-            } else
+            } else if (activity.Text == PresentationDialogStrings.V2ShowExamples.ToLower())
+            {
+                await context.PostAsync(CardBuilder.V2ShowExamples(context));
+                context.Wait(this.ExamplesMessageReceived);
+            }
+            else
             {
                 await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context,
                    CardBuilder.V2PresentationIntro()));
                 context.Wait(this.MessageReceivedAsyncToPurposeSelection);
             }
         }
+
+        private async Task ExamplesMessageReceived(IDialogContext context, IAwaitable<IMessageActivity> result)
+        {
+            ThrowExceptionIfResultIsNull(result);
+            var activity = await result;
+
+            if (activity.Text == PresentationDialogStrings.LetsBegin.ToLower())
+            {
+                await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context, CardBuilder.V2PresentationPurpose()));
+                context.Wait(this.MessageReceivedAsyncToStyleSelection);
+            } else
+            {
+                context.UserData.SetValue(StyleValue, activity.Text);
+                await context.PostAsync(ActivityHelper.CreateResponseMessageWithAdaptiveCard(context, CardBuilder.AnythingElseCard()));
+                context.Wait(this.ExtraInformation);
+            }
+        }
+
 
         private async Task MessageReceivedAsyncToStyleSelection(IDialogContext context, IAwaitable<IMessageActivity> result)
         {

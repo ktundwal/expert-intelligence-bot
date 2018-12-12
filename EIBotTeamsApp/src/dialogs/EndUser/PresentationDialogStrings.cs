@@ -81,5 +81,10 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         public const string V2Cleanup = "Slide cleanup";
         public const string V2CleanupDec = "Upload your own PowerPoint file for some pro polish";
         #endregion
+
+        #region Examples
+        public static string V2ExampleInfo = "To give you an idea of what this service can do, here are 3 examples of an end-product, all with the same content but different styles.";
+        public static string V2SomethingDifferent = "Want something different? We can guide you to create your own brief like the above examples by asking you a few questions, then we'll send the brief to the designer.";
+        #endregion
     }
 }

@@ -33,7 +33,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             AdaptiveContainer imageContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithImage(imageUrl);
 
-            if (ctaText == string.Empty)
+            if (string.IsNullOrEmpty(ctaText))
             {
                 column.Items.Add(imageContainer);
                 return column;
