@@ -2,6 +2,7 @@
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
 using System.Collections.Generic;
+using System.Linq;
 using static Microsoft.Office.EIBot.Service.dialogs.EndUser.AdaptiveCardHelper;
 
 namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
@@ -51,132 +52,6 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             return card;
 
         }
-
-        public static AdaptiveCard PresentationIntro()
-        {
-            AdaptiveCard card = new AdaptiveCard();
-            AdaptiveTextBlock description = new AdaptiveTextBlock()
-            {
-                Text = PresentationDialogStrings.LetsBeginDescription,
-                Spacing = AdaptiveSpacing.ExtraLarge,
-                Wrap = true
-            };
-            AdaptiveTextBlock whatWeDo = new AdaptiveTextBlock()
-            {
-                Text = PresentationDialogStrings.LetsBeginWhatWeDo,
-                Spacing = AdaptiveSpacing.Medium,
-                Wrap = true
-            };
-            AdaptiveTextBlock confirmation = new AdaptiveTextBlock()
-            {
-                Text = PresentationDialogStrings.LetsBeginConfirmation,
-                Spacing = AdaptiveSpacing.Medium,
-                Wrap = true
-            };
-
-            AdaptiveSubmitAction action = new AdaptiveSubmitAction()
-            {
-                Title = PresentationDialogStrings.LetsBegin,
-                Data = new AdaptiveCardHelper.ResponseObject()
-                {
-                    msteams = new CardAction()
-                    {
-                        Text = PresentationDialogStrings.LetsBegin,
-                        DisplayText = PresentationDialogStrings.LetsBegin,
-                        Type = ActionTypes.MessageBack
-                    }
-                }
-            };
-
-            AdaptiveContainer ctaContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithText(string.Empty, PresentationDialogStrings.LetsBegin);
-            ctaContainer.SelectAction = action;
-            ctaContainer.Style = AdaptiveContainerStyle.Emphasis;
-
-            card.Body.Add(description);
-            card.Body.Add(whatWeDo);
-            card.Body.Add(confirmation);
-            card.Body.Add(ctaContainer);
-
-            return card;
-        }
-
-        public static AdaptiveCard PresentationPurposeOptions()
-        {
-            AdaptiveCard card = new AdaptiveCard();
-
-            AdaptiveTextBlock description = new AdaptiveTextBlock()
-            {
-                Text = PresentationDialogStrings.PurposeDescription,
-                Spacing = AdaptiveSpacing.ExtraLarge,
-                Wrap = true
-            };
-
-            card.Body.Add(description);
-
-            AdaptiveColumnSet options = new AdaptiveColumnSet()
-            {
-                Columns = {
-                    AdaptiveCardHelper.CreateAdaptiveColumnWithText(
-                        PresentationDialogStrings.NewProject,
-                        PresentationDialogStrings.NewProjectDesc
-                    ),
-                    AdaptiveCardHelper.CreateAdaptiveColumnWithText(
-                        PresentationDialogStrings.ProgressReport,
-                        PresentationDialogStrings.ProgressReportDesc
-                    )
-                }
-                //Spacing = AdaptiveSpacing.ExtraLarge
-            };
-            AdaptiveColumnSet options2 = new AdaptiveColumnSet()
-            {
-                Columns = {
-                    AdaptiveCardHelper.CreateAdaptiveColumnWithText(
-                        PresentationDialogStrings.Educate,
-                        PresentationDialogStrings.EducateDesc
-                    ),
-                    AdaptiveCardHelper.CreateAdaptiveColumnWithText(
-                        PresentationDialogStrings.OtherOption,
-                        PresentationDialogStrings.OtherDec
-                    )
-                }
-            };
-
-            card.Body.Add(options);
-            card.Body.Add(options2);
-            return card;
-        }
-
-        public static AdaptiveCard PresentationStyleCard(string deck)
-        {
-            AdaptiveCard card = new AdaptiveCard();
-
-            AdaptiveTextBlock description = new AdaptiveTextBlock()
-            {
-                Text = $"Since you're making a {deck} deck, we recommend one of these styles. Which visual style do you prefer?",
-                Wrap = true,
-            };
-
-            var styleA = AdaptiveCardHelper.CreateAdaptiveColumnWithImagePreview("Modern", PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_modern_1.png"));
-            var styleB = AdaptiveCardHelper.CreateAdaptiveColumnWithImagePreview("Corporate", PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_corporate_1.png"));
-            var styleC = AdaptiveCardHelper.CreateAdaptiveColumnWithImagePreview("Abstract", PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_abstract_1.png"));
-
-            AdaptiveColumnSet styleOptions = new AdaptiveColumnSet()
-            {
-                Columns = {
-                    styleA.column,
-                    styleB.column,
-                    styleC.column,
-                    AdaptiveCardHelper.CreateAdaptiveColumnWithText(string.Empty ,"Pick for me")
-                }
-            };
-
-            card.Body.Add(description);
-            card.Body.Add(styleOptions);
-            card.Actions.AddRange(new AdaptiveAction[] { styleA.preview, styleB.preview, styleC.preview });
-
-            return card;
-        }
-
         public static AdaptiveCard PresentationColorVariationCard(string style)
         {
             AdaptiveCard card = new AdaptiveCard();
@@ -219,39 +94,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 Wrap = true,
             };
 
-            //AdaptiveTextBlock question = new AdaptiveTextBlock()
-            //{
-            //    Text = $"Is there anything that you specifically DON'T want the designer to do? Any pet peeves?" +
-            //    $"\n\n **Please reply using your text below**",
-            //    Wrap = true
-            //};
-
-            //AdaptiveTextInput comment = new AdaptiveTextInput()
-            //{
-            //    Id = "comment",
-            //    IsMultiline = true,
-            //    MaxLength = 500,
-            //    Placeholder = "Comments"
-            //};
-
-            //AdaptiveSubmitAction submit = new AdaptiveSubmitAction()
-            //{
-            //    Title = "Submit",
-            //    Data = new AdaptiveCardHelper.ResponseObject()
-            //    {
-            //        msteams = new CardAction()
-            //        {
-            //            Type = ActionTypes.MessageBack,
-            //            DisplayText = comment.Value
-            //        }
-            //    }
-            //};
-
             card.Body.Add(last);
-            //card.Body.Add(question);
-            //card.Body.Add(comment);
 
-            //card.Actions.Add(submit);
             return card;
         }
 
@@ -291,10 +135,11 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             card.Body.AddRange(new AdaptiveElement[] { title, header, information, lastDescription });
 
-            card.Actions.Add(CreateSubmitAction("Okay I've added everthing to the file", "Done"));
+            card.Actions.Add(CreateSubmitAction("Okay I've added everything to the file", "Okay I've added everything to the file"));
             
             return card;
         }
+
         public static AdaptiveCard PresentationSummaryCard(IDialogContext context)
         {
             AdaptiveCard card = new AdaptiveCard();
@@ -306,7 +151,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
 
             List<AdaptiveElement> list = new List<AdaptiveElement> { title };
 
-            if (context.UserData.TryGetValue<string>(PresentationDialog.PurposeValue, out string purposeInfo))
+            if (context.UserData.TryGetValue<string>(UserData.Purpose, out string purposeInfo))
             {
                 AdaptiveTextBlock intent = new AdaptiveTextBlock()
                 {
@@ -316,16 +161,17 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 list.Add(intent);
             }
 
-            if (context.UserData.TryGetValue<string>(PresentationDialog.StyleValue, out string styleInfo))
+            if (context.UserData.TryGetValue<string>(UserData.Style, out string styleInfo))
             {
                 AdaptiveTextBlock style = new AdaptiveTextBlock()
                 {
                     Text = $"**Style:**\n\n {styleInfo}",
                     Wrap = true,
                 };
+                list.Add(style);
             }
 
-            if (context.UserData.TryGetValue<string>(PresentationDialog.StyleValue, out string visualInfo))
+            if (context.UserData.TryGetValue<string>(UserData.Visuals, out string visualInfo))
             {
                 AdaptiveTextBlock visuals = new AdaptiveTextBlock()
                 {
@@ -334,7 +180,7 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 };
             }
 
-            if (context.UserData.TryGetValue<string>(PresentationDialog.ExtraInfo, out string extraInfo))
+            if (context.UserData.TryGetValue<string>(UserData.Extra, out string extraInfo))
             {
                 AdaptiveTextBlock comments = new AdaptiveTextBlock()
                 {
@@ -353,20 +199,20 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             list.Add(lastCall);
             card.Body.AddRange(list);
 
-            card.Actions.Add(new AdaptiveSubmitAction()
+            card.Actions.Add(CreateSubmitAction("Looks good, send the job","Looks good"));
+            if (!string.IsNullOrEmpty(purposeInfo)) // This is to understand we went into a customizable branch, and we didn't pick from the examples.
             {
-                Title = "Looks good, send the job",
-                Data = "Looks good, send the job"
-            });
+                card.Actions.Add(CreateSubmitAction("I want to change something"));
+            }
             return card;
         }
 
 
         /* V2 mockups */
-        public static AdaptiveCard V2PresentationIntro()
+        public static AdaptiveCard PresentationIntro()
         {
-            string iconCheckmark = "✅";
-            string iconCross = "❌";
+            const string iconCheckmark = "✅";
+            const string iconCross = "❌";
 
             AdaptiveCard card = new AdaptiveCard();
 
@@ -496,6 +342,136 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
             };
 
             return responseMessage;
+        }
+
+        public static AdaptiveCard V2IllustrationsCard()
+        {
+            AdaptiveCard card = new AdaptiveCard();
+
+            AdaptiveTextBlock description = new AdaptiveTextBlock()
+            {
+                Text = "Which of these variations do you like best?",
+                Wrap = true,
+            };
+            
+            var styleA = AdaptiveCardHelper.CreateAdaptiveColumnWithImage("Photos", PresentationDialogStrings.GetImageUrl(@"StyleOptions/image_select_photos_1.png"), true, true);
+            var styleB = AdaptiveCardHelper.CreateAdaptiveColumnWithImage("Illustrations", PresentationDialogStrings.GetImageUrl(@"StyleOptions/image_select_illustrations_1.png"), true, true);
+            var styleC = AdaptiveCardHelper.CreateAdaptiveColumnWithImage("Shapes", PresentationDialogStrings.GetImageUrl(@"StyleOptions/image_select_typographic_1.png"), true, true);
+
+            AdaptiveColumnSet styleOptions = new AdaptiveColumnSet()
+            {
+                Columns = {
+                    styleA,
+                    styleB,
+                    styleC,
+                    AdaptiveCardHelper.CreateAdaptiveColumnWithText("None of these" , "Let me describe what I want.")
+                }
+            };
+
+            card.Body.Add(description);
+            card.Body.Add(styleOptions);
+
+            return card;
+        }
+
+        public static AdaptiveCard V2VsoTicketCard(int projectNumber, string inviteUrl)
+        {
+            AdaptiveCard card = new AdaptiveCard();
+            AdaptiveTextBlock projectTextBlock = new AdaptiveTextBlock($"All set! **Your project number is {projectNumber}.**") { Wrap = true };
+            AdaptiveTextBlock slaTextBlock = new AdaptiveTextBlock(
+                "You'll hear back from us in 2 business days. The freelancer will send you their work, and you can give feedback for revisions.")
+                { Wrap = true };
+
+            AdaptiveTextBlock invitationTextBlock = new AdaptiveTextBlock("Invite your colleagues to try this service for free by sending them this link: \n" +
+                                                                          $"[{inviteUrl}]({inviteUrl})")
+                { Wrap = true };
+
+            AdaptiveImage cloudImage = new AdaptiveImage()
+            {
+                HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
+                AltText = "ProjectSentImage",
+                UrlString = System.Configuration.ConfigurationManager.AppSettings["BaseUri"] + @"public/assets/ppt/presentation_design_icon.png"
+            };
+
+            card.Body.Add(projectTextBlock);
+            card.Body.Add(slaTextBlock);
+            card.Body.Add(cloudImage);
+            card.Body.Add(invitationTextBlock);
+            return card;
+        }
+
+        public static AdaptiveCard V2PresentationResponse(string user)
+        {
+            AdaptiveCard card = new AdaptiveCard();
+            AdaptiveTextBlock responseTextBlock = new AdaptiveTextBlock($"Hi {user}, your presentation is ready for review. Let us know if you have any comments or add them right in the PowerPoint file.") { Wrap = true };
+            AdaptiveTextBlock slaTextBlock = new AdaptiveTextBlock("If we don't hear back from in 48 hours, we'll assume you're all set and we'll close this project.") { Wrap = true };
+
+            card.Body.Add(responseTextBlock);
+            card.Body.Add(slaTextBlock);
+
+            card.Actions.Add(CreateSubmitAction("This is complete"));
+            card.Actions.Add(CreateSubmitAction("I want a free revision"));
+            return card;
+        }
+
+        public static AdaptiveCard V2AllOptionsToChange(IDialogContext context)
+        {
+            AdaptiveCard card = new AdaptiveCard();
+
+            return null;
+        }
+
+        public static AdaptiveCard V2Ratings()
+        {
+            AdaptiveCard card = new AdaptiveCard();
+            AdaptiveTextBlock ratingTextBlock = new AdaptiveTextBlock("Thanks for letting us help you, we hope your presentation goes well! Please rate your experience.") { Wrap = true };
+            AdaptiveColumnSet stars = new AdaptiveColumnSet();
+
+            foreach (var star in Enumerable.Range(1, 5))
+            {
+                stars.Columns.Add(CreateAdaptiveColumnWithImage(star.ToString(), PresentationDialogStrings.GetImageUrl(@"star_rating_graphic_large.png")));
+            }
+
+            card.Body.Add(ratingTextBlock);
+            card.Body.Add(stars);
+            return card;
+        }
+
+        public static AdaptiveCard V2Learning(string text, string articleLink, string articleImage, string articleTitle)
+        {
+            AdaptiveCard card = new AdaptiveCard();
+            AdaptiveTextBlock learningBlock = new AdaptiveTextBlock(text) { Wrap = true };
+
+            AdaptiveColumnSet learningSet = new AdaptiveColumnSet();
+            learningSet.Columns.Add(CreateAdaptiveColumnWithImage("", articleImage ?? PresentationDialogStrings.GetImageUrl(@"StyleOptions/style_select_dark_modern_2.png")));
+            AdaptiveColumn learningDescriptions = new AdaptiveColumn()
+            {
+                Width =  "2",
+                Items = new List < AdaptiveElement >
+                {
+                    new AdaptiveTextBlock("Course") {IsSubtle = true, Wrap = true},
+                    new AdaptiveTextBlock($"**[{articleTitle}]({articleLink})**")  {Wrap = true}
+                }
+            };
+            learningSet.Columns.Add(learningDescriptions);
+
+            card.Body.Add(learningBlock);
+            card.Body.Add(learningSet);
+
+            return card;
+        }
+
+        public static AdaptiveCard V2Feedback(bool toAddress, bool badRating)
+        {
+            return new AdaptiveCard()
+            {
+                Body = new List<AdaptiveElement>
+                {
+                    toAddress ? new AdaptiveTextBlock("Got it. We will address your feedback and get back to you shortly.") {Wrap = true} : 
+                    badRating ? new AdaptiveTextBlock("Dang, really? Please tell us why you gave us this rating, so we can improve.")  {Wrap = true} : 
+                    new AdaptiveTextBlock("Any other feedback to help us improve the process?")  {Wrap = true}
+                }
+            };
         }
 
         private static AdaptiveCard V2StyleExampleCard(string style = "", string templateUrl = "", List<string> imageUrls = null)

@@ -334,6 +334,8 @@
     <Content Include="public\assets\mascot.png" />
     <Content Include="public\assets\ppt\personal_tasks_icon.png" />
     <Content Include="public\assets\ppt\presentation_design_icon.png" />
+    <Content Include="public\assets\ppt\star_rating_graphic.png" />
+    <Content Include="public\assets\ppt\star_rating_graphic_large.png" />
     <Content Include="public\assets\ppt\StyleOptions\image_select_illustrations_1.png" />
     <Content Include="public\assets\ppt\StyleOptions\image_select_photos_1.png" />
     <Content Include="public\assets\ppt\StyleOptions\image_select_typographic_1.png" />
@@ -462,7 +464,7 @@
     </Content>
     <Content Include="Connected Services\Application Insights\ConnectedService.json" />
     <Content Include="manifest\test\manifest.json" />
-    <Content Include="public\assets\NEO Presentation_Pilot_WA_Q1FY219_Final.pptx" />
+    <Content Include="public\assets\test.pptx" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>

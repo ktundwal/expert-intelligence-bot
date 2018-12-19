@@ -39,21 +39,8 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
                 return column;
             }
 
-            var data = new ResponseObject()
-            {
-                msteams = new CardAction()
-                {
-                    Type = ActionTypes.MessageBack,
-                    Text = ctaText,
-                    DisplayText = ctaText
-                }
-            };
+            AdaptiveSubmitAction action = CreateSubmitAction(ctaText, ctaText);
 
-            AdaptiveSubmitAction action = new AdaptiveSubmitAction()
-            {
-                Title = ctaText,
-                Data = data
-            };
             AdaptiveContainer ctaContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithText(string.Empty, ctaText);
             ctaContainer.SelectAction = action;
             ctaContainer.Style = AdaptiveContainerStyle.Emphasis;
@@ -83,7 +70,6 @@ namespace Microsoft.Office.EIBot.Service.dialogs.EndUser
         public static (AdaptiveColumn column, AdaptiveAction preview) CreateAdaptiveColumnWithImagePreview(string ctaText, string imageUrl)
         {
             AdaptiveColumn column = CreateAdaptiveColumnWithImage(ctaText, imageUrl, true, true);
-            //AdaptiveContainer previewContainer = CreateAdaptiveContainerWithText(string.Empty, "Preview");
 
             AdaptiveCard previewCard = new AdaptiveCard();
             AdaptiveColumnSet previewImages = new AdaptiveColumnSet()
