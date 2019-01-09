@@ -1,0 +1,27 @@
+﻿{
+  "name": "ExpertConnect",
+  "services": [
+    {
+      "type": "endpoint",
+      "name": "development",
+      "endpoint": "http://localhost:3978/api/messages",
+      "appId": "PLACEHOLDER",
+      "appPassword": "PLACEHOLDER",
+      "id": "1"
+    },
+    {
+      "type": "blob",
+      "id": "azureBlobDevelopment",
+      "name": "azureBlobDevelopment",
+      "serviceName": "",
+      "tenantId": "",
+      "subscriptionId": "",
+      "resourceGroup": "",
+      // "connectionString": "<YOUR-CONNECTION-STRING>",
+      "connectionString": "PLACEHOLDER",
+      "container": "presentationbotstore"
+    }
+  ],
+  "padlock": "",
+  "version": "2.0"
+}

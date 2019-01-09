@@ -1,0 +1,87 @@
+{
+    "$schema": "https://statics.teams.microsoft.com/sdk/v1.3.0-beta.2/manifest/MicrosoftTeams.schema.json",
+    "manifestVersion": "1.3",
+    "version": "0.5",
+    "id": "3f4a5003-4637-4f2f-98d5-5379fc682a97",
+    "packageName": "com.microsoft.teams.eibot.dev",
+    "developer": {
+        "name": "Microsoft",
+        "websiteUrl": "https://www.microsoft.com",
+        "privacyUrl": "https://www.microsoft.com/privacy",
+        "termsOfUseUrl": "https://www.microsoft.com/en-us/legal/intellectualproperty/copyright/default.aspx"
+    },
+    "name": {
+        "short": "EIBot (dev)",
+        "full": "Expert Intelligence Bot (For development)"
+    },
+    "description": {
+        "short": "Expert Intelligence bot from Office (For development)",
+        "full": "I can help you do Internet research and Powerpoint Improvements (For development)"
+    },
+    "icons": {
+        "outline": "bot_blue.png",
+        "color": "bot_blue.png"
+    },
+    "accentColor": "#ffffff",
+    "staticTabs": [
+        {
+            "contentUrl": "https://9ad18a3c.ngrok.io/public/tab/tabConfig/tab.aspx",
+            "entityId": "statictab",
+            "name": "Bot Info",
+            "scopes": [
+                "team",
+                "personal"
+            ]
+        }
+    ],
+    "configurableTabs": [
+        {
+            "configurationUrl": "https://9ad18a3c.ngrok.io/public/tab/tabConfig/index.html",
+            "canUpdateConfiguration": false,
+            "scopes": [ "team", "groupchat" ]
+        }
+    ],
+    "bots": [
+        {
+            "botId": "3f4a5003-4637-4f2f-98d5-5379fc682a97",
+            "isNotificationOnly": false,
+            "scopes": [ "team", "personal", "groupchat" ],
+            "commandLists": [
+                {
+                    "scopes": [
+                        "team"
+                    ],
+                    "commands": [
+                        {
+                            "title": "reply to user",
+                            "description": "Sends the message to user. Bot will act as tunnel"
+                        },
+                        {
+                            "title": "post job on UpWork",
+                            "description": "Post job on UpWork platform"
+                        },
+                      {
+                        "title": "post job on FancyHands",
+                        "description": "Post job on FancyHands platform"
+                      },
+                        {
+                            "title": "help",
+                            "description": "To show the list of command for user interactions"
+                        },
+                        {
+                            "title": "hello",
+                            "description": "Runs the simplest hello dialog"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "permissions": [
+        "identity",
+        "messageTeamMembers"
+    ],
+    "validDomains": [
+        "9ad18a3c.ngrok.io"
+    ]
+}
