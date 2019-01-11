@@ -45,7 +45,7 @@ There are a small set of CLI tools that will automate the process of deploying t
 # Running Locally
 
 ## Visual Studio
-- Open EchoBot1.csproj in Visual Studio.
+- Open PPTExpertConnect.csproj in Visual Studio.
 - Run the project (press `F5` key).
 
 ## Testing the bot using Bot Framework Emulator
@@ -55,7 +55,7 @@ developers to test and debug their bots on localhost or running remotely through
 
 ## Connect to bot using Bot Framework Emulator **V4**
 - Launch the Bot Framework Emulator.
-- File -> Open bot and open [EchoBot1.bot](EchoBot1.bot).
+- File -> Open bot and open [PPTExpertConnect.bot](PPTExpertConnect.bot).
 
 # Deploy the bot to Azure
 See [Deploy your C# bot to Azure][50] for instructions.

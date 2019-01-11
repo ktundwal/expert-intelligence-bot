@@ -1,16 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using AdaptiveCards;
-using Microsoft.Bot.Builder.Dialogs;
-using Microsoft.Bot.Connector;
-using EchoBot1.Models;
-using Microsoft.Bot.Schema;
-using Microsoft.Extensions.Options;
-using static EchoBot1.Helpers.AdaptiveCardHelper;
+using PPTExpertConnect.Models;
+using static  PPTExpertConnect.Helpers.AdaptiveCardHelper;
 
-namespace EchoBot1.Helpers
+namespace PPTExpertConnect.Helpers
 {
     public class CardBuilder
     {

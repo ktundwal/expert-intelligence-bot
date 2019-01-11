@@ -5,7 +5,7 @@ VisualStudioVersion = 15.0.26730.10
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EIBotTeamsApp", "EIBotTeamsApp\EIBotTeamsApp.csproj", "{C735CD9F-426B-4F9B-9C95-6B86227157AA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PPT-Expert-Connect", "ppt-expert-connect\PPT-Expert-Connect.csproj", "{856A9EFF-53E7-4C9C-8B81-B259256B2452}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PPTExpertConnect", "ppt-expert-connect\PPTExpertConnect.csproj", "{856A9EFF-53E7-4C9C-8B81-B259256B2452}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

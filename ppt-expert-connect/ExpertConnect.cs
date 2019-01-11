@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
-using EchoBot1.Helpers;
-using EchoBot1.Models;
+using PPTExpertConnect.Helpers;
+using PPTExpertConnect.Models;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Azure;
 using Microsoft.Bot.Builder.Dialogs;
@@ -18,7 +18,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 
-namespace EchoBot1
+namespace PPTExpertConnect
 {
     public class ExpertConnect : IBot
     {

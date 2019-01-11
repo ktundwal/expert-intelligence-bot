@@ -2,11 +2,11 @@
 // Licensed under the MIT License.
 
 using System;
-using EchoBot1.Models;
+using PPTExpertConnect.Models;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 
-namespace EchoBot1
+namespace PPTExpertConnect
 {
     public class BotAccessors
     {

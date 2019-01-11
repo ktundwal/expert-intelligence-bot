@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AdaptiveCards;
 using Microsoft.Bot.Schema;
-using Microsoft.Extensions.Options;
 
-namespace EchoBot1.Helpers
+namespace PPTExpertConnect.Helpers
 {
     public class AdaptiveCardHelper
     { 

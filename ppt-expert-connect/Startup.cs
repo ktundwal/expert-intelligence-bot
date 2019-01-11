@@ -3,7 +3,7 @@
 
 using System;
 using System.Linq;
-using EchoBot1.Models;
+using PPTExpertConnect.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
@@ -18,7 +18,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace EchoBot1
+namespace PPTExpertConnect
 {
     /// <summary>
     /// The Startup class configures services and the request pipeline.
@@ -64,7 +64,7 @@ namespace EchoBot1
                var botFilePath = Configuration.GetSection("botFilePath")?.Value;
 
                 // Loads .bot configuration file and adds a singleton that your Bot can access through dependency injection.
-                var botConfig = BotConfiguration.Load(botFilePath ?? @".\EchoBot1.bot", secretKey);
+                var botConfig = BotConfiguration.Load(botFilePath ?? @".\ExpertConnect.bot", secretKey);
                services.AddSingleton(sp => botConfig ?? throw new InvalidOperationException($"The .bot config file could not be loaded. ({botConfig})"));
 
                 // Retrieve current endpoint.
