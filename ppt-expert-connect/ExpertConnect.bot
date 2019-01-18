@@ -5,8 +5,8 @@
       "type": "endpoint",
       "name": "development",
       "endpoint": "http://localhost:3978/api/messages",
-      "appId": "PLACEHOLDER",
-      "appPassword": "PLACEHOLDER",
+      "appId": "",
+      "appPassword": "",
       "id": "1"
     },
     {
@@ -17,9 +17,8 @@
       "tenantId": "",
       "subscriptionId": "",
       "resourceGroup": "",
-      // "connectionString": "<YOUR-CONNECTION-STRING>",
-      "connectionString": "PLACEHOLDER",
-      "container": "presentationbotstore"
+      "connectionString": "<YOUR-CONNECTION-STRING>",
+     "container": "presentationbotstore"
     }
   ],
   "padlock": "",

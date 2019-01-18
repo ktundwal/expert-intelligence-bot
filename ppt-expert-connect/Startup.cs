@@ -17,6 +17,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using PPTExpertConnect.Helpers;
 
 namespace PPTExpertConnect
 {
@@ -58,67 +59,86 @@ namespace PPTExpertConnect
         public void ConfigureServices(IServiceCollection services)
         {
             AzureBlobTranscriptStore blobStore = null;
+            IdTable idTable = null;
+            ICredentialProvider credentialProvider = null;
+
             services.AddBot<ExpertConnect>(options =>
-           {
-               var secretKey = Configuration.GetSection("botFileSecret")?.Value;
-               var botFilePath = Configuration.GetSection("botFilePath")?.Value;
+                {
+                    var secretKey = Configuration.GetSection("botFileSecret")?.Value;
+                    var botFilePath = Configuration.GetSection("botFilePath")?.Value;
 
-                // Loads .bot configuration file and adds a singleton that your Bot can access through dependency injection.
-                var botConfig = BotConfiguration.Load(botFilePath ?? @".\ExpertConnect.bot", secretKey);
-               services.AddSingleton(sp => botConfig ?? throw new InvalidOperationException($"The .bot config file could not be loaded. ({botConfig})"));
+                    // Loads .bot configuration file and adds a singleton that your Bot can access through dependency injection.
+                    var botConfig = BotConfiguration.Load(botFilePath ?? @".\ExpertConnect.bot", secretKey);
+                    services.AddSingleton(sp =>
+                        botConfig ??
+                        throw new InvalidOperationException(
+                            $"The .bot config file could not be loaded. ({botConfig})"));
 
-                // Retrieve current endpoint.
-                var environment = _isProduction ? "production" : "development";
-               var service = botConfig.Services.FirstOrDefault(s => s.Type == "endpoint" && s.Name == environment);
-               if (!(service is EndpointService endpointService))
-               {
-                   throw new InvalidOperationException($"The .bot file does not contain an endpoint with name '{environment}'.");
-               }
+                    // Retrieve current endpoint.
+                    var environment = _isProduction ? "production" : "development";
+                    var service = botConfig.Services.FirstOrDefault(s => s.Type == "endpoint" && s.Name == environment);
+                    if (!(service is EndpointService endpointService))
+                    {
+                        throw new InvalidOperationException(
+                            $"The .bot file does not contain an endpoint with name '{environment}'.");
+                    }
 
-               options.CredentialProvider = new SimpleCredentialProvider(endpointService.AppId, endpointService.AppPassword);
+                    options.CredentialProvider =
+                        new SimpleCredentialProvider(endpointService.AppId, endpointService.AppPassword);
+                    credentialProvider =
+                        new SimpleCredentialProvider(endpointService.AppId, endpointService.AppPassword);
 
-                // Creates a logger for the application to use.
-                ILogger logger = _loggerFactory.CreateLogger<ExpertConnect>();
+                    // Creates a logger for the application to use.
+                    ILogger logger = _loggerFactory.CreateLogger<ExpertConnect>();
 
-                // Catches any errors that occur during a conversation turn and logs them.
-                options.OnTurnError = async (context, exception) =>
-               {
-                   logger.LogError($"Exception caught : {exception}");
-                   await context.SendActivityAsync("Sorry, it looks like something went wrong.");
-               };
+                    // Catches any errors that occur during a conversation turn and logs them.
+                    options.OnTurnError = async (context, exception) =>
+                    {
+                        logger.LogError($"Exception caught : {exception}");
+                        await context.SendActivityAsync("Sorry, it looks like something went wrong.");
+                    };
 
-                // The Memory Storage used here is for local bot debugging only. When the bot
-                // is restarted, everything stored in memory will be gone.
-                //IStorage dataStore = new MemoryStorage();
+                    // The Memory Storage used here is for local bot debugging only. When the bot
+                    // is restarted, everything stored in memory will be gone.
+                    //IStorage dataStore = new MemoryStorage();
 
-               // For production bots use the Azure Blob or
-               // Azure CosmosDB storage providers. For the Azure
-               // based storage providers, add the Microsoft.Bot.Builder.Azure
-               // Nuget package to your solution. That package is found at:
-               // https://www.nuget.org/packages/Microsoft.Bot.Builder.Azure/
-               // Uncomment the following lines to use Azure Blob Storage
-               //Storage configuration name or ID from the .bot file.
-               const string StorageConfigurationId = "azureBlobDevelopment";
-               var blobConfig = botConfig.FindServiceByNameOrId(StorageConfigurationId);
-               if (!(blobConfig is BlobStorageService blobStorageConfig))
-               {
-                   throw new InvalidOperationException($"The .bot file does not contain an blob storage with name '{StorageConfigurationId}'.");
-               }
-               // Default container name.
-               const string DefaultBotContainer = "<DEFAULT-CONTAINER>";
-               var storageContainer = string.IsNullOrWhiteSpace(blobStorageConfig.Container) ? DefaultBotContainer : blobStorageConfig.Container;
-               IStorage dataStore = new AzureBlobStorage(blobStorageConfig.ConnectionString, storageContainer);
+                    // For production bots use the Azure Blob or
+                    // Azure CosmosDB storage providers. For the Azure
+                    // based storage providers, add the Microsoft.Bot.Builder.Azure
+                    // Nuget package to your solution. That package is found at:
+                    // https://www.nuget.org/packages/Microsoft.Bot.Builder.Azure/
+                    // Uncomment the following lines to use Azure Blob Storage
+                    //Storage configuration name or ID from the .bot file.
+                    const string StorageConfigurationId = "azureBlobDevelopment";
+                    var blobConfig = botConfig.FindServiceByNameOrId(StorageConfigurationId);
+                    if (!(blobConfig is BlobStorageService blobStorageConfig))
+                    {
+                        throw new InvalidOperationException(
+                            $"The .bot file does not contain an blob storage with name '{StorageConfigurationId}'.");
+                    }
 
-               // Create Conversation State object.
-               // The Conversation State object is where we persist anything at the conversation-scope.
-               options.State.Add(new ConversationState(dataStore));
-               options.State.Add(new UserState(dataStore));
+                    // Default container name.
+                    const string DefaultBotContainer = "<DEFAULT-CONTAINER>";
+                    var storageContainer = string.IsNullOrWhiteSpace(blobStorageConfig.Container)
+                        ? DefaultBotContainer
+                        : blobStorageConfig.Container;
+                    IStorage dataStore = new AzureBlobStorage(blobStorageConfig.ConnectionString, storageContainer);
 
-               // Enable the conversation transcript middleware.
-               blobStore = new AzureBlobTranscriptStore(blobStorageConfig.ConnectionString, storageContainer);
-               var transcriptMiddleware = new TranscriptLoggerMiddleware(blobStore);
-               options.Middleware.Add(transcriptMiddleware);
-           }).AddSingleton(_ => blobStore);
+                    // Create Conversation State object.
+                    // The Conversation State object is where we persist anything at the conversation-scope.
+                    options.State.Add(new ConversationState(dataStore));
+                    options.State.Add(new UserState(dataStore));
+
+                    // Enable the conversation transcript middleware.
+                    blobStore = new AzureBlobTranscriptStore(blobStorageConfig.ConnectionString, storageContainer);
+                    var transcriptMiddleware = new TranscriptLoggerMiddleware(blobStore);
+                    options.Middleware.Add(transcriptMiddleware);
+
+                    // Add access to idTable on AzureStorage
+                    idTable = new IdTable(blobStorageConfig.ConnectionString);
+                }).AddSingleton(_ => blobStore)
+                .AddSingleton(_ => idTable)
+                .AddSingleton(_ => credentialProvider);
 
             // Create and register state accessors.
             // Accessors created here are passed into the IBot-derived class on every turn.

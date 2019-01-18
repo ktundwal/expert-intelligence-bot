@@ -120,7 +120,8 @@ namespace PPTExpertConnect.Helpers
                     Weight = AdaptiveTextWeight.Bolder,
                     Wrap = true,
                     Spacing = AdaptiveSpacing.Large,
-                    HorizontalAlignment = AdaptiveHorizontalAlignment.Center
+                    HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
+                    Color = AdaptiveTextColor.Accent
                 };
                 container.Items.Add(headerBlock);
             }
@@ -133,7 +134,8 @@ namespace PPTExpertConnect.Helpers
                     Size = AdaptiveTextSize.Small,
                     Wrap = true,
                     Spacing = AdaptiveSpacing.Medium,
-                    HorizontalAlignment = AdaptiveHorizontalAlignment.Center
+                    HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
+                    Color = AdaptiveTextColor.Accent
                 };
                 container.Items.Add(textBlock);
             }

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Bot.Schema;
@@ -10,7 +11,7 @@ namespace PPTExpertConnect.Helpers
 {
     // member: botName = BotId
     // channel: AgentChannelName = AgentChannelId
-    public static class IdTable
+    public class IdTable
     {
         private const string IdTableName = "idtable";
         private const string BotMemberType = "botmember";
@@ -18,14 +19,14 @@ namespace PPTExpertConnect.Helpers
         public const string BotMember = "bot";
         public const string AgentResearchChannel = "agentresearchchannel";
         public const string AgentVirtualAssistanceChannel = "agentvirtualassistancechannel";
-        private static readonly CloudTable IdTableClient;
+        private readonly CloudTable IdTableClient;
 
-        static IdTable()
+        public IdTable(string storageConnectionString)
         {
             try
             {
                 // Retrieve the storage account from the connection string.
-                CloudStorageAccount storageAccount = CloudStorageAccount.Parse("StorageConnectionString");
+                CloudStorageAccount storageAccount = CloudStorageAccount.Parse(storageConnectionString);
 
                 // Create the IdTableClient client.
                 CloudTableClient tableClient = storageAccount.CreateCloudTableClient();
@@ -33,13 +34,10 @@ namespace PPTExpertConnect.Helpers
                 // Create the CloudTable object that represents the "people" IdTableClient.
                 IdTableClient = tableClient.GetTableReference(IdTableName);
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
-                //WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
-                //{
-                //    {"debugNote", "failed to init OnlineStatus table client" },
-                //});
-                //throw;
+                Console.WriteLine(e);
+                throw;
             }
         }
 
@@ -57,7 +55,7 @@ namespace PPTExpertConnect.Helpers
             public string Id { get; set; }
         }
 
-        public static async Task SetBotId(ChannelAccount botAccount)
+        public async Task SetBotId(ChannelAccount botAccount)
         {
             var properties = new Dictionary<string, string>
             {
@@ -88,7 +86,7 @@ namespace PPTExpertConnect.Helpers
             }
         }
 
-        public static async Task<ChannelAccount> GetBotId()
+        public async Task<ChannelAccount> GetBotId()
         {
             var properties = new Dictionary<string, string>
             {
@@ -124,7 +122,7 @@ namespace PPTExpertConnect.Helpers
             return account;
         }
 
-        public static async Task SetAgentChannel(string name, string id)
+        public async Task SetAgentChannel(string name, string id)
         {
             var properties = new Dictionary<string, string>
             {
@@ -155,7 +153,7 @@ namespace PPTExpertConnect.Helpers
             }
         }
 
-        public static async Task<ChannelInfo> GetAgentChannelInfo()
+        public async Task<ChannelInfo> GetAgentChannelInfo()
         {
             var properties = new Dictionary<string, string>
             {
