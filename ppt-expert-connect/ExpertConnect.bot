@@ -1,6 +1,7 @@
 ﻿{
   "name": "ExpertConnect",
   "services": [
+    // Demo Tenant Data 
     {
       "type": "endpoint",
       "name": "development",
@@ -17,8 +18,8 @@
       "tenantId": "",
       "subscriptionId": "",
       "resourceGroup": "",
-      "connectionString": "<YOUR-CONNECTION-STRING>",
-     "container": "presentationbotstore"
+      // "connectionString": "<YOUR-CONNECTION-STRING>",
+      "container": "presentationbotstore"
     }
   ],
   "padlock": "",

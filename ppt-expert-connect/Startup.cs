@@ -85,8 +85,7 @@ namespace PPTExpertConnect
 
                     options.CredentialProvider =
                         new SimpleCredentialProvider(endpointService.AppId, endpointService.AppPassword);
-                    credentialProvider =
-                        new SimpleCredentialProvider(endpointService.AppId, endpointService.AppPassword);
+                    credentialProvider = options.CredentialProvider;
 
                     // Creates a logger for the application to use.
                     ILogger logger = _loggerFactory.CreateLogger<ExpertConnect>();

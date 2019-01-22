@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.Bot.Schema;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
@@ -190,22 +191,4 @@ namespace PPTExpertConnect.Helpers
         }
     }
 
-    public class ChannelInfo
-    {
-        public ChannelInfo()
-        {
-        }
-        
-        public ChannelInfo(string id = null, string name = null)
-        {
-            this.Id = id;
-            this.Name = name;
-        }
-        
-        [JsonProperty(PropertyName = "id")]
-        public string Id { get; set; }
-        
-        [JsonProperty(PropertyName = "name")]
-        public string Name { get; set; }
-    }
 }

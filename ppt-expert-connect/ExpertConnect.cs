@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
@@ -20,11 +21,16 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Microsoft.Bot.Builder.Integration;
 using Microsoft.Bot.Connector.Authentication;
+using Microsoft.Bot.Connector.Teams;
+using Microsoft.Bot.Connector.Teams.Models;
 
 namespace PPTExpertConnect
 {
     public class ExpertConnect : IBot
     {
+        private const string BotName = "ecbot_tb";
+        private const string AgentChannelName = "General2";
+
         private readonly string Start = "Start";
         private readonly string DetailPath = "Details";
         private readonly string ExamplePath = "Example";
@@ -127,9 +133,12 @@ namespace PPTExpertConnect
                 }
             } else if (turnContext.Activity.Type == ActivityTypes.ConversationUpdate)
             {
-                await SaveAgentChannelIdInAzureStore(turnContext, _botCredentials);
-                IList<ChannelAccount> noMembersAdded = turnContext.Activity.MembersAdded;
-                await _idTable.SetBotId(turnContext.Activity.Recipient);
+                bool isGroup = turnContext.Activity.Conversation.IsGroup ?? false;
+                if (turnContext.Activity.ChannelId == "msteams" && isGroup) 
+                {
+                    await SaveAgentChannelIdInAzureStore(turnContext, _botCredentials);
+                }
+                await SaveBotIdInAzureStorage(turnContext, BotName);
             }
             else
             {
@@ -263,78 +272,6 @@ namespace PPTExpertConnect
         private async Task<DialogTurnResult> ImageOptions(WaterfallStepContext stepContext,
             CancellationToken cancellationToken)
         {
-
-            // To create a new Convo
-
-            // TODO: make sure it's populated
-            var agentChannelInfo = _idTable.GetAgentChannelInfo();
-
-            var connectorClient =
-                BotConnectorUtility.BuildConnectorClientAsync(
-                    _botCredentials.AppId, 
-                    _botCredentials.Password, 
-                    stepContext.Context.Activity.ServiceUrl
-            );
-
-            ChannelAccount botMsTeamsChannelAccount = await _idTable.GetBotId();
-
-            try
-            {
-                var channelData = new TeamsChannelData { Channel = agentChannelInfo };
-
-                IMessageActivity agentMessage = Activity.CreateMessageActivity();
-                agentMessage.From = botMsTeamsChannelAccount;
-//                agentMessage.Recipient =
-//                    new ChannelAccount(ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"]);
-                agentMessage.Type = ActivityTypes.Message;
-                agentMessage.ChannelId = "msteams";
-                agentMessage.ServiceUrl = stepContext.Context.Activity.ServiceUrl;
-
-                agentMessage.Attachments = new List<Attachment>
-                {
-                    new Attachment {ContentType = AdaptiveCard.ContentType, Content = cb.V2VsoTicketCard(
-                        251,
-                        "https://www.microsoft.com")}
-                };
-
-                var agentMessageActivity = (Activity)agentMessage;
-
-                ConversationParameters conversationParams = new ConversationParameters(
-                    isGroup: true,
-                    bot: null,
-                    members: null,
-                    activity: agentMessageActivity,
-                    channelData: channelData);
-
-                var conversationResourceResponse = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(
-                    async ()
-                        => await connectorClient.Result.Conversations.CreateConversationAsync(conversationParams));
-
-                //Trace.TraceInformation(
-                //    $"[SUCCESS]: CreateAgentConversation. response id ={conversationResourceResponse.Id}");
-
-                //WebApiConfig.TelemetryClient.TrackEvent("CreateAgentConversation", new Dictionary<string, string>
-                //{
-                //    {"endUser", agentMessage.From.Name},
-                //    {"agentConversationId", conversationResourceResponse.Id},
-                //});
-
-//                return conversationResourceResponse.Id;
-            }
-            catch (System.Exception e)
-            {
-                //WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
-                //{
-                //    {"function", "CreateAgentConversation" }
-                //});
-
-                throw;
-            }
-
-
-
-
-
             return await stepContext.PromptAsync(
                 UserData.Images,
                 CreateAdaptiveCardAsPrompt(cb.V2ImageOptions()),
@@ -389,6 +326,11 @@ namespace PPTExpertConnect
             // Get the current profile object from user state.
             await _accessors.UserInfoAccessor.SetAsync(stepContext.Context, new UserInfo(), cancellationToken);
 
+            // TODO: create a card for the agent.
+            await CreateAgentConversationMessage(stepContext.Context,
+                $"PowerPoint request from {stepContext.Context.Activity.From.Name} via {stepContext.Context.Activity.ChannelId}",
+                cb.PresentationIntro());
+
             await stepContext.PromptAsync(
                 UserData.Extra,
                 CreateAdaptiveCardAsPrompt(cb.V2VsoTicketCard(
@@ -419,6 +361,21 @@ namespace PPTExpertConnect
             return adaptiveCardAttachment;
         }
 
+        private async Task SaveBotIdInAzureStorage(ITurnContext context, string botName)
+        {
+            try
+            {
+                if (context.Activity.Recipient.Name.Equals(botName))
+                {
+                    await _idTable.SetBotId(context.Activity.Recipient);
+                }
+            }
+            catch (System.Exception e)
+            {
+                System.Console.WriteLine(e.ToString());
+                // Trace.TraceError($"Error setting bot id. {e}");
+            }
+        }
         private async Task SaveAgentChannelIdInAzureStore(ITurnContext context, SimpleCredentialProvider credentials)
         {
             try
@@ -426,7 +383,7 @@ namespace PPTExpertConnect
                 var connectorClient = await BotConnectorUtility.BuildConnectorClientAsync(
                     credentials.AppId, credentials.Password, context.Activity.ServiceUrl);
 
-                var ci = GetChannelId(connectorClient, context, "General");
+                var ci = GetChannelId(connectorClient, context, AgentChannelName);
                 await _idTable.SetAgentChannel(ci.Name, ci.Id);
             }
             catch (SystemException e)
@@ -436,20 +393,80 @@ namespace PPTExpertConnect
         }
         private static ChannelInfo GetChannelId(ConnectorClient connectorClient, ITurnContext context, string channelName)
         {
-            var teamInfo = context.Activity.GetChannelData<TeamsChannelData>();
-//            ConversationList channels = connectorClient.GetTeamsConnectorClient().Teams.FetchChannelList(teamInfo.Id);
-            Conversations channels =  (Conversations)connectorClient.Conversations;
-            var channelInfo = new ChannelInfo();
-//            var channelInfo = channels.FirstOrDefault(c => c.Name != null && c.Name.Equals(channelName));
-            if (channelInfo == null) throw new System.Exception($"{channelName} doesn't exist in {teamInfo} Team");
+            var teamInfo = context.Activity.GetChannelData<TeamsChannelData>().Team;
+            ConversationList channels = connectorClient.GetTeamsConnectorClient().Teams.FetchChannelList(teamInfo.Id);
+            var channelInfo = channels.Conversations.FirstOrDefault(c => c.Name != null && c.Name.Equals(channelName));
+            if (channelInfo == null) throw new System.Exception($"{channelName} doesn't exist in {context.Activity.GetChannelData<TeamsChannelData>().Team.Name} Team");
             return channelInfo;
+        }
+
+        private async Task<string> CreateAgentConversationMessage(ITurnContext context, string topicName, AdaptiveCard cardToSend)
+        {
+            var serviceUrl = context.Activity.ServiceUrl;
+            var agentChannelInfo = await _idTable.GetAgentChannelInfo();
+            ChannelAccount botMsTeamsChannelAccount = await _idTable.GetBotId();
+
+            var connectorClient =
+                BotConnectorUtility.BuildConnectorClientAsync(
+                    _botCredentials.AppId,
+                    _botCredentials.Password,
+                    serviceUrl);
+
+            try
+            {
+                var channelData = new TeamsChannelData { Channel = agentChannelInfo };
+
+                IMessageActivity agentMessage = Activity.CreateMessageActivity();
+                agentMessage.From = botMsTeamsChannelAccount;
+                //                agentMessage.Recipient =
+                //                    new ChannelAccount(ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"]);
+                agentMessage.Type = ActivityTypes.Message;
+                agentMessage.ChannelId = "msteams";
+                agentMessage.ServiceUrl = serviceUrl;
+
+                agentMessage.Attachments = new List<Attachment>
+                {
+                    new Attachment {ContentType = AdaptiveCard.ContentType, Content = cardToSend}
+                };
+
+                var agentMessageActivity = (Activity)agentMessage;
+
+                ConversationParameters conversationParams = new ConversationParameters(
+                    isGroup: true,
+                    bot: null,
+                    members: null,
+                    topicName: topicName,
+                    activity: agentMessageActivity,
+                    channelData: channelData);
+
+                var conversationResourceResponse = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(
+                    async ()
+                        => await connectorClient.Result.Conversations.CreateConversationAsync(conversationParams));
+
+                //Trace.TraceInformation(
+                //    $"[SUCCESS]: CreateAgentConversation. response id ={conversationResourceResponse.Id}");
+
+                //WebApiConfig.TelemetryClient.TrackEvent("CreateAgentConversation", new Dictionary<string, string>
+                //{
+                //    {"endUser", agentMessage.From.Name},
+                //    {"agentConversationId", conversationResourceResponse.Id},
+                //});
+
+                return conversationResourceResponse.Id;
+            }
+            catch (System.Exception e)
+            {
+                System.Console.WriteLine(e.ToString());
+                //WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
+                //{
+                //    {"function", "CreateAgentConversation" }
+                //});
+
+                throw;
+            }
         }
 
         #endregion
     }
 
-    internal class TeamsChannelData
-    {
-        public Task<ChannelInfo> Channel { get; set; }
-    }
 }
