@@ -255,3 +255,5 @@ paket-files/
 #*.config
 /EIBotService/AppSettingsAndCredentials.config
 /EIBotTeamsApp/config/*.config
+
+*.development.*
