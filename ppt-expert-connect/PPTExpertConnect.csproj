@@ -5,6 +5,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="ExpertConnect.development.bot" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="ExpertConnect.development.bot">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="ExpertConnect.bot">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

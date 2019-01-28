@@ -1,0 +1,27 @@
+﻿{
+  "name": "ExpertConnect",
+  "services": [
+    // Demo Tenant Data 
+    {
+      "type": "endpoint",
+      "name": "development",
+      "endpoint": "http://localhost:3978/api/messages",
+      "appId": "",
+      "appPassword": "",
+      "id": "1"
+    },
+    {
+      "type": "blob",
+      "id": "azureBlobDevelopment",
+      "name": "azureBlobDevelopment",
+      "serviceName": "",
+      "tenantId": "",
+      "subscriptionId": "",
+      "resourceGroup": "",
+      // "connectionString": "<YOUR-CONNECTION-STRING>",
+      "container": "presentationbotstore"
+    }
+  ],
+  "padlock": "",
+  "version": "2.0"
+}
