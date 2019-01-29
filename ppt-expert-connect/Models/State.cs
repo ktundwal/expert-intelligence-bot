@@ -23,5 +23,21 @@ namespace PPTExpertConnect.Models
         public string Extra { get; set; }
         public int Rating { get; set; }
         public string Feedback { get; set; }
+
+        // State management 
+        public UserDialogState State { get; set; }
+    }
+
+    public enum UserDialogState
+    {
+        ProjectStarted,
+        ProjectCollectingDetails,
+        ProjectCreated, // Unsure if useful
+        ProjectWaitingAgentReply,
+        ProjectWaitingUserReply,
+        ProjectInOneOnOneConversation,
+        ProjectWaitingReview,
+        ProjectCompleted,
+        ProjectUnderRevision
     }
 }

@@ -5,6 +5,7 @@ using System;
 using PPTExpertConnect.Models;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
+using UserState = Microsoft.Bot.Builder.UserState;
 
 namespace PPTExpertConnect
 {
