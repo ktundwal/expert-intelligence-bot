@@ -30,6 +30,7 @@ namespace PPTExpertConnect
 {
     public class ExpertConnect : IBot
     {
+        private readonly string Auth = "BeginAuth";
         private readonly string Start = "Start";
         private readonly string DetailPath = "Details";
         private readonly string ExamplePath = "Example";
@@ -88,15 +89,9 @@ namespace PPTExpertConnect
             
             _dialogs = new DialogSet(accessors.DialogStateAccessor);
 
-            var start = new WaterfallStep[]
-            {
-                PromptStepAsync,
-                LoginStepAsync,
-                IntroductionStep,
-                PostIntroductionStep
-            };
+            var start = new WaterfallStep[] { IntroductionStep, PostIntroductionStep };
 
-            //var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
+            var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
 
             var detailSteps = new WaterfallStep[]
             {
@@ -133,7 +128,7 @@ namespace PPTExpertConnect
 
             _dialogs.Add(OAuthHelpers.Prompt(_OAuthConnectionSettingName));
 
-
+            _dialogs.Add(new WaterfallDialog(Auth, authDialog));
             _dialogs.Add(new WaterfallDialog(Start, start));
             _dialogs.Add(new WaterfallDialog(DetailPath, detailSteps));
             _dialogs.Add(new WaterfallDialog(ExamplePath, exampleSteps));
@@ -179,11 +174,13 @@ namespace PPTExpertConnect
                     var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
                     await botAdapter.SignOutUserAsync(turnContext, _OAuthConnectionSettingName, cancellationToken: cancellationToken);
                     await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
+                    await dialogContext.ReplaceDialogAsync(Auth, null, cancellationToken);
                 }
 
                 var results = await dialogContext.ContinueDialogAsync(cancellationToken);
 
-                if (!turnContext.Responded)
+                //                if (!turnContext.Responded)
+                if(results.Status == DialogTurnStatus.Empty)
                 {
                     var userProfile = await _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), cancellationToken);
                     var toBotFromAgent = IsReplyToUserMessage(turnContext) || false;
@@ -198,10 +195,11 @@ namespace PPTExpertConnect
                     }
                     else
                     {
-                        await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
+                        await dialogContext.BeginDialogAsync(Auth, null, cancellationToken);
                     }
                 }
-            } else if (turnContext.Activity.Type == ActivityTypes.ConversationUpdate)
+            }
+            else if (turnContext.Activity.Type == ActivityTypes.ConversationUpdate)
             {
                 bool isGroup = turnContext.Activity.Conversation.IsGroup ?? false;
                 if (turnContext.Activity.ChannelId == "msteams" && isGroup) 
@@ -220,7 +218,7 @@ namespace PPTExpertConnect
                 await dialogContext.ContinueDialogAsync(cancellationToken);
                 if (!turnContext.Responded)
                 {
-                    await dialogContext.BeginDialogAsync(Start, cancellationToken: cancellationToken);
+                    await dialogContext.BeginDialogAsync(Auth, cancellationToken: cancellationToken); // Begin auth or start ?
                 }
             }
             else
@@ -256,7 +254,7 @@ namespace PPTExpertConnect
         /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
         /// or threads to receive notice of cancellation.</param>
         /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
-        private static async Task<DialogTurnResult> LoginStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
+        private async Task<DialogTurnResult> LoginStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
         {
             // Get the token from the previous step. Note that we could also have gotten the
             // token directly from the prompt itself. There is an example of this in the next method.
@@ -266,11 +264,14 @@ namespace PPTExpertConnect
                 var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
                 var user = await GraphClient.GetMeAsync(client);
                 await step.Context.SendActivityAsync($"Kon'nichiwa { user.DisplayName}! You are now logged in.", cancellationToken: cancellationToken);
-                return await step.EndDialogAsync(cancellationToken);
+                return await step.ReplaceDialogAsync(Start, null, cancellationToken);
+//                return await step.EndDialogAsync(cancellationToken);
             }
 
             await step.Context.SendActivityAsync("Login was not successful please try again. Aborting.", cancellationToken: cancellationToken);
-            return Dialog.EndOfTurn;
+//            return Dialog.EndOfTurn;
+            return await step.ReplaceDialogAsync(Auth, null, cancellationToken);
+
         }
 
         /// <summary>
