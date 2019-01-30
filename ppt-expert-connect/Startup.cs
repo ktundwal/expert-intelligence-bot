@@ -60,6 +60,7 @@ namespace PPTExpertConnect
         {
             AzureBlobTranscriptStore blobStore = null;
             IdTable idTable = null;
+            EndUserAndAgentIdMapping endUserAndAgentIdMapping = null;
             ICredentialProvider credentialProvider = null;
 
             services.AddBot<ExpertConnect>(options =>
@@ -135,8 +136,10 @@ namespace PPTExpertConnect
 
                     // Add access to idTable on AzureStorage
                     idTable = new IdTable(blobStorageConfig.ConnectionString);
+                    endUserAndAgentIdMapping = new EndUserAndAgentIdMapping(blobStorageConfig.ConnectionString);
                 }).AddSingleton(_ => blobStore)
                 .AddSingleton(_ => idTable)
+                .AddSingleton(_ => endUserAndAgentIdMapping)
                 .AddSingleton(_ => credentialProvider);
 
             // Create and register state accessors.

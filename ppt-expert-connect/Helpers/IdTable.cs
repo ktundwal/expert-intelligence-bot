@@ -6,7 +6,6 @@ using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.Bot.Schema;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
-using Newtonsoft.Json;
 
 namespace PPTExpertConnect.Helpers
 {
@@ -190,5 +189,4 @@ namespace PPTExpertConnect.Helpers
             return agentChannelInfo;
         }
     }
-
 }

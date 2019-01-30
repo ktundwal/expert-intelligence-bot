@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
@@ -13,17 +14,15 @@ using PPTExpertConnect.Models;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Azure;
 using Microsoft.Bot.Builder.Dialogs;
-using Microsoft.Bot.Builder.Dialogs.Choices;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
-using Microsoft.Bot.Builder.Integration;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Connector.Teams;
 using Microsoft.Bot.Connector.Teams.Models;
+using Microsoft.Extensions.Configuration;
 using DelegateAuthenticationProvider = Microsoft.Graph.DelegateAuthenticationProvider;
 using GraphServiceClient = Microsoft.Graph.GraphServiceClient;
 
@@ -31,9 +30,6 @@ namespace PPTExpertConnect
 {
     public class ExpertConnect : IBot
     {
-        private const string BotName = "ecbot_tb";
-        private const string AgentChannelName = "General2";
-
         private readonly string Start = "Start";
         private readonly string DetailPath = "Details";
         private readonly string ExamplePath = "Example";
@@ -47,6 +43,7 @@ namespace PPTExpertConnect
         private readonly BotAccessors _accessors;
         private readonly AzureBlobTranscriptStore _transcriptStore;
         private readonly IdTable _idTable;
+        private readonly EndUserAndAgentIdMapping _endUserAndAgentIdMapping;
         private readonly ILogger _logger;
         private DialogSet _dialogs;
         private CardBuilder cb;
@@ -55,13 +52,14 @@ namespace PPTExpertConnect
         private readonly SimpleCredentialProvider _botCredentials;
 
         private readonly string _OAuthConnectionSettingName;
-
-        public ExpertConnect(AzureBlobTranscriptStore transcriptStore,
-            BotAccessors accessors,
-            ILoggerFactory loggerFactory,
-            IOptions<AppSettings> appSettings,
-            IdTable idTable,
-            ICredentialProvider credentials, 
+        public ExpertConnect(
+            AzureBlobTranscriptStore transcriptStore, 
+            BotAccessors accessors, 
+            ILoggerFactory loggerFactory, 
+            IOptions<AppSettings> appSettings, 
+            IdTable idTable, 
+            EndUserAndAgentIdMapping endUserAndAgentIdMapping,
+            ICredentialProvider credentials,
             IConfiguration configuration)
         {
             if (loggerFactory == null)
@@ -80,7 +78,9 @@ namespace PPTExpertConnect
             _accessors = accessors ?? throw new ArgumentNullException(nameof(accessors));
             _transcriptStore = transcriptStore ?? throw new ArgumentNullException(nameof(transcriptStore)); // Test Mode ?
             _appSettings = appSettings?.Value ?? throw new ArgumentNullException(nameof(appSettings));
+
             _idTable = idTable ?? throw new ArgumentNullException(nameof(idTable));
+            _endUserAndAgentIdMapping = endUserAndAgentIdMapping;
 
             _botCredentials = (SimpleCredentialProvider)credentials ?? throw new ArgumentNullException(nameof(appSettings));
             
@@ -118,18 +118,31 @@ namespace PPTExpertConnect
                 ExtraInfoStep,
                 UserInfoAddedStep,
                 SummaryStep,
+                TicketStep,
                 End
+            };
+
+            var replyToUserSteps = new WaterfallStep[]
+            {
+                ReplyToUserStep
+            };
+            var replyToAgentSteps = new WaterfallStep[]
+            {
+                ReplyToAgentStep
             };
 
             _dialogs.Add(OAuthHelpers.Prompt(_OAuthConnectionSettingName));
 
-            //_dialogs.Add(new WaterfallDialog("authDialog", authDialog));
 
             _dialogs.Add(new WaterfallDialog(Start, start));
             _dialogs.Add(new WaterfallDialog(DetailPath, detailSteps));
             _dialogs.Add(new WaterfallDialog(ExamplePath, exampleSteps));
             _dialogs.Add(new WaterfallDialog(PostSelectionPath, postSelectionSteps));
 
+            _dialogs.Add(new WaterfallDialog("replyToUser", replyToUserSteps));
+            _dialogs.Add(new WaterfallDialog("replyToAgent", replyToAgentSteps));
+
+            // TODO: clean up to just one
             _dialogs.Add(new TextPrompt(UserData.FirstStep));
             _dialogs.Add(new TextPrompt(UserData.Purpose));
             _dialogs.Add(new TextPrompt(UserData.Style));
@@ -172,8 +185,21 @@ namespace PPTExpertConnect
 
                 if (!turnContext.Responded)
                 {
-                    // Start the Login process.
-                    await dialogContext.BeginDialogAsync(Start, cancellationToken: cancellationToken);
+                    var userProfile = await _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), cancellationToken);
+                    var toBotFromAgent = IsReplyToUserMessage(turnContext) || false;
+
+                    if (toBotFromAgent)
+                    {
+                        await dialogContext.BeginDialogAsync("replyToUser", null, cancellationToken);
+                    }
+                    else if (userProfile.State == UserDialogState.ProjectInOneOnOneConversation)
+                    {
+                        await dialogContext.BeginDialogAsync("replyToAgent", null, cancellationToken);
+                    }
+                    else
+                    {
+                        await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
+                    }
                 }
             } else if (turnContext.Activity.Type == ActivityTypes.ConversationUpdate)
             {
@@ -182,7 +208,7 @@ namespace PPTExpertConnect
                 {
                     await SaveAgentChannelIdInAzureStore(turnContext, _botCredentials);
                 }
-                await SaveBotIdInAzureStorage(turnContext, BotName);
+                await SaveBotIdInAzureStorage(turnContext, _appSettings.BotName);
             }
             else if (turnContext.Activity.Type == ActivityTypes.Invoke || turnContext.Activity.Type == ActivityTypes.Event)
             {
@@ -315,6 +341,7 @@ namespace PPTExpertConnect
 
             // Update the profile.
             userProfile.Introduction = (string)stepContext.Result;
+            userProfile.State = UserDialogState.ProjectStarted;
 
             if (userProfile.Introduction.Equals(Constants.V2ShowExamples))
             {
@@ -344,6 +371,7 @@ namespace PPTExpertConnect
             CancellationToken cancellationToken)
         {
             var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
+            userProfile.State = UserDialogState.ProjectCollectingDetails;
 
             if (((string)stepContext.Result).Equals(Constants.V2LetsBegin))
             {
@@ -365,6 +393,7 @@ namespace PPTExpertConnect
             var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
 
             userProfile.Introduction = (string)stepContext.Result;
+            userProfile.State = UserDialogState.ProjectCollectingDetails;
 
             return await stepContext.PromptAsync(
                 UserData.Purpose,
@@ -467,24 +496,87 @@ namespace PPTExpertConnect
                 cancellationToken);
             
         }
-        private async Task<DialogTurnResult> End (WaterfallStepContext stepContext, CancellationToken cancellationToken)
+        private async Task<DialogTurnResult> TicketStep (WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
-            // Get the current profile object from user state.
-            await _accessors.UserInfoAccessor.SetAsync(stepContext.Context, new UserInfo(), cancellationToken);
+            var message = stepContext.Context.Activity.Text;
+            var currentUserProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
+
+            if (message.Equals(Constants.ChangeSomething))
+            {
+                return currentUserProfile.Introduction.Equals(Constants.V2ShowExamples)
+                    ? await stepContext.ReplaceDialogAsync(ExamplePath, null, cancellationToken)
+                    : await stepContext.ReplaceDialogAsync(DetailPath, null, cancellationToken);
+            }
+
+            currentUserProfile.State = UserDialogState.ProjectInOneOnOneConversation;
 
             // TODO: create a card for the agent.
-            await CreateAgentConversationMessage(stepContext.Context,
+            var agentConversationId = await CreateAgentConversationMessage(stepContext.Context,
                 $"PowerPoint request from {stepContext.Context.Activity.From.Name} via {stepContext.Context.Activity.ChannelId}",
-                cb.PresentationIntro());
+                cb.V2VsoTicketCard(251,"https://www.microsoft.com"));
 
-            await stepContext.PromptAsync(
-                UserData.Extra,
-                CreateAdaptiveCardAsPrompt(cb.V2VsoTicketCard(
-                    251,
-                    "https://www.microsoft.com")),
+            // TODO: integrate VSO into this area
+            await _endUserAndAgentIdMapping.CreateNewMapping("vsoTicket-251",
+                stepContext.Context.Activity.From.Name,
+                stepContext.Context.Activity.From.Id,
+                JsonConvert.SerializeObject(stepContext.Context.Activity.GetConversationReference()),
+                agentConversationId);
+
+            await stepContext.Context.SendActivityAsync(
+                CreateAdaptiveCardAsActivity(cb.V2VsoTicketCard(251, "https://www.microsoft.com")), cancellationToken);
+
+            return await stepContext.EndDialogAsync(null, cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> End(WaterfallStepContext context, CancellationToken cancellationToken)
+        {
+            var userProfile =
+                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
+            userProfile.State = UserDialogState.ProjectInOneOnOneConversation;
+
+            return await context.EndDialogAsync(null, cancellationToken);
+        }
+        #endregion
+
+        #region ReplyToUser/Agent
+
+        private async Task<DialogTurnResult> ReplyToUserStep(WaterfallStepContext context, CancellationToken cancellationToken)
+        {
+            var message = 
+                    extractMessageFromCommand(_appSettings.BotName, "reply to user", context.Context.Activity.Text);
+
+            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo("vsoTicket-251");
+
+          var userInfo =
+                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
+            userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
+
+            await SendMessageToUserEx(context.Context,
+                endUserInfo,
+                message,
+                "vsoTicket-251", 
                 cancellationToken);
 
-            return await stepContext.EndDialogAsync(cancellationToken: cancellationToken);
+            return await context.EndDialogAsync(null, cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> ReplyToAgentStep(WaterfallStepContext context,
+            CancellationToken cancellationToken)
+        {
+            var message = context.Context.Activity.Text;
+            if (message.Equals(string.Empty))
+            {
+                return await context.EndDialogAsync(null, cancellationToken);
+            }
+
+            var vsoTicketForUser =
+                await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(context.Context.Activity.From.Id);
+
+            var agentInfo = await _endUserAndAgentIdMapping.GetAgentConversationId(vsoTicketForUser);
+
+            await SendMessageToAgentAsReplyToConversationInAgentsChannel(context.Context, message, agentInfo, vsoTicketForUser);
+
+            return await context.EndDialogAsync(null, cancellationToken);
         }
 
         #endregion
@@ -506,6 +598,12 @@ namespace PPTExpertConnect
             };
             return adaptiveCardAttachment;
         }
+
+        private static IActivity CreateAdaptiveCardAsActivity(AdaptiveCard card)
+        {
+            return (Activity) MessageFactory.Attachment(CreateAdaptiveCardAttachment(card));
+        }
+
 
         private async Task SaveBotIdInAzureStorage(ITurnContext context, string botName)
         {
@@ -529,7 +627,7 @@ namespace PPTExpertConnect
                 var connectorClient = await BotConnectorUtility.BuildConnectorClientAsync(
                     credentials.AppId, credentials.Password, context.Activity.ServiceUrl);
 
-                var ci = GetChannelId(connectorClient, context, AgentChannelName);
+                var ci = GetChannelId(connectorClient, context, _appSettings.AgentChannelName);
                 await _idTable.SetAgentChannel(ci.Name, ci.Id);
             }
             catch (SystemException e)
@@ -545,7 +643,6 @@ namespace PPTExpertConnect
             if (channelInfo == null) throw new System.Exception($"{channelName} doesn't exist in {context.Activity.GetChannelData<TeamsChannelData>().Team.Name} Team");
             return channelInfo;
         }
-
         private async Task<string> CreateAgentConversationMessage(ITurnContext context, string topicName, AdaptiveCard cardToSend)
         {
             var serviceUrl = context.Activity.ServiceUrl;
@@ -589,27 +686,118 @@ namespace PPTExpertConnect
                     async ()
                         => await connectorClient.Result.Conversations.CreateConversationAsync(conversationParams));
 
-                //Trace.TraceInformation(
-                //    $"[SUCCESS]: CreateAgentConversation. response id ={conversationResourceResponse.Id}");
-
-                //WebApiConfig.TelemetryClient.TrackEvent("CreateAgentConversation", new Dictionary<string, string>
-                //{
-                //    {"endUser", agentMessage.From.Name},
-                //    {"agentConversationId", conversationResourceResponse.Id},
-                //});
-
                 return conversationResourceResponse.Id;
             }
             catch (System.Exception e)
             {
                 System.Console.WriteLine(e.ToString());
-                //WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
-                //{
-                //    {"function", "CreateAgentConversation" }
-                //});
-
                 throw;
             }
+        }
+        private async Task SendMessageToUserEx(ITurnContext context,
+            EndUserModel endUserModel,
+            string messageToSend,
+            string vsoId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                BotAdapter adapter = context.Adapter;
+
+                await adapter.ContinueConversationAsync(
+                    _botCredentials.AppId,
+                    JsonConvert.DeserializeObject<ConversationReference>(endUserModel.Conversation),
+                    CreateCallback(messageToSend),
+                    cancellationToken
+                );
+            }
+            catch (Exception e)
+            {
+                System.Console.WriteLine(e.ToString());
+                throw;
+            }
+        }
+        
+
+        private BotCallbackHandler CreateCallback(string message)
+        {
+            return async (turnContext, token) =>
+            {
+                var dialogContext = await _dialogs.CreateContextAsync(turnContext, token);
+                turnContext.Activity.Text = message;
+                await turnContext.SendActivityAsync(message, null, null, token);
+                await dialogContext.ContinueDialogAsync(cancellationToken: token);
+            };
+        }
+
+        private async Task<ResourceResponse> SendMessageToAgentAsReplyToConversationInAgentsChannel(
+            ITurnContext context,
+            string messageToSend,
+            string agentConversationId,
+            string vsoId)
+        {
+            try
+            {
+                ChannelAccount botAccount = await _idTable.GetBotId();
+
+                var activity = context.Activity;
+                var serviceUrl = "https://smba.trafficmanager.net/amer/";
+
+                using (ConnectorClient connector = await BotConnectorUtility.BuildConnectorClientAsync(
+                    _botCredentials.AppId,
+                    _botCredentials.Password,
+                    serviceUrl))
+                {
+                    IMessageActivity message = Activity.CreateMessageActivity();
+                    message.From = botAccount;
+                    message.ReplyToId = agentConversationId;
+                    message.Conversation = new ConversationAccount
+                    {
+                        Id = agentConversationId,
+                        IsGroup = true,
+                    };
+
+                    var agentChannelInfo = await _idTable.GetAgentChannelInfo();
+                    var channelData = new TeamsChannelData() { Channel = agentChannelInfo, Notification = new NotificationInfo(true) };
+
+                    message.Text = $"[{activity.From.Name}]: {messageToSend}";
+                    message.TextFormat = "plain";
+                    message.ServiceUrl = serviceUrl;
+                    message.ChannelData = channelData;
+
+                    ResourceResponse response = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(async ()
+                        => await connector.Conversations.SendToConversationAsync((Activity)message));
+                   
+                    return response;
+                }
+            }
+            catch (Exception e)
+            {
+                System.Console.WriteLine(e.ToString());
+                throw;
+            }
+        }
+
+        private bool IsReplyToUserMessage(ITurnContext context)
+        {
+            var isGroup = context.Activity.Conversation.IsGroup ?? false;
+            var mentions = context.Activity.GetMentions();
+
+            // TODO: mentions.length could crash if null!!!!
+            return (isGroup && mentions.Length > 0 && mentions.FirstOrDefault().Text.Contains(_appSettings.BotName));
+        }
+        private string extractMessageFromCommand(string botName, string command, string message)
+        {
+            var atBotPattern = new Regex($"^<at>({botName})</at>");
+            var commandPattern = new Regex($" ({command}) ");
+            var fullPattern = new Regex($"^<at>({botName})</at> ({command}) (.*)");
+
+            if (atBotPattern.IsMatch(message) && commandPattern.IsMatch(message))
+            {
+                return fullPattern.Match(message).Groups[3].Value;
+            }
+
+            return null;
         }
 
         #endregion

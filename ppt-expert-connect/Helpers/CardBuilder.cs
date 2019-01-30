@@ -174,10 +174,10 @@ namespace PPTExpertConnect.Helpers
             };
             optionSet.Spacing = AdaptiveSpacing.Padding;
 
-            if (!string.IsNullOrEmpty(userInfo.Purpose))
-            {
-                optionSet.Columns.Add(CreateAdaptiveColumnWithText(Constants.ChangeSomething));
-            }
+//            if (!string.IsNullOrEmpty(userInfo.Purpose))
+//            {
+            optionSet.Columns.Add(CreateAdaptiveColumnWithText(Constants.ChangeSomething));
+//            }
 
             card.Body.Add(optionSet);
             return card;
