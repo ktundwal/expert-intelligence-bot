@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
@@ -23,6 +24,8 @@ using Microsoft.Bot.Builder.Integration;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Connector.Teams;
 using Microsoft.Bot.Connector.Teams.Models;
+using DelegateAuthenticationProvider = Microsoft.Graph.DelegateAuthenticationProvider;
+using GraphServiceClient = Microsoft.Graph.GraphServiceClient;
 
 namespace PPTExpertConnect
 {
@@ -36,6 +39,11 @@ namespace PPTExpertConnect
         private readonly string ExamplePath = "Example";
         private readonly string PostSelectionPath = "PostSelection";
 
+        private const string HelpText = @"Call Taranbir or Kapil ...";
+
+        private const string WelcomeText = @"This bot will help you prepare PPT files.
+                                        Type anything to get logged in. Type 'logout' to sign-out";
+
         private readonly BotAccessors _accessors;
         private readonly AzureBlobTranscriptStore _transcriptStore;
         private readonly IdTable _idTable;
@@ -46,11 +54,25 @@ namespace PPTExpertConnect
         private readonly AppSettings _appSettings;
         private readonly SimpleCredentialProvider _botCredentials;
 
-        public ExpertConnect(AzureBlobTranscriptStore transcriptStore, BotAccessors accessors, ILoggerFactory loggerFactory, IOptions<AppSettings> appSettings , IdTable idTable, ICredentialProvider credentials)
+        private readonly string _OAuthConnectionSettingName;
+
+        public ExpertConnect(AzureBlobTranscriptStore transcriptStore,
+            BotAccessors accessors,
+            ILoggerFactory loggerFactory,
+            IOptions<AppSettings> appSettings,
+            IdTable idTable,
+            ICredentialProvider credentials, 
+            IConfiguration configuration)
         {
             if (loggerFactory == null)
             {
                 throw new System.ArgumentNullException(nameof(loggerFactory));
+            }
+
+            _OAuthConnectionSettingName = configuration.GetSection("OAuthConnectionSettingsName")?.Value;
+            if (string.IsNullOrWhiteSpace(_OAuthConnectionSettingName))
+            {
+                throw new InvalidOperationException("OAuthConnectionSettingName must be configured prior to running the bot.");
             }
 
             _logger = loggerFactory.CreateLogger<ExpertConnect>();
@@ -68,9 +90,13 @@ namespace PPTExpertConnect
 
             var start = new WaterfallStep[]
             {
+                PromptStepAsync,
+                LoginStepAsync,
                 IntroductionStep,
                 PostIntroductionStep
             };
+
+            //var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
 
             var detailSteps = new WaterfallStep[]
             {
@@ -95,6 +121,10 @@ namespace PPTExpertConnect
                 End
             };
 
+            _dialogs.Add(OAuthHelpers.Prompt(_OAuthConnectionSettingName));
+
+            //_dialogs.Add(new WaterfallDialog("authDialog", authDialog));
+
             _dialogs.Add(new WaterfallDialog(Start, start));
             _dialogs.Add(new WaterfallDialog(DetailPath, detailSteps));
             _dialogs.Add(new WaterfallDialog(ExamplePath, exampleSteps));
@@ -118,18 +148,32 @@ namespace PPTExpertConnect
             {
                 throw new ArgumentNullException(nameof(turnContext));
             }
-            
+            var dialogContext = await _dialogs.CreateContextAsync(turnContext, cancellationToken);
+
             if (turnContext.Activity.Type == ActivityTypes.Message)
             {
-                // Run the DialogSet - let the framework identify the current state of the dialog from
-                // the dialog stack and figure out what (if any) is the active dialog.
-                var dialogContext = await _dialogs.CreateContextAsync(turnContext, cancellationToken);
+                // This bot is not case sensitive.
+                var text = turnContext.Activity.Text.ToLowerInvariant();
+
+                if (text == "help")
+                {
+                    await turnContext.SendActivityAsync(HelpText, cancellationToken: cancellationToken);
+                }
+
+                if (text == "logout")
+                {
+                    // The bot adapter encapsulates the authentication processes.
+                    var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
+                    await botAdapter.SignOutUserAsync(turnContext, _OAuthConnectionSettingName, cancellationToken: cancellationToken);
+                    await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
+                }
+
                 var results = await dialogContext.ContinueDialogAsync(cancellationToken);
 
-                // If the DialogTurnStatus is Empty we should start a new dialog.
-                if (results.Status == DialogTurnStatus.Empty)
+                if (!turnContext.Responded)
                 {
-                    await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
+                    // Start the Login process.
+                    await dialogContext.BeginDialogAsync(Start, cancellationToken: cancellationToken);
                 }
             } else if (turnContext.Activity.Type == ActivityTypes.ConversationUpdate)
             {
@@ -139,6 +183,19 @@ namespace PPTExpertConnect
                     await SaveAgentChannelIdInAzureStore(turnContext, _botCredentials);
                 }
                 await SaveBotIdInAzureStorage(turnContext, BotName);
+            }
+            else if (turnContext.Activity.Type == ActivityTypes.Invoke || turnContext.Activity.Type == ActivityTypes.Event)
+            {
+                // This handles the MS Teams Invoke Activity sent when magic code is not used.
+                // See: https://docs.microsoft.com/en-us/microsoftteams/platform/concepts/authentication/auth-oauth-card#getting-started-with-oauthcard-in-teams
+                // The Teams manifest schema is found here: https://docs.microsoft.com/en-us/microsoftteams/platform/resources/schema/manifest-schema
+                // It also handles the Event Activity sent from the emulator when the magic code is not used.
+                // See: https://blog.botframework.com/2018/08/28/testing-authentication-to-your-bot-using-the-bot-framework-emulator/
+                await dialogContext.ContinueDialogAsync(cancellationToken);
+                if (!turnContext.Responded)
+                {
+                    await dialogContext.BeginDialogAsync(Start, cancellationToken: cancellationToken);
+                }
             }
             else
             {
@@ -151,6 +208,93 @@ namespace PPTExpertConnect
             // Save the user profile updates into the user state.
             await _accessors.UserState.SaveChangesAsync(turnContext, false, cancellationToken);
         }
+
+        #region Auth
+
+        /// <summary>
+        /// This <see cref="WaterfallStep"/> prompts the user to log in.
+        /// </summary>
+        /// <param name="step">A <see cref="WaterfallStepContext"/> provides context for the current waterfall step.</param>
+        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
+        /// or threads to receive notice of cancellation.</param>
+        /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
+        private static async Task<DialogTurnResult> PromptStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
+        {
+            return await step.BeginDialogAsync(OAuthHelpers.LoginPromptDialogId, cancellationToken: cancellationToken);
+        }
+
+        /// <summary>
+        /// In this step we check that a token was received and prompt the user as needed.
+        /// </summary>
+        /// <param name="step">A <see cref="WaterfallStepContext"/> provides context for the current waterfall step.</param>
+        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
+        /// or threads to receive notice of cancellation.</param>
+        /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
+        private static async Task<DialogTurnResult> LoginStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
+        {
+            // Get the token from the previous step. Note that we could also have gotten the
+            // token directly from the prompt itself. There is an example of this in the next method.
+            var tokenResponse = (TokenResponse)step.Result;
+            if (tokenResponse != null)
+            {
+                var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
+                var user = await GraphClient.GetMeAsync(client);
+                await step.Context.SendActivityAsync($"Kon'nichiwa { user.DisplayName}! You are now logged in.", cancellationToken: cancellationToken);
+                return await step.EndDialogAsync(cancellationToken);
+            }
+
+            await step.Context.SendActivityAsync("Login was not successful please try again. Aborting.", cancellationToken: cancellationToken);
+            return Dialog.EndOfTurn;
+        }
+
+        /// <summary>
+        /// Fetch the token and display it for the user if they asked to see it.
+        /// </summary>
+        /// <param name="step">A <see cref="WaterfallStepContext"/> provides context for the current waterfall step.</param>
+        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
+        /// or threads to receive notice of cancellation.</param>
+        /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
+        private static async Task<DialogTurnResult> GetTokenAgain(WaterfallStepContext step, CancellationToken cancellationToken)
+        {
+            // Call the prompt again because we need the token. The reasons for this are:
+            // 1. If the user is already logged in we do not need to store the token locally in the bot and worry
+            // about refreshing it. We can always just call the prompt again to get the token.
+            // 2. We never know how long it will take a user to respond. By the time the
+            // user responds the token may have expired. The user would then be prompted to login again.
+            //
+            // There is no reason to store the token locally in the bot because we can always just call
+            // the OAuth prompt to get the token or get a new token if needed.
+            var prompt = await step.BeginDialogAsync(OAuthHelpers.LoginPromptDialogId, cancellationToken: cancellationToken);
+            var tokenResponse = (TokenResponse)prompt.Result;
+            if (tokenResponse != null)
+            {
+                await step.Context.SendActivityAsync($"Here is your token {tokenResponse.Token}", cancellationToken: cancellationToken);
+            }
+
+            await step.Context.SendActivityAsync("Login was not successful please try again. Aborting.", cancellationToken: cancellationToken);
+            return Dialog.EndOfTurn;
+        }
+
+        /// <summary>
+        /// Greet new users as they are added to the conversation.
+        /// </summary>
+        /// <param name="turnContext">Provides the <see cref="ITurnContext"/> for the turn of the bot.</param>
+        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
+        /// or threads to receive notice of cancellation.</param>
+        /// <returns>A <see cref="Task"/> representing the operation result of the Turn operation.</returns>
+        private static async Task SendWelcomeMessageAsync(ITurnContext turnContext, CancellationToken cancellationToken)
+        {
+            foreach (var member in turnContext.Activity.MembersAdded)
+            {
+                if (member.Id != turnContext.Activity.Recipient.Id)
+                {
+                    await turnContext.SendActivityAsync(
+                        $"Welcome to AuthenticationBot {member.Name}. {WelcomeText}",
+                        cancellationToken: cancellationToken);
+                }
+            }
+        }
+        #endregion
 
         #region Introduction
         private async Task<DialogTurnResult> IntroductionStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
@@ -165,7 +309,9 @@ namespace PPTExpertConnect
         private async Task<DialogTurnResult> PostIntroductionStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
             // Get the current profile object from user state.
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
+            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context,
+                () => new UserInfo(),
+                cancellationToken);
 
             // Update the profile.
             userProfile.Introduction = (string)stepContext.Result;
@@ -469,4 +615,30 @@ namespace PPTExpertConnect
         #endregion
     }
 
+
+    public static class GraphClient
+    {
+        // Get information about the user.
+        public static async Task<Microsoft.Graph.User> GetMeAsync(GraphServiceClient graphClient)
+        {
+            return await graphClient.Me.Request().GetAsync();
+        }
+
+        public static GraphServiceClient GetAuthenticatedClient(string token)
+        {
+            var graphClient = new GraphServiceClient(
+                new DelegateAuthenticationProvider(
+                    requestMessage =>
+                    {
+                        // Append the access token to the request.
+                        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("bearer", token);
+
+                        // Get event times in the current time zone.
+                        requestMessage.Headers.Add("Prefer", "outlook.timezone=\"" + TimeZoneInfo.Local.Id + "\"");
+
+                        return Task.CompletedTask;
+                    }));
+            return graphClient;
+        }
+    }
 }
