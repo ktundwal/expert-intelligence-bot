@@ -193,6 +193,10 @@ namespace PPTExpertConnect
                     {
                         await dialogContext.BeginDialogAsync("replyToAgent", null, cancellationToken);
                     }
+                    else if (!turnContext.Responded)
+                    {
+                        await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
+                    }
                     else
                     {
                         await dialogContext.BeginDialogAsync(Auth, null, cancellationToken);
