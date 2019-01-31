@@ -165,7 +165,8 @@ namespace PPTExpertConnect
 
                 if (text == "help")
                 {
-                    await turnContext.SendActivityAsync(HelpText, cancellationToken: cancellationToken);
+                   await turnContext.SendActivityAsync(HelpText, cancellationToken: cancellationToken);
+                    return;
                 }
 
                 if (text == "logout")
@@ -174,6 +175,9 @@ namespace PPTExpertConnect
                     var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
                     await botAdapter.SignOutUserAsync(turnContext, _OAuthConnectionSettingName, cancellationToken: cancellationToken);
                     await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
+                    // TODO: Thank you for your time.. Make it pending for a new conversation.. 
+                    // TODO: Check if the project is pending [forget me] or not ? 
+//                    return;
                     await dialogContext.ReplaceDialogAsync(Auth, null, cancellationToken);
                 }
 
@@ -193,10 +197,10 @@ namespace PPTExpertConnect
                     {
                         await dialogContext.BeginDialogAsync("replyToAgent", null, cancellationToken);
                     }
-                    else if (!turnContext.Responded)
-                    {
-                        await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
-                    }
+//                    else if (!turnContext.Responded)
+//                    {
+//                        await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
+//                    }
                     else
                     {
                         await dialogContext.BeginDialogAsync(Auth, null, cancellationToken);
@@ -223,6 +227,10 @@ namespace PPTExpertConnect
                 if (!turnContext.Responded)
                 {
                     await dialogContext.BeginDialogAsync(Auth, cancellationToken: cancellationToken); // Begin auth or start ?
+                }
+                else
+                {
+                    await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
                 }
             }
             else
@@ -268,8 +276,7 @@ namespace PPTExpertConnect
                 var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
                 var user = await GraphClient.GetMeAsync(client);
                 await step.Context.SendActivityAsync($"Kon'nichiwa { user.DisplayName}! You are now logged in.", cancellationToken: cancellationToken);
-                return await step.ReplaceDialogAsync(Start, null, cancellationToken);
-//                return await step.EndDialogAsync(cancellationToken);
+                return await step.EndDialogAsync(cancellationToken);
             }
 
             await step.Context.SendActivityAsync("Login was not successful please try again. Aborting.", cancellationToken: cancellationToken);
