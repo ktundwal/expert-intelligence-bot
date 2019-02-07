@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Bot.Schema;
 
 namespace PPTExpertConnect.Models
 {
@@ -14,6 +15,7 @@ namespace PPTExpertConnect.Models
     /// </summary>
     public class UserInfo
     {
+        public TokenResponse Token { get; set; }
         public string Introduction { get; set; }
         public string Purpose { get; set; }
         public string Style { get; set; }

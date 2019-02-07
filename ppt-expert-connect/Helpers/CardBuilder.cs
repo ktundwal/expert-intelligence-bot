@@ -81,14 +81,14 @@ namespace PPTExpertConnect.Helpers
             return card;
         }
 
-        public AdaptiveCard ConfirmationCard()
+        public AdaptiveCard ConfirmationCard(string driveItemUrl)
         {
             string okayAdded = Constants.AddedEverythingToFile;
 
             AdaptiveCard card = new AdaptiveCard();
             AdaptiveTextBlock title = new AdaptiveTextBlock()
             {
-                Text = $"Got it. Here's a link to an online PowerPoint template file.",
+                Text = $"Got it. Here's a [link]({driveItemUrl}) to an online PowerPoint template file.",
                 Wrap = true,
             };
 
@@ -522,19 +522,22 @@ namespace PPTExpertConnect.Helpers
         {
             AdaptiveCard card = new AdaptiveCard();
             AdaptiveTextBlock responseTextBlock =
-                new AdaptiveTextBlock(
-                        $"Hi {user}, your presentation is ready for review. Let us know if you have any comments or add them right in the PowerPoint file.")
-                    {Wrap = true};
+                new AdaptiveTextBlock( $"Hi {user}, your presentation is ready for review. Let us know if you have any comments or add them right in the PowerPoint file.") {Wrap = true};
             AdaptiveTextBlock slaTextBlock =
-                new AdaptiveTextBlock(
-                        "If we don't hear back from in 48 hours, we'll assume you're all set and we'll close this project.")
-                    {Wrap = true};
+                new AdaptiveTextBlock("If we don't hear back from in 48 hours, we'll assume you're all set and we'll close this project.") {Wrap = true};
 
             card.Body.Add(responseTextBlock);
             card.Body.Add(slaTextBlock);
 
-            card.Actions.Add(CreateSubmitAction("This is complete"));
-            card.Actions.Add(CreateSubmitAction("I want a free revision"));
+            AdaptiveColumnSet optionsSet = new AdaptiveColumnSet()
+            {
+                Columns =
+                {
+                    CreateAdaptiveColumnWithText(Constants.Complete),
+                    CreateAdaptiveColumnWithText(Constants.Revision),
+                }
+            };
+            card.Body.Add(optionsSet);
             return card;
         }
 
@@ -601,6 +604,17 @@ namespace PPTExpertConnect.Helpers
                     badRating ? new AdaptiveTextBlock(
                         "Dang, really? Please tell us why you gave us this rating, so we can improve.") {Wrap = true} :
                     new AdaptiveTextBlock("Any other feedback to help us improve the process?") {Wrap = true}
+                }
+            };
+        }
+
+        public AdaptiveCard V2AskForRevisionChanges()
+        {
+            return new AdaptiveCard()
+            {
+                Body = new List<AdaptiveElement>
+                {
+                    new AdaptiveTextBlock("Let us know what you would like to see changed or updated? We will address your feedback and get back to you shortly.") {Wrap = true}
                 }
             };
         }

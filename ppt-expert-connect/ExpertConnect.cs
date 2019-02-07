@@ -3,6 +3,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.IO.IsolatedStorage;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
@@ -23,8 +25,7 @@ using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Connector.Teams;
 using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.Extensions.Configuration;
-using DelegateAuthenticationProvider = Microsoft.Graph.DelegateAuthenticationProvider;
-using GraphServiceClient = Microsoft.Graph.GraphServiceClient;
+using DriveItem = Microsoft.Graph.DriveItem;
 
 namespace PPTExpertConnect
 {
@@ -35,6 +36,13 @@ namespace PPTExpertConnect
         private readonly string DetailPath = "Details";
         private readonly string ExamplePath = "Example";
         private readonly string PostSelectionPath = "PostSelection";
+        private readonly string ProjectCompletePath = "ProjectComplete";
+        private readonly string ProjectRevisionPath = "ProjectRevision";
+        private readonly string PreCompletionSelectionPath = "PreCompletionSelection";
+        private readonly string UserToSelectProjectStatePath = "UserToSelectProjectState";
+        private readonly string ReplyToUserPath = "ReplyToUser";
+        private readonly string ReplyToAgentPath = "ReplyToAgent";
+
 
         private const string HelpText = @"Call Taranbir or Kapil ...";
 
@@ -113,18 +121,23 @@ namespace PPTExpertConnect
                 ExtraInfoStep,
                 UserInfoAddedStep,
                 SummaryStep,
-                TicketStep,
-                End
+                TicketStep
             };
 
-            var replyToUserSteps = new WaterfallStep[]
+            var projectCompletedSteps = new WaterfallStep[]
             {
-                ReplyToUserStep
+                PromptForRatingsStep, ProcessRatingsStep, ProcessFeedback
             };
-            var replyToAgentSteps = new WaterfallStep[]
+            var projectRevisionSteps = new WaterfallStep[]
             {
-                ReplyToAgentStep
+                PromptForRevisionFeedbackStep, ProcessRevisionFeedback
             };
+
+            var replyToUserSteps = new WaterfallStep[] { ReplyToUserStep };
+            var agentToUserForPostProjectCompletionBranching = new WaterfallStep[]{ ShowPostProjectCompletionChoices };
+
+            var replyToAgentSteps = new WaterfallStep[] { ReplyToAgentStep };
+            var handleProjectCompletionReplyFromAgent = new WaterfallStep[] { PostCompletionChoiceSelection };
 
             _dialogs.Add(OAuthHelpers.Prompt(_OAuthConnectionSettingName));
 
@@ -134,8 +147,12 @@ namespace PPTExpertConnect
             _dialogs.Add(new WaterfallDialog(ExamplePath, exampleSteps));
             _dialogs.Add(new WaterfallDialog(PostSelectionPath, postSelectionSteps));
 
-            _dialogs.Add(new WaterfallDialog("replyToUser", replyToUserSteps));
-            _dialogs.Add(new WaterfallDialog("replyToAgent", replyToAgentSteps));
+            _dialogs.Add(new WaterfallDialog(ReplyToUserPath, replyToUserSteps));
+            _dialogs.Add(new WaterfallDialog(ReplyToAgentPath, replyToAgentSteps));
+            _dialogs.Add(new WaterfallDialog(PreCompletionSelectionPath, agentToUserForPostProjectCompletionBranching));
+            _dialogs.Add(new WaterfallDialog(UserToSelectProjectStatePath, handleProjectCompletionReplyFromAgent));
+            _dialogs.Add(new WaterfallDialog(ProjectCompletePath, projectCompletedSteps));
+            _dialogs.Add(new WaterfallDialog(ProjectRevisionPath, projectRevisionSteps));
 
             // TODO: clean up to just one
             _dialogs.Add(new TextPrompt(UserData.FirstStep));
@@ -165,46 +182,65 @@ namespace PPTExpertConnect
 
                 if (text == "help")
                 {
-                   await turnContext.SendActivityAsync(HelpText, cancellationToken: cancellationToken);
+                    await turnContext.SendActivityAsync(HelpText, cancellationToken: cancellationToken);
                     return;
                 }
 
                 if (text == "logout")
                 {
-                    // The bot adapter encapsulates the authentication processes.
                     var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
                     await botAdapter.SignOutUserAsync(turnContext, _OAuthConnectionSettingName, cancellationToken: cancellationToken);
                     await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
-                    // TODO: Thank you for your time.. Make it pending for a new conversation.. 
-                    // TODO: Check if the project is pending [forget me] or not ? 
-//                    return;
-                    await dialogContext.ReplaceDialogAsync(Auth, null, cancellationToken);
+                    await dialogContext.CancelAllDialogsAsync(cancellationToken);
+                    return;
                 }
+                var token = await ((BotFrameworkAdapter)turnContext.Adapter)
+                    .GetUserTokenAsync(turnContext, _OAuthConnectionSettingName, null, cancellationToken)
+                    .ConfigureAwait(false);
 
-                var results = await dialogContext.ContinueDialogAsync(cancellationToken);
-
-                //                if (!turnContext.Responded)
-                if(results.Status == DialogTurnStatus.Empty)
+                if (token != null)
                 {
-                    var userProfile = await _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), cancellationToken);
-                    var toBotFromAgent = IsReplyToUserMessage(turnContext) || false;
+                    var results = await dialogContext.ContinueDialogAsync(cancellationToken);
 
-                    if (toBotFromAgent)
+                    if (results.Status == DialogTurnStatus.Empty)
                     {
-                        await dialogContext.BeginDialogAsync("replyToUser", null, cancellationToken);
+                        var userProfile = await _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), cancellationToken);
+
+                        // Move the following code outside later ?
+                        var didAgentUseACommand = DidAgentUseCommandOnBot(turnContext) || false;
+
+                        if (didAgentUseACommand)
+                        {
+                            switch (GetCommandFromAgent(_appSettings.BotName, turnContext.Activity.Text))
+                            {
+                                case "reply to user":
+                                    await dialogContext.BeginDialogAsync(ReplyToUserPath, null, cancellationToken);
+                                    break;
+                                case "project completed":
+                                    await dialogContext.BeginDialogAsync(PreCompletionSelectionPath, null, cancellationToken);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        else if (userProfile.State == UserDialogState.ProjectInOneOnOneConversation)
+                        {
+                            await dialogContext.BeginDialogAsync(ReplyToAgentPath, null, cancellationToken);
+                        }
+                        else if (userProfile.State == UserDialogState.ProjectCompleted)
+                        {
+                            await dialogContext.BeginDialogAsync(UserToSelectProjectStatePath, null, cancellationToken);
+                        }
+                        else
+                        {
+                            await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
+                        }
                     }
-                    else if (userProfile.State == UserDialogState.ProjectInOneOnOneConversation)
-                    {
-                        await dialogContext.BeginDialogAsync("replyToAgent", null, cancellationToken);
-                    }
-//                    else if (!turnContext.Responded)
-//                    {
-//                        await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
-//                    }
-                    else
-                    {
-                        await dialogContext.BeginDialogAsync(Auth, null, cancellationToken);
-                    }
+                }
+                else
+                {
+                    // User is not authenticated. Send them an auth card.
+                    await dialogContext.BeginDialogAsync(Auth, null, cancellationToken);
                 }
             }
             else if (turnContext.Activity.Type == ActivityTypes.ConversationUpdate)
@@ -273,14 +309,16 @@ namespace PPTExpertConnect
             var tokenResponse = (TokenResponse)step.Result;
             if (tokenResponse != null)
             {
+                var userProfile = await _accessors.UserInfoAccessor.GetAsync(step.Context, () => new UserInfo(), cancellationToken);
+                userProfile.Token = tokenResponse;
+
                 var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
                 var user = await GraphClient.GetMeAsync(client);
                 await step.Context.SendActivityAsync($"Kon'nichiwa { user.DisplayName}! You are now logged in.", cancellationToken: cancellationToken);
-                return await step.EndDialogAsync(cancellationToken);
+                return await step.EndDialogAsync(null, cancellationToken); // Maybe just end ??
             }
 
             await step.Context.SendActivityAsync("Login was not successful please try again. Aborting.", cancellationToken: cancellationToken);
-//            return Dialog.EndOfTurn;
             return await step.ReplaceDialogAsync(Auth, null, cancellationToken);
 
         }
@@ -489,11 +527,27 @@ namespace PPTExpertConnect
             // Update the profile.
             userProfile.Extra = (string)stepContext.Result;
 
-            // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-            return await stepContext.PromptAsync(
+            // TODO: Add File Into the OneDrive Folder
+            var token = await ((BotFrameworkAdapter)stepContext.Context.Adapter)
+                .GetUserTokenAsync(stepContext.Context, _OAuthConnectionSettingName, null, cancellationToken)
+                .ConfigureAwait(false);
+            if (token != null)
+            {
+                var driveItem = UploadAnItemToOneDrive(token);
+                // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
+                return await stepContext.PromptAsync(
                 UserData.Extra,
-                CreateAdaptiveCardAsPrompt(cb.ConfirmationCard()),
+                CreateAdaptiveCardAsPrompt(cb.ConfirmationCard(driveItem.WebUrl)),
                 cancellationToken);
+            }
+            else
+            {
+                return await stepContext.PromptAsync(
+                    UserData.Extra,
+                    CreateAdaptiveCardAsPrompt(cb.ConfirmationCard("http://www.microsoft.com")),
+                    cancellationToken);
+            }
+
         }
 
         private async Task<DialogTurnResult> SummaryStep (WaterfallStepContext stepContext, CancellationToken cancellationToken)
@@ -540,14 +594,6 @@ namespace PPTExpertConnect
             return await stepContext.EndDialogAsync(null, cancellationToken);
         }
 
-        private async Task<DialogTurnResult> End(WaterfallStepContext context, CancellationToken cancellationToken)
-        {
-            var userProfile =
-                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
-            userProfile.State = UserDialogState.ProjectInOneOnOneConversation;
-
-            return await context.EndDialogAsync(null, cancellationToken);
-        }
         #endregion
 
         #region ReplyToUser/Agent
@@ -593,7 +639,149 @@ namespace PPTExpertConnect
 
         #endregion
 
+        #region PostProjectCompletion
+
+        private async Task<DialogTurnResult> End(WaterfallStepContext context, CancellationToken cancellationToken)
+        {
+            var userInfo =
+                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
+            userInfo.State = UserDialogState.ProjectCompleted;
+
+            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo("vsoTicket-251");
+
+            await SendCardToUserEx(context.Context, endUserInfo, cb.V2PresentationResponse("John Doe"), "vsoTicket-251", cancellationToken);
+
+            return await context.EndDialogAsync(null, cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> ShowPostProjectCompletionChoices(WaterfallStepContext stepContext,
+            CancellationToken cancellationToken)
+        {
+            var userInfo = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
+            userInfo.State = UserDialogState.ProjectCompleted;
+
+            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo("vsoTicket-251");
+
+           await SendCardToUserEx(stepContext.Context, endUserInfo, cb.V2PresentationResponse(endUserInfo.Name), "vsoTicket-251", cancellationToken);
+
+            return await stepContext.EndDialogAsync(null, cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> PostCompletionChoiceSelection(WaterfallStepContext stepContext,
+            CancellationToken cancellationToken)
+        {
+            var choice = stepContext.Context.Activity.Text;
+
+            if (choice.Equals(Constants.Complete))
+            {
+                return await stepContext.ReplaceDialogAsync(ProjectCompletePath, null, cancellationToken);
+            }
+            if (choice.Equals(Constants.Revision))
+            {
+                return await stepContext.ReplaceDialogAsync(ProjectRevisionPath, null, cancellationToken);
+            }
+
+            //TODO: handle case of message not a part of the two texts
+            return null;
+        }
+        #endregion
+
+        #region ProjectComplete
+
+        private async Task<DialogTurnResult> PromptForRatingsStep (WaterfallStepContext context,
+            CancellationToken cancellationToken)
+        {
+            return await context.PromptAsync(UserData.Rating, CreateAdaptiveCardAsPrompt(cb.V2Ratings()),
+                cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> ProcessRatingsStep(WaterfallStepContext context,
+            CancellationToken cancellationToken)
+        {
+            var userProfile = await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
+
+            // Update the profile.
+            if (Int32.TryParse((string) context.Result, out var ratingValue))
+            {
+                userProfile.Rating = ratingValue;
+                if (ratingValue <= 3)
+                {
+                    return await context.PromptAsync(UserData.Feedback,
+                        CreateAdaptiveCardAsPrompt(cb.V2Feedback(false, true)), cancellationToken);
+                }
+                await PostLearningContentAsync(context.Context, cancellationToken);
+                return await context.PromptAsync(UserData.Feedback,
+                    CreateAdaptiveCardAsPrompt(cb.V2Feedback(false, false)), cancellationToken);
+            }
+
+            return null;
+        }
+
+        private async Task<DialogTurnResult> ProcessFeedback(WaterfallStepContext stepContext,
+            CancellationToken cancellationToken)
+        {
+            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
+
+            // Update the profile.
+            userProfile.Feedback = (string)stepContext.Result;
+
+            if (userProfile.Rating <= 3)
+            {
+                await PostLearningContentAsync(stepContext.Context, cancellationToken);
+            }
+            return await stepContext.EndDialogAsync(userProfile, cancellationToken);
+        }
+
+        #endregion
+
+        #region ProjectInRevision
+
+        private async Task<DialogTurnResult> PromptForRevisionFeedbackStep(WaterfallStepContext context,
+            CancellationToken cancellationToken)
+        {
+            return await context.PromptAsync(UserData.Rating, CreateAdaptiveCardAsPrompt(cb.V2AskForRevisionChanges()),
+                cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> ProcessRevisionFeedback(WaterfallStepContext context,
+            CancellationToken cancellationToken)
+        {
+            var userProfile =
+                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
+
+            // Update the profile.
+            userProfile.Feedback += (string) context.Result;
+            userProfile.State = UserDialogState.ProjectInOneOnOneConversation;
+            var vsoTicketForUser =
+                await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(context.Context.Activity.From.Id);
+
+            var agentInfo = await _endUserAndAgentIdMapping.GetAgentConversationId(vsoTicketForUser);
+
+            await SendMessageToAgentAsReplyToConversationInAgentsChannel(context.Context, (string) context.Result,
+                agentInfo, vsoTicketForUser);
+
+            return await context.EndDialogAsync(userProfile, cancellationToken);
+        }
+
+
+        #endregion
+
         #region Helpers
+
+        private async Task PostLearningContentAsync(ITurnContext context, CancellationToken cancellationToken)
+        {
+            await context.SendActivityAsync(
+                CreateAdaptiveCardAsActivity(
+                    cb.V2Learning(
+                        "Great. Will you be presenting this during a meeting? If so, we recommend checking out this LinkedIn Learning course on how to deliver and effective presentation:",
+                        "https://www.linkedin.com/",
+                        null,
+                        "PowerPoint Tips and Tricks for Business Presentations"
+                    )
+                ),
+                cancellationToken);
+        }
+        
         private static PromptOptions CreateAdaptiveCardAsPrompt(AdaptiveCard card)
         {
             return new PromptOptions
@@ -669,7 +857,7 @@ namespace PPTExpertConnect
 
             try
             {
-                var channelData = new TeamsChannelData { Channel = agentChannelInfo };
+                var channelData = new TeamsChannelData { Channel = agentChannelInfo, Notification = new NotificationInfo(true)};
 
                 IMessageActivity agentMessage = Activity.CreateMessageActivity();
                 agentMessage.From = botMsTeamsChannelAccount;
@@ -729,6 +917,26 @@ namespace PPTExpertConnect
                 throw;
             }
         }
+
+        private async Task SendCardToUserEx(ITurnContext context, EndUserModel endUserModel, AdaptiveCard card,
+            string vsoId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                BotAdapter adapter = context.Adapter;
+                await adapter.ContinueConversationAsync(
+                    _botCredentials.AppId,
+                    JsonConvert.DeserializeObject<ConversationReference>(endUserModel.Conversation),
+                    CreateCallback(card),
+
+                    cancellationToken);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
         
 
         private BotCallbackHandler CreateCallback(string message)
@@ -740,6 +948,30 @@ namespace PPTExpertConnect
                 await turnContext.SendActivityAsync(message, null, null, token);
                 await dialogContext.ContinueDialogAsync(cancellationToken: token);
             };
+        }
+
+        private BotCallbackHandler CreateCallback(AdaptiveCard card)
+        {
+            return async (context, token) =>
+            {
+                var dialogContext = await _dialogs.CreateContextAsync(context, token);
+                await context.SendActivityAsync(CreateAdaptiveCardAsActivity(card), token);
+                await dialogContext.ContinueDialogAsync(token);
+            };
+        }
+
+        private DriveItem UploadAnItemToOneDrive(TokenResponse tokenResponse)
+        {
+            if (tokenResponse != null)
+            {
+                var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
+                var folder = GraphClient.GetOrCreateFolder(client, "expert-connect").Result;
+                var itemUploaded = GraphClient.UploadTestFile(client, folder);
+                var shareWith = GraphClient.ShareFileAsync(client, itemUploaded, "nightking@expertconnectdev.onmicrosoft.com", "sharing via OneDriveClient").Result;
+                return itemUploaded;
+            }
+
+            return null;
         }
 
         private async Task<ResourceResponse> SendMessageToAgentAsReplyToConversationInAgentsChannel(
@@ -790,6 +1022,26 @@ namespace PPTExpertConnect
             }
         }
 
+        private bool DidAgentUseCommandOnBot(ITurnContext context)
+        {
+            var isGroup = context.Activity.Conversation.IsGroup ?? false;
+            var mentions = context.Activity.GetMentions();
+
+            // TODO: mentions.length could crash if null!!!!
+            return (isGroup && mentions.Length > 0 && mentions.FirstOrDefault().Text.Contains(_appSettings.BotName));
+        }
+
+        private string GetCommandFromAgent(string botName, string message)
+        {
+            var atBotPattern = new Regex($"^<at>({botName})</at>");
+            var fullPattern = new Regex($"^<at>({botName})</at> (.*) (.*)");
+            if (atBotPattern.IsMatch(message))
+            {
+                return fullPattern.Match(message).Groups[2].Value;
+            }
+            return null;
+        }
+
         private bool IsReplyToUserMessage(ITurnContext context)
         {
             var isGroup = context.Activity.Conversation.IsGroup ?? false;
@@ -814,31 +1066,5 @@ namespace PPTExpertConnect
 
         #endregion
     }
-
-
-    public static class GraphClient
-    {
-        // Get information about the user.
-        public static async Task<Microsoft.Graph.User> GetMeAsync(GraphServiceClient graphClient)
-        {
-            return await graphClient.Me.Request().GetAsync();
-        }
-
-        public static GraphServiceClient GetAuthenticatedClient(string token)
-        {
-            var graphClient = new GraphServiceClient(
-                new DelegateAuthenticationProvider(
-                    requestMessage =>
-                    {
-                        // Append the access token to the request.
-                        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("bearer", token);
-
-                        // Get event times in the current time zone.
-                        requestMessage.Headers.Add("Prefer", "outlook.timezone=\"" + TimeZoneInfo.Local.Id + "\"");
-
-                        return Task.CompletedTask;
-                    }));
-            return graphClient;
-        }
-    }
+    
 }
