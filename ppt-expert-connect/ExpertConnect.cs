@@ -344,15 +344,9 @@ namespace PPTExpertConnect
         /// <returns>A <see cref="Task"/> representing the operation result of the Turn operation.</returns>
         private static async Task SendWelcomeMessageAsync(ITurnContext turnContext, CancellationToken cancellationToken)
         {
-            foreach (var member in turnContext.Activity.MembersAdded)
-            {
-//                if (member.Id != turnContext.Activity.Recipient.Id)
-//                {
-                    await turnContext.SendActivityAsync(
-                        $"Welcome to ExpertConnect {member.Name}. {WelcomeText}",
-                        cancellationToken: cancellationToken);
-//                }
-            }
+            await turnContext.SendActivityAsync(
+                $"Welcome to ExpertConnect {turnContext.Activity.From.Name}. {WelcomeText}",
+                cancellationToken: cancellationToken);
         }
         #endregion
 
