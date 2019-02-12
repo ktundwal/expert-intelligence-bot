@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
 using Microsoft.Bot.Builder;
@@ -10,6 +7,7 @@ using Microsoft.Bot.Schema;
 using Newtonsoft.Json;
 using PPTExpertConnect.Helpers;
 using PPTExpertConnect.Models;
+using DriveItem = Microsoft.Graph.DriveItem;
 
 namespace PPTExpertConnect.Dialogs
 {
@@ -57,5 +55,25 @@ namespace PPTExpertConnect.Dialogs
                 cancellationToken);
         }
 
+        public static DriveItem UploadAnItemToOneDrive(TokenResponse tokenResponse, string style, string emailToShareWith = "nightking@expertconnectdev.onmicrosoft.com")
+        {
+            DriveItem uploadedItem = null;
+            if (tokenResponse != null)
+            {
+                var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
+                var folder = GraphClient.GetOrCreateFolder(client, "expert-connect").Result;
+                uploadedItem = GraphClient.UploadPowerPointFileToDrive(client, folder, style);
+                if (!string.IsNullOrEmpty(emailToShareWith))
+                {
+                    var shareWithResponse = GraphClient.ShareFileAsync(
+                        client, 
+                        uploadedItem, 
+                        emailToShareWith, 
+                        "sharing via OneDriveClient").Result;
+                }
+            }
+
+            return uploadedItem;
+        }
     }
 }

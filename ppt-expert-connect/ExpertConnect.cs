@@ -32,22 +32,19 @@ namespace PPTExpertConnect
 {
     public class ExpertConnect : IBot
     {
-        private readonly string Auth = "BeginAuth";
-        private readonly string Start = "Start";
-        private readonly string DetailPath = "Details";
-        private readonly string ExamplePath = "Example";
-        private readonly string PostSelectionPath = "PostSelection";
-        private readonly string ProjectCompletePath = "ProjectComplete";
-        private readonly string ProjectRevisionPath = "ProjectRevision";
-        private readonly string PreCompletionSelectionPath = "PreCompletionSelection";
-        private readonly string UserToSelectProjectStatePath = "UserToSelectProjectState";
-        private readonly string ReplyToUserPath = "ReplyToUser";
-        private readonly string ReplyToAgentPath = "ReplyToAgent";
+        private const string Auth = "BeginAuth";
+        private const string Start = "Start";
+        private const string ProjectCompletePath = "ProjectComplete";
+        private const string ProjectRevisionPath = "ProjectRevision";
+        private const string PreCompletionSelectionPath = "PreCompletionSelection";
+        private const string UserToSelectProjectStatePath = "UserToSelectProjectState";
+        private const string ReplyToUserPath = "ReplyToUser";
+        private const string ReplyToAgentPath = "ReplyToAgent";
 
 
         private const string HelpText = @"Call Taranbir or Kapil ...";
 
-        private const string WelcomeText = @"This bot will help you prepare PPT files.
+        private const string WelcomeText = @"This bot will help you prepare PowerPoint files.
                                         Type anything to get logged in. Type 'logout' to sign-out";
 
         private readonly BotAccessors _accessors;
@@ -98,8 +95,6 @@ namespace PPTExpertConnect
             
             _dialogs = new DialogSet(accessors.DialogStateAccessor);
 
-            var start = new WaterfallStep[] { IntroductionStep, PostIntroductionStep };
-
             var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
 
             var replyToUserSteps = new WaterfallStep[] { ReplyToUserStep };
@@ -111,11 +106,12 @@ namespace PPTExpertConnect
             _dialogs.Add(OAuthHelpers.Prompt(_OAuthConnectionSettingName));
 
             _dialogs.Add(new WaterfallDialog(Auth, authDialog));
-            _dialogs.Add(new WaterfallDialog(Start, start));
 
+
+            _dialogs.Add(new IntroductionDialog(DialogId.Start, cb));
             _dialogs.Add(new TemplateDetailDialog(DialogId.DetailPath, cb));
             _dialogs.Add(new ExampleTemplateDialog(DialogId.ExamplePath, cb));
-            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, cb));
+            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, cb, _OAuthConnectionSettingName));
             _dialogs.Add(new ProjectRevisionDialog(DialogId.ProjectRevisionPath, cb));
             _dialogs.Add(new ProjectCompleteDialog(DialogId.ProjectCompletePath, cb));
 
@@ -152,8 +148,18 @@ namespace PPTExpertConnect
                 {
                     var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
                     await botAdapter.SignOutUserAsync(turnContext, _OAuthConnectionSettingName, cancellationToken: cancellationToken);
-                    await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
+
+                    #region DialogCleanupState
                     await dialogContext.CancelAllDialogsAsync(cancellationToken);
+                    await _transcriptStore.DeleteTranscriptAsync(turnContext.Activity.ChannelId,
+                        turnContext.Activity.Conversation.Id);
+                    await _accessors.UserInfoAccessor.DeleteAsync(turnContext, cancellationToken);
+                    await _accessors.DialogStateAccessor.DeleteAsync(turnContext, cancellationToken);
+                    #endregion  
+
+                    //TODO: send welcome message
+                    await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
+                    await SendWelcomeMessageAsync(turnContext, cancellationToken);
                     return;
                 }
                 var token = await ((BotFrameworkAdapter)turnContext.Adapter)
@@ -239,7 +245,7 @@ namespace PPTExpertConnect
                         }
                         else
                         {
-                            await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
+                            await dialogContext.BeginDialogAsync(Start, userProfile, cancellationToken);
                         }
                     }
                 }
@@ -289,25 +295,6 @@ namespace PPTExpertConnect
         }
 
         #region Auth
-
-        private async Task SendOAuthCardAsync(ITurnContext turnContext,
-            IMessageActivity message,
-            CancellationToken cancellationToken = default(CancellationToken))
-        {
-            
-            if (message.Attachments == null)
-            {
-                message.Attachments = new List<Attachment>();
-            }
-
-            var messag2e = MessageFactory.Attachment(new Attachment
-            {
-                ContentType = OAuthCard.ContentType,
-                Content = OAuthHelpers.Prompt(_OAuthConnectionSettingName),
-            });
-
-            await turnContext.SendActivityAsync(messag2e, cancellationToken).ConfigureAwait(false);
-        }
         /// <summary>
         /// This <see cref="WaterfallStep"/> prompts the user to log in.
         /// </summary>
@@ -349,34 +336,6 @@ namespace PPTExpertConnect
         }
 
         /// <summary>
-        /// Fetch the token and display it for the user if they asked to see it.
-        /// </summary>
-        /// <param name="step">A <see cref="WaterfallStepContext"/> provides context for the current waterfall step.</param>
-        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
-        /// or threads to receive notice of cancellation.</param>
-        /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
-        private static async Task<DialogTurnResult> GetTokenAgain(WaterfallStepContext step, CancellationToken cancellationToken)
-        {
-            // Call the prompt again because we need the token. The reasons for this are:
-            // 1. If the user is already logged in we do not need to store the token locally in the bot and worry
-            // about refreshing it. We can always just call the prompt again to get the token.
-            // 2. We never know how long it will take a user to respond. By the time the
-            // user responds the token may have expired. The user would then be prompted to login again.
-            //
-            // There is no reason to store the token locally in the bot because we can always just call
-            // the OAuth prompt to get the token or get a new token if needed.
-            var prompt = await step.BeginDialogAsync(OAuthHelpers.LoginPromptDialogId, cancellationToken: cancellationToken);
-            var tokenResponse = (TokenResponse)prompt.Result;
-            if (tokenResponse != null)
-            {
-                await step.Context.SendActivityAsync($"Here is your token {tokenResponse.Token}", cancellationToken: cancellationToken);
-            }
-
-            await step.Context.SendActivityAsync("Login was not successful please try again. Aborting.", cancellationToken: cancellationToken);
-            return Dialog.EndOfTurn;
-        }
-
-        /// <summary>
         /// Greet new users as they are added to the conversation.
         /// </summary>
         /// <param name="turnContext">Provides the <see cref="ITurnContext"/> for the turn of the bot.</param>
@@ -387,47 +346,13 @@ namespace PPTExpertConnect
         {
             foreach (var member in turnContext.Activity.MembersAdded)
             {
-                if (member.Id != turnContext.Activity.Recipient.Id)
-                {
+//                if (member.Id != turnContext.Activity.Recipient.Id)
+//                {
                     await turnContext.SendActivityAsync(
-                        $"Welcome to AuthenticationBot {member.Name}. {WelcomeText}",
+                        $"Welcome to ExpertConnect {member.Name}. {WelcomeText}",
                         cancellationToken: cancellationToken);
-                }
+//                }
             }
-        }
-        #endregion
-
-        #region Introduction
-        private async Task<DialogTurnResult> IntroductionStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
-        {
-            // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-            // Running a prompt here means the next WaterfallStep will be run when the users response is received.
-            return await stepContext.PromptAsync(
-                DialogId.SimpleTextPrompt, 
-                CreateAdaptiveCardAsPrompt(cb.PresentationIntro()),
-                cancellationToken);
-        }
-        private async Task<DialogTurnResult> PostIntroductionStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
-        {
-            // Get the current profile object from user state.
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context,
-                () => new UserInfo(),
-                cancellationToken);
-
-            // Update the profile.
-            userProfile.Introduction = (string)stepContext.Result;
-            userProfile.State = UserDialogState.ProjectStarted;
-
-            if (userProfile.Introduction.Equals(Constants.V2ShowExamples))
-            {
-                userProfile.State = UserDialogState.ProjectSelectExampleOptions;
-            }
-            else if (userProfile.Introduction.Equals(Constants.V2LetsBegin))
-            {
-                userProfile.State = UserDialogState.ProjectCollectingTemplateDetails;
-            }
-
-            return await stepContext.EndDialogAsync(userProfile, cancellationToken);
         }
         #endregion
 
@@ -511,29 +436,6 @@ namespace PPTExpertConnect
         #endregion
 
         #region Helpers
-        
-        private static PromptOptions CreateAdaptiveCardAsPrompt(AdaptiveCard card)
-        {
-            return new PromptOptions
-            {
-                Prompt = (Activity) MessageFactory.Attachment(CreateAdaptiveCardAttachment(card))
-            };
-        }
-        private static Attachment CreateAdaptiveCardAttachment(AdaptiveCard card)
-        {
-            var adaptiveCardAttachment = new Attachment()
-            {
-                ContentType = AdaptiveCard.ContentType,
-                Content = JsonConvert.DeserializeObject(JsonConvert.SerializeObject(card)),
-            };
-            return adaptiveCardAttachment;
-        }
-
-        private static IActivity CreateAdaptiveCardAsActivity(AdaptiveCard card)
-        {
-            return (Activity) MessageFactory.Attachment(CreateAdaptiveCardAttachment(card));
-        }
-
 
         private async Task SaveBotIdInAzureStorage(ITurnContext context, string botName)
         {
@@ -685,23 +587,9 @@ namespace PPTExpertConnect
             return async (context, token) =>
             {
                 var dialogContext = await _dialogs.CreateContextAsync(context, token);
-                await context.SendActivityAsync(CreateAdaptiveCardAsActivity(card), token);
+                await context.SendActivityAsync(DialogHelper.CreateAdaptiveCardAsActivity(card), token);
                 await dialogContext.ContinueDialogAsync(token);
             };
-        }
-
-        private DriveItem UploadAnItemToOneDrive(TokenResponse tokenResponse)
-        {
-            if (tokenResponse != null)
-            {
-                var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
-                var folder = GraphClient.GetOrCreateFolder(client, "expert-connect").Result;
-                var itemUploaded = GraphClient.UploadTestFile(client, folder);
-                var shareWith = GraphClient.ShareFileAsync(client, itemUploaded, "nightking@expertconnectdev.onmicrosoft.com", "sharing via OneDriveClient").Result;
-                return itemUploaded;
-            }
-
-            return null;
         }
 
         private async Task<ResourceResponse> SendMessageToAgentAsReplyToConversationInAgentsChannel(
@@ -772,14 +660,6 @@ namespace PPTExpertConnect
             return null;
         }
 
-        private bool IsReplyToUserMessage(ITurnContext context)
-        {
-            var isGroup = context.Activity.Conversation.IsGroup ?? false;
-            var mentions = context.Activity.GetMentions();
-
-            // TODO: mentions.length could crash if null!!!!
-            return (isGroup && mentions.Length > 0 && mentions.FirstOrDefault().Text.Contains(_appSettings.BotName));
-        }
         private string extractMessageFromCommand(string botName, string command, string message)
         {
             var atBotPattern = new Regex($"^<at>({botName})</at>");
@@ -793,7 +673,6 @@ namespace PPTExpertConnect
 
             return null;
         }
-
         #endregion
     }
     

@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.Bot.Schema;
 using Microsoft.Graph;
+using PPTExpertConnect.Models;
 using DelegateAuthenticationProvider = Microsoft.Graph.DelegateAuthenticationProvider;
 using DriveItem = Microsoft.Graph.DriveItem;
 using GraphServiceClient = Microsoft.Graph.GraphServiceClient;
@@ -12,6 +14,8 @@ namespace PPTExpertConnect.Helpers
 {
     public static class GraphClient
     {
+        public const string OneDriveFolderName = "expert-connect";
+
         // Get information about the user.
         public static async Task<Microsoft.Graph.User> GetMeAsync(GraphServiceClient graphClient)
         {
@@ -182,21 +186,22 @@ namespace PPTExpertConnect.Helpers
             return inviteCollection[0].GrantedTo.User.DisplayName;
         }
 
-        public static DriveItem UploadTestFile(GraphServiceClient graphClient, DriveItem folder)
+        public static DriveItem UploadPowerPointFileToDrive(GraphServiceClient graphClient, DriveItem folder, string style)
         {
-            using (MemoryStream ms = new MemoryStream())
-            using (FileStream file = new FileStream(@"C:\dev\emptyPPT.pptx", FileMode.Open, FileAccess.Read))
+            var location = style.Split(",", StringSplitOptions.RemoveEmptyEntries)[0];
+            location = "dev";
+            using (MemoryStream ms = new MemoryStream()) //TODO: will memory run out of space?
+            using (FileStream file = new FileStream($@"C:\{location}\template.pptx", FileMode.Open, FileAccess.Read))
             {
                 byte[] bytes = new byte[file.Length];
                 file.Read(bytes, 0, (int)file.Length);
                 ms.Write(bytes, 0, (int)file.Length);
 
                 string todaysDate = DateTime.Now.ToString("yyyy-MM-dd");
-                string projectId = "122";
+                string projectId = "unknown";
                 string projectIdentifier = $"ppt-project-{projectId}-{todaysDate}";
                 return (UploadFileAsync(graphClient, folder, $"{projectIdentifier}/{projectIdentifier}.pptx", ms)).Result;
             }
         }
-
     }
 }

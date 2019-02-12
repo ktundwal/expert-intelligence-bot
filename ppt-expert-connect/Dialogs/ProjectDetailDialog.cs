@@ -18,11 +18,13 @@ namespace PPTExpertConnect.Dialogs
         private const string TextPrompt = "textPrompt";
 
         private readonly CardBuilder _cardBuilder;
+        private readonly string _oAuthConnectionSettingName;
 
-        public ProjectDetailDialog(string id, CardBuilder cb) : base(id)
+        public ProjectDetailDialog(string id, CardBuilder cb, string oAuthConnection) : base(id)
         {
             InitialDialogId = InitialId;
             _cardBuilder = cb;
+            _oAuthConnectionSettingName = oAuthConnection;
 
             var steps = new WaterfallStep[]
             {
@@ -74,26 +76,22 @@ namespace PPTExpertConnect.Dialogs
             userInfo.State = UserDialogState.ProjectCollectingDetails;
 
             // TODO: Add File Into the OneDrive Folder
-            //            var token = await ((BotFrameworkAdapter)stepContext.Context.Adapter)
-            //                .GetUserTokenAsync(stepContext.Context, _OAuthConnectionSettingName, null, cancellationToken)
-            //                .ConfigureAwait(false);
-            //            if (token != null)
-            //            {
-            //                var driveItem = UploadAnItemToOneDrive(token);
-            //                // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-            //                return await stepContext.PromptAsync(
-            //                TextPrompt,
-            //                DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.ConfirmationCard(driveItem.WebUrl)),
-            //                cancellationToken);
-            //            }
-            //            else
-            //            {
+            var token = await ((BotFrameworkAdapter)stepContext.Context.Adapter)
+                .GetUserTokenAsync(stepContext.Context, _oAuthConnectionSettingName, null, cancellationToken)
+                .ConfigureAwait(false);
+            if (token != null)
+            {
+                var driveItem = DialogHelper.UploadAnItemToOneDrive(token, userInfo.Style);
+                // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
+                return await stepContext.PromptAsync(
+                TextPrompt,
+                DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.ConfirmationCard(driveItem.WebUrl)),
+                cancellationToken);
+            }
             return await stepContext.PromptAsync(
                     TextPrompt,
-                    DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.ConfirmationCard("http://www.microsoft.com")),
+                    DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.ConfirmationCard("UploadFailed")),
                     cancellationToken);
-//            }
-
         }
 
         private async Task<DialogTurnResult> SummaryStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
@@ -120,25 +118,9 @@ namespace PPTExpertConnect.Dialogs
                     : UserDialogState.ProjectCollectTemplateDetails;
 
                 return await stepContext.EndDialogAsync(userInfo, cancellationToken);
-//                    ? await stepContext.ReplaceDialogAsync(ExamplePath, null, cancellationToken)
-//                    : await stepContext.ReplaceDialogAsync(DetailPath, null, cancellationToken);
             }
 
             userInfo.State = UserDialogState.ProjectCreated;
-
-            // TODO: Create a VSO ticket here.
-
-            // TODO: create a card for the agent.
-//            var agentConversationId = await CreateAgentConversationMessage(stepContext.Context,
-//                $"PowerPoint request from {stepContext.Context.Activity.From.Name} via {stepContext.Context.Activity.ChannelId}",
-//                _cardBuilder.V2VsoTicketCard(251, "https://www.microsoft.com"));
-//
-//            // TODO: integrate VSO into this area
-//            await _endUserAndAgentIdMapping.CreateNewMapping("vsoTicket-251",
-//                stepContext.Context.Activity.From.Name,
-//                stepContext.Context.Activity.From.Id,
-//                JsonConvert.SerializeObject(stepContext.Context.Activity.GetConversationReference()),
-//                agentConversationId);
 
             await stepContext.Context.SendActivityAsync(
                 DialogHelper.CreateAdaptiveCardAsActivity(_cardBuilder.V2VsoTicketCard(251, "https://www.microsoft.com")), cancellationToken);
