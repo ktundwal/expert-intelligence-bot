@@ -676,8 +676,6 @@ namespace PPTExpertConnect.Helpers
         }
         private AdaptiveContainer V2CustomDesignContainer()
         {
-            var createBrief = "Create a brief";
-
             AdaptiveContainer card = new AdaptiveContainer()
             {
                 Separator = true,
@@ -687,8 +685,8 @@ namespace PPTExpertConnect.Helpers
             textBlock.Wrap = true;
 
 
-            AdaptiveSubmitAction action = CreateSubmitAction(createBrief, Constants.V2LetsBegin);
-            AdaptiveContainer ctaContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithText(createBrief);
+            AdaptiveSubmitAction action = CreateSubmitAction(Constants.CreateBrief);
+            AdaptiveContainer ctaContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithText(Constants.CreateBrief);
             ctaContainer.SelectAction = action;
             ctaContainer.Style = AdaptiveContainerStyle.Emphasis;
             ctaContainer.Spacing = AdaptiveSpacing.Large;

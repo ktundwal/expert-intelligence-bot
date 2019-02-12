@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace PPTExpertConnect.Helpers
+namespace PPTExpertConnect.Dialogs
 {
     public class DialogId
     {
+        public const string SimpleTextPrompt = "TextPrompt";
         public const string Auth = "BeginAuth";
         public const string Start = "Start";
         public const string DetailPath = "Details";

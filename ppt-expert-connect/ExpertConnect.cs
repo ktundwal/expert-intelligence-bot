@@ -25,6 +25,7 @@ using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Connector.Teams;
 using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.Extensions.Configuration;
+using PPTExpertConnect.Dialogs;
 using DriveItem = Microsoft.Graph.DriveItem;
 
 namespace PPTExpertConnect
@@ -101,38 +102,6 @@ namespace PPTExpertConnect
 
             var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
 
-            var detailSteps = new WaterfallStep[]
-            {
-                PurposeStep,
-                ColorVariationStep,
-                IllustrationStep,
-                PostDetailStep
-            };
-
-            var exampleSteps = new WaterfallStep[]
-            {
-                ShowExampleStep,
-                ProcessExampleStep
-            };
-
-            var postSelectionSteps = new WaterfallStep[]
-            {
-                ImageOptions,
-                ExtraInfoStep,
-                UserInfoAddedStep,
-                SummaryStep,
-                TicketStep
-            };
-
-            var projectCompletedSteps = new WaterfallStep[]
-            {
-                PromptForRatingsStep, ProcessRatingsStep, ProcessFeedback
-            };
-            var projectRevisionSteps = new WaterfallStep[]
-            {
-                PromptForRevisionFeedbackStep, ProcessRevisionFeedback
-            };
-
             var replyToUserSteps = new WaterfallStep[] { ReplyToUserStep };
             var agentToUserForPostProjectCompletionBranching = new WaterfallStep[]{ ShowPostProjectCompletionChoices };
 
@@ -143,27 +112,20 @@ namespace PPTExpertConnect
 
             _dialogs.Add(new WaterfallDialog(Auth, authDialog));
             _dialogs.Add(new WaterfallDialog(Start, start));
-            _dialogs.Add(new WaterfallDialog(DetailPath, detailSteps));
-            _dialogs.Add(new WaterfallDialog(ExamplePath, exampleSteps));
-            _dialogs.Add(new WaterfallDialog(PostSelectionPath, postSelectionSteps));
+
+            _dialogs.Add(new TemplateDetailDialog(DialogId.DetailPath, cb));
+            _dialogs.Add(new ExampleTemplateDialog(DialogId.ExamplePath, cb));
+            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, cb));
+            _dialogs.Add(new ProjectRevisionDialog(DialogId.ProjectRevisionPath, cb));
+            _dialogs.Add(new ProjectCompleteDialog(DialogId.ProjectCompletePath, cb));
 
             _dialogs.Add(new WaterfallDialog(ReplyToUserPath, replyToUserSteps));
             _dialogs.Add(new WaterfallDialog(ReplyToAgentPath, replyToAgentSteps));
             _dialogs.Add(new WaterfallDialog(PreCompletionSelectionPath, agentToUserForPostProjectCompletionBranching));
             _dialogs.Add(new WaterfallDialog(UserToSelectProjectStatePath, handleProjectCompletionReplyFromAgent));
-            _dialogs.Add(new WaterfallDialog(ProjectCompletePath, projectCompletedSteps));
-            _dialogs.Add(new WaterfallDialog(ProjectRevisionPath, projectRevisionSteps));
 
             // TODO: clean up to just one
-            _dialogs.Add(new TextPrompt(UserData.FirstStep));
-            _dialogs.Add(new TextPrompt(UserData.Purpose));
-            _dialogs.Add(new TextPrompt(UserData.Style));
-            _dialogs.Add(new TextPrompt(UserData.Color));
-            _dialogs.Add(new TextPrompt(UserData.Visuals));
-            _dialogs.Add(new TextPrompt(UserData.Images));
-            _dialogs.Add(new TextPrompt(UserData.Extra));
-            _dialogs.Add(new TextPrompt(UserData.Rating));
-            _dialogs.Add(new TextPrompt(UserData.Feedback));
+            _dialogs.Add(new TextPrompt(DialogId.SimpleTextPrompt));
         }
 
         
@@ -201,6 +163,50 @@ namespace PPTExpertConnect
                 if (token != null)
                 {
                     var results = await dialogContext.ContinueDialogAsync(cancellationToken);
+
+                    if (results.Status is DialogTurnStatus.Complete)
+                    {
+                        var userInfo = results.Result as UserInfo;
+                        await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
+
+                        switch (userInfo?.State)
+                        {
+                            case UserDialogState.ProjectSelectExampleOptions:
+                                await dialogContext.BeginDialogAsync(DialogId.ExamplePath, userInfo, cancellationToken);
+                                break;
+                            case UserDialogState.ProjectCollectTemplateDetails:
+                                await dialogContext.BeginDialogAsync(DialogId.DetailPath, userInfo, cancellationToken);
+                                break;
+                            case UserDialogState.ProjectCollectDetails:
+                                await dialogContext.BeginDialogAsync(DialogId.PostSelectionPath, userInfo,
+                                    cancellationToken);
+                                break;
+                            case UserDialogState.ProjectCreated:
+                                var agentConversationId = await CreateAgentConversationMessage(turnContext,
+                                    $"PowerPoint request from {turnContext.Activity.From.Name} via {turnContext.Activity.ChannelId}",
+                                    cb.V2VsoTicketCard(251, "https://www.microsoft.com"));
+                                
+                                await _endUserAndAgentIdMapping.CreateNewMapping("vsoTicket-251", // Obtain this information from userInfo Class
+                                    turnContext.Activity.From.Name,
+                                    turnContext.Activity.From.Id,
+                                    JsonConvert.SerializeObject(turnContext.Activity.GetConversationReference()),
+                                    agentConversationId);
+                                break;
+                            case UserDialogState.ProjectUnderRevision:
+                                var vsoTicketForUser =
+                                    await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(turnContext.Activity.From.Id);
+
+                                var agentInfo = await _endUserAndAgentIdMapping.GetAgentConversationId(vsoTicketForUser);
+
+                                await SendMessageToAgentAsReplyToConversationInAgentsChannel(turnContext, turnContext.Activity.Text,
+                                    agentInfo, vsoTicketForUser);
+                                userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
+                                await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
 
                     if (results.Status == DialogTurnStatus.Empty)
                     {
@@ -240,6 +246,7 @@ namespace PPTExpertConnect
                 else
                 {
                     // User is not authenticated. Send them an auth card.
+//                    await SendOAuthCardAsync(turnContext, new Activity(), cancellationToken);
                     await dialogContext.BeginDialogAsync(Auth, null, cancellationToken);
                 }
             }
@@ -283,6 +290,24 @@ namespace PPTExpertConnect
 
         #region Auth
 
+        private async Task SendOAuthCardAsync(ITurnContext turnContext,
+            IMessageActivity message,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
+            
+            if (message.Attachments == null)
+            {
+                message.Attachments = new List<Attachment>();
+            }
+
+            var messag2e = MessageFactory.Attachment(new Attachment
+            {
+                ContentType = OAuthCard.ContentType,
+                Content = OAuthHelpers.Prompt(_OAuthConnectionSettingName),
+            });
+
+            await turnContext.SendActivityAsync(messag2e, cancellationToken).ConfigureAwait(false);
+        }
         /// <summary>
         /// This <see cref="WaterfallStep"/> prompts the user to log in.
         /// </summary>
@@ -378,7 +403,7 @@ namespace PPTExpertConnect
             // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
             // Running a prompt here means the next WaterfallStep will be run when the users response is received.
             return await stepContext.PromptAsync(
-                UserData.FirstStep, 
+                DialogId.SimpleTextPrompt, 
                 CreateAdaptiveCardAsPrompt(cb.PresentationIntro()),
                 cancellationToken);
         }
@@ -395,205 +420,15 @@ namespace PPTExpertConnect
 
             if (userProfile.Introduction.Equals(Constants.V2ShowExamples))
             {
-                return await stepContext.ReplaceDialogAsync(ExamplePath, null, cancellationToken);
+                userProfile.State = UserDialogState.ProjectSelectExampleOptions;
             }
             else if (userProfile.Introduction.Equals(Constants.V2LetsBegin))
             {
-                return await stepContext.ReplaceDialogAsync(DetailPath, null, cancellationToken);
+                userProfile.State = UserDialogState.ProjectCollectingTemplateDetails;
             }
 
-            return null;
+            return await stepContext.EndDialogAsync(userProfile, cancellationToken);
         }
-        #endregion
-
-        #region ExamplePath
-        private async Task<DialogTurnResult> ShowExampleStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
-        {
-            // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-            // Running a prompt here means the next WaterfallStep will be run when the users response is received.
-            return await stepContext.PromptAsync(
-                UserData.Style,
-                CreateAdaptiveCardAsPrompt(cb.V2ShowExamples()),
-                cancellationToken);
-        }
-
-        private async Task<DialogTurnResult> ProcessExampleStep(WaterfallStepContext stepContext,
-            CancellationToken cancellationToken)
-        {
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-            userProfile.State = UserDialogState.ProjectCollectingDetails;
-
-            if (((string)stepContext.Result).Equals(Constants.V2LetsBegin))
-            {
-                return await stepContext.ReplaceDialogAsync(DetailPath, null, cancellationToken);
-            }
-
-            // Update the profile.
-            userProfile.Style = (string)stepContext.Result;
-            return await stepContext.ReplaceDialogAsync(PostSelectionPath, null, cancellationToken);
-        }
-
-        #endregion
-
-        #region DetailPath
-
-        private async Task<DialogTurnResult> PurposeStep (WaterfallStepContext stepContext,
-            CancellationToken cancellationToken)
-        {
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-
-            userProfile.Introduction = (string)stepContext.Result;
-            userProfile.State = UserDialogState.ProjectCollectingDetails;
-
-            return await stepContext.PromptAsync(
-                UserData.Purpose,
-                CreateAdaptiveCardAsPrompt(cb.V2PresentationPurpose()),
-                cancellationToken);
-        }
-        private async Task<DialogTurnResult> ColorVariationStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
-        {
-            // Get the current profile object from user state.
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-
-            // Update the profile.
-            userProfile.Purpose = (string)stepContext.Result;
-
-            // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-            return await stepContext.PromptAsync(
-                UserData.Color,
-                CreateAdaptiveCardAsPrompt(cb.V2ColorVariations()),
-                cancellationToken);
-        }
-        private async Task<DialogTurnResult> IllustrationStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
-        {
-            // Get the current profile object from user state.
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-
-            // Update the profile.
-            userProfile.Color = (string)stepContext.Result;
-
-            // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-            return await stepContext.PromptAsync(
-                UserData.Visuals,
-                CreateAdaptiveCardAsPrompt(cb.V2IllustrationsCard()),
-                cancellationToken);
-        }
-
-        private async Task<DialogTurnResult> PostDetailStep(WaterfallStepContext stepContext,
-            CancellationToken cancellationToken)
-        {
-            var userInfo =
-                await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(),
-                    cancellationToken);
-            userInfo.Visuals = stepContext.Result as string;
-
-            return await stepContext.ReplaceDialogAsync(PostSelectionPath, null, cancellationToken);
-        }
-
-        #endregion
-
-        #region PostSelectionPath
-
-        private async Task<DialogTurnResult> ImageOptions(WaterfallStepContext stepContext,
-            CancellationToken cancellationToken)
-        {
-            return await stepContext.PromptAsync(
-                UserData.Images,
-                CreateAdaptiveCardAsPrompt(cb.V2ImageOptions()),
-                cancellationToken);
-        }
-
-        private async Task<DialogTurnResult> ExtraInfoStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
-        {
-            // Get the current profile object from user state.
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-
-            // Update the profile.
-            userProfile.Images = (string)stepContext.Result;
-
-            // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-            return await stepContext.PromptAsync(
-                UserData.Extra,
-                CreateAdaptiveCardAsPrompt(cb.AnythingElseCard()),
-                cancellationToken);
-        }
-
-        private async Task<DialogTurnResult> UserInfoAddedStep(WaterfallStepContext stepContext,
-            CancellationToken cancellationToken)
-        {
-            // Get the current profile object from user state.
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-
-            // Update the profile.
-            userProfile.Extra = (string)stepContext.Result;
-
-            // TODO: Add File Into the OneDrive Folder
-            var token = await ((BotFrameworkAdapter)stepContext.Context.Adapter)
-                .GetUserTokenAsync(stepContext.Context, _OAuthConnectionSettingName, null, cancellationToken)
-                .ConfigureAwait(false);
-            if (token != null)
-            {
-                var driveItem = UploadAnItemToOneDrive(token);
-                // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-                return await stepContext.PromptAsync(
-                UserData.Extra,
-                CreateAdaptiveCardAsPrompt(cb.ConfirmationCard(driveItem.WebUrl)),
-                cancellationToken);
-            }
-            else
-            {
-                return await stepContext.PromptAsync(
-                    UserData.Extra,
-                    CreateAdaptiveCardAsPrompt(cb.ConfirmationCard("http://www.microsoft.com")),
-                    cancellationToken);
-            }
-
-        }
-
-        private async Task<DialogTurnResult> SummaryStep (WaterfallStepContext stepContext, CancellationToken cancellationToken)
-        {
-            // Get the current profile object from user state.
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-
-            // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-            return await stepContext.PromptAsync(
-                UserData.Extra,
-                CreateAdaptiveCardAsPrompt(cb.SummaryCard(userProfile)),
-                cancellationToken);
-            
-        }
-        private async Task<DialogTurnResult> TicketStep (WaterfallStepContext stepContext, CancellationToken cancellationToken)
-        {
-            var message = stepContext.Context.Activity.Text;
-            var currentUserProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-
-            if (message.Equals(Constants.ChangeSomething))
-            {
-                return currentUserProfile.Introduction.Equals(Constants.V2ShowExamples)
-                    ? await stepContext.ReplaceDialogAsync(ExamplePath, null, cancellationToken)
-                    : await stepContext.ReplaceDialogAsync(DetailPath, null, cancellationToken);
-            }
-
-            currentUserProfile.State = UserDialogState.ProjectInOneOnOneConversation;
-
-            // TODO: create a card for the agent.
-            var agentConversationId = await CreateAgentConversationMessage(stepContext.Context,
-                $"PowerPoint request from {stepContext.Context.Activity.From.Name} via {stepContext.Context.Activity.ChannelId}",
-                cb.V2VsoTicketCard(251,"https://www.microsoft.com"));
-
-            // TODO: integrate VSO into this area
-            await _endUserAndAgentIdMapping.CreateNewMapping("vsoTicket-251",
-                stepContext.Context.Activity.From.Name,
-                stepContext.Context.Activity.From.Id,
-                JsonConvert.SerializeObject(stepContext.Context.Activity.GetConversationReference()),
-                agentConversationId);
-
-            await stepContext.Context.SendActivityAsync(
-                CreateAdaptiveCardAsActivity(cb.V2VsoTicketCard(251, "https://www.microsoft.com")), cancellationToken);
-
-            return await stepContext.EndDialogAsync(null, cancellationToken);
-        }
-
         #endregion
 
         #region ReplyToUser/Agent
@@ -640,20 +475,7 @@ namespace PPTExpertConnect
         #endregion
 
         #region PostProjectCompletion
-
-        private async Task<DialogTurnResult> End(WaterfallStepContext context, CancellationToken cancellationToken)
-        {
-            var userInfo =
-                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
-            userInfo.State = UserDialogState.ProjectCompleted;
-
-            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo("vsoTicket-251");
-
-            await SendCardToUserEx(context.Context, endUserInfo, cb.V2PresentationResponse("John Doe"), "vsoTicket-251", cancellationToken);
-
-            return await context.EndDialogAsync(null, cancellationToken);
-        }
-
+        
         private async Task<DialogTurnResult> ShowPostProjectCompletionChoices(WaterfallStepContext stepContext,
             CancellationToken cancellationToken)
         {
@@ -671,14 +493,16 @@ namespace PPTExpertConnect
             CancellationToken cancellationToken)
         {
             var choice = stepContext.Context.Activity.Text;
+            var userInfo =
+                await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
 
             if (choice.Equals(Constants.Complete))
             {
-                return await stepContext.ReplaceDialogAsync(ProjectCompletePath, null, cancellationToken);
+                return await stepContext.ReplaceDialogAsync(ProjectCompletePath, userInfo, cancellationToken);
             }
             if (choice.Equals(Constants.Revision))
             {
-                return await stepContext.ReplaceDialogAsync(ProjectRevisionPath, null, cancellationToken);
+                return await stepContext.ReplaceDialogAsync(ProjectRevisionPath, userInfo, cancellationToken);
             }
 
             //TODO: handle case of message not a part of the two texts
@@ -686,101 +510,7 @@ namespace PPTExpertConnect
         }
         #endregion
 
-        #region ProjectComplete
-
-        private async Task<DialogTurnResult> PromptForRatingsStep (WaterfallStepContext context,
-            CancellationToken cancellationToken)
-        {
-            return await context.PromptAsync(UserData.Rating, CreateAdaptiveCardAsPrompt(cb.V2Ratings()),
-                cancellationToken);
-        }
-
-        private async Task<DialogTurnResult> ProcessRatingsStep(WaterfallStepContext context,
-            CancellationToken cancellationToken)
-        {
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
-
-            // Update the profile.
-            if (Int32.TryParse((string) context.Result, out var ratingValue))
-            {
-                userProfile.Rating = ratingValue;
-                if (ratingValue <= 3)
-                {
-                    return await context.PromptAsync(UserData.Feedback,
-                        CreateAdaptiveCardAsPrompt(cb.V2Feedback(false, true)), cancellationToken);
-                }
-                await PostLearningContentAsync(context.Context, cancellationToken);
-                return await context.PromptAsync(UserData.Feedback,
-                    CreateAdaptiveCardAsPrompt(cb.V2Feedback(false, false)), cancellationToken);
-            }
-
-            return null;
-        }
-
-        private async Task<DialogTurnResult> ProcessFeedback(WaterfallStepContext stepContext,
-            CancellationToken cancellationToken)
-        {
-            var userProfile = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-
-            // Update the profile.
-            userProfile.Feedback = (string)stepContext.Result;
-
-            if (userProfile.Rating <= 3)
-            {
-                await PostLearningContentAsync(stepContext.Context, cancellationToken);
-            }
-            return await stepContext.EndDialogAsync(userProfile, cancellationToken);
-        }
-
-        #endregion
-
-        #region ProjectInRevision
-
-        private async Task<DialogTurnResult> PromptForRevisionFeedbackStep(WaterfallStepContext context,
-            CancellationToken cancellationToken)
-        {
-            return await context.PromptAsync(UserData.Rating, CreateAdaptiveCardAsPrompt(cb.V2AskForRevisionChanges()),
-                cancellationToken);
-        }
-
-        private async Task<DialogTurnResult> ProcessRevisionFeedback(WaterfallStepContext context,
-            CancellationToken cancellationToken)
-        {
-            var userProfile =
-                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
-
-            // Update the profile.
-            userProfile.Feedback += (string) context.Result;
-            userProfile.State = UserDialogState.ProjectInOneOnOneConversation;
-            var vsoTicketForUser =
-                await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(context.Context.Activity.From.Id);
-
-            var agentInfo = await _endUserAndAgentIdMapping.GetAgentConversationId(vsoTicketForUser);
-
-            await SendMessageToAgentAsReplyToConversationInAgentsChannel(context.Context, (string) context.Result,
-                agentInfo, vsoTicketForUser);
-
-            return await context.EndDialogAsync(userProfile, cancellationToken);
-        }
-
-
-        #endregion
-
         #region Helpers
-
-        private async Task PostLearningContentAsync(ITurnContext context, CancellationToken cancellationToken)
-        {
-            await context.SendActivityAsync(
-                CreateAdaptiveCardAsActivity(
-                    cb.V2Learning(
-                        "Great. Will you be presenting this during a meeting? If so, we recommend checking out this LinkedIn Learning course on how to deliver and effective presentation:",
-                        "https://www.linkedin.com/",
-                        null,
-                        "PowerPoint Tips and Tricks for Business Presentations"
-                    )
-                ),
-                cancellationToken);
-        }
         
         private static PromptOptions CreateAdaptiveCardAsPrompt(AdaptiveCard card)
         {

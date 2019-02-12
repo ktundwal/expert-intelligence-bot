@@ -33,6 +33,10 @@ namespace PPTExpertConnect.Models
     public enum UserDialogState
     {
         ProjectStarted,
+        ProjectSelectExampleOptions,
+        ProjectCollectTemplateDetails,
+        ProjectCollectingTemplateDetails,
+        ProjectCollectDetails,
         ProjectCollectingDetails,
         ProjectCreated, // Unsure if useful
         ProjectWaitingAgentReply,
