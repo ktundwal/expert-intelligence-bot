@@ -25,7 +25,7 @@
   "accentColor": "#ffffff",
   "staticTabs": [
     {
-      "contentUrl": "https://d3b55f4f.ngrok.io/public/tab/tabConfig/tab.aspx",
+      "contentUrl": "https://bcde8066.ngrok.io/public/tab/tabConfig/tab.aspx",
       "entityId": "statictab",
       "name": "Bot Info",
       "scopes": [
@@ -36,7 +36,7 @@
   ],
   "configurableTabs": [
     {
-      "configurationUrl": "https://d3b55f4f.ngrok.io/public/tab/tabConfig/index.html",
+      "configurationUrl": "https://bcde8066.ngrok.io/public/tab/tabConfig/index.html",
       "canUpdateConfiguration": false,
       "scopes": [ "team", "groupchat" ]
     }
@@ -55,6 +55,10 @@
             {
               "title": "reply to user",
               "description": "Sends the message to user. Bot will act as tunnel"
+            },
+            {
+              "title": "project completed",
+              "description": "Ask for user's review of the project"
             },
             {
               "title": "post job on UpWork",
@@ -86,7 +90,7 @@
     "messageTeamMembers"
   ],
   "validDomains": [
-    "d3b55f4f.ngrok.io",
+    "bcde8066.ngrok.io",
     "token.botframework.com"
   ]
 }
