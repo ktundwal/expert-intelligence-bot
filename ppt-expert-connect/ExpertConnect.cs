@@ -3,10 +3,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.IsolatedStorage;
 using System.Linq;
-using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,21 +23,15 @@ using Microsoft.Bot.Connector.Teams;
 using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.Extensions.Configuration;
 using PPTExpertConnect.Dialogs;
-using DriveItem = Microsoft.Graph.DriveItem;
 
 namespace PPTExpertConnect
 {
     public class ExpertConnect : IBot
     {
-        private const string Auth = "BeginAuth";
-        private const string Start = "Start";
-        private const string ProjectCompletePath = "ProjectComplete";
-        private const string ProjectRevisionPath = "ProjectRevision";
         private const string PreCompletionSelectionPath = "PreCompletionSelection";
         private const string UserToSelectProjectStatePath = "UserToSelectProjectState";
         private const string ReplyToUserPath = "ReplyToUser";
         private const string ReplyToAgentPath = "ReplyToAgent";
-
 
         private const string HelpText = @"Call Taranbir or Kapil ...";
 
@@ -94,19 +85,11 @@ namespace PPTExpertConnect
             cb = new CardBuilder(_appSettings);
             
             _dialogs = new DialogSet(accessors.DialogStateAccessor);
-
-            var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
-
-            var replyToUserSteps = new WaterfallStep[] { ReplyToUserStep };
-            var agentToUserForPostProjectCompletionBranching = new WaterfallStep[]{ ShowPostProjectCompletionChoices };
-
-            var replyToAgentSteps = new WaterfallStep[] { ReplyToAgentStep };
-            var handleProjectCompletionReplyFromAgent = new WaterfallStep[] { PostCompletionChoiceSelection };
-
+            
             _dialogs.Add(OAuthHelpers.Prompt(_OAuthConnectionSettingName));
 
-            _dialogs.Add(new WaterfallDialog(Auth, authDialog));
-
+            var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
+            _dialogs.Add(new WaterfallDialog(DialogId.Auth, authDialog));
 
             _dialogs.Add(new IntroductionDialog(DialogId.Start, cb));
             _dialogs.Add(new TemplateDetailDialog(DialogId.DetailPath, cb));
@@ -115,12 +98,18 @@ namespace PPTExpertConnect
             _dialogs.Add(new ProjectRevisionDialog(DialogId.ProjectRevisionPath, cb));
             _dialogs.Add(new ProjectCompleteDialog(DialogId.ProjectCompletePath, cb));
 
+            var replyToUserSteps = new WaterfallStep[] { ReplyToUserStep };
             _dialogs.Add(new WaterfallDialog(ReplyToUserPath, replyToUserSteps));
+
+            var replyToAgentSteps = new WaterfallStep[] { ReplyToAgentStep };
             _dialogs.Add(new WaterfallDialog(ReplyToAgentPath, replyToAgentSteps));
+
+            var agentToUserForPostProjectCompletionBranching = new WaterfallStep[]{ ShowPostProjectCompletionChoices };
             _dialogs.Add(new WaterfallDialog(PreCompletionSelectionPath, agentToUserForPostProjectCompletionBranching));
+
+            var handleProjectCompletionReplyFromAgent = new WaterfallStep[] { PostCompletionChoiceSelection };
             _dialogs.Add(new WaterfallDialog(UserToSelectProjectStatePath, handleProjectCompletionReplyFromAgent));
 
-            // TODO: clean up to just one
             _dialogs.Add(new TextPrompt(DialogId.SimpleTextPrompt));
         }
 
@@ -245,15 +234,13 @@ namespace PPTExpertConnect
                         }
                         else
                         {
-                            await dialogContext.BeginDialogAsync(Start, userProfile, cancellationToken);
+                            await dialogContext.BeginDialogAsync(DialogId.Start, userProfile, cancellationToken);
                         }
                     }
                 }
                 else
                 {
-                    // User is not authenticated. Send them an auth card.
-//                    await SendOAuthCardAsync(turnContext, new Activity(), cancellationToken);
-                    await dialogContext.BeginDialogAsync(Auth, null, cancellationToken);
+                    await dialogContext.BeginDialogAsync(DialogId.Auth, null, cancellationToken);
                 }
             }
             else if (turnContext.Activity.Type == ActivityTypes.ConversationUpdate)
@@ -275,11 +262,11 @@ namespace PPTExpertConnect
                 await dialogContext.ContinueDialogAsync(cancellationToken);
                 if (!turnContext.Responded)
                 {
-                    await dialogContext.BeginDialogAsync(Auth, cancellationToken: cancellationToken); // Begin auth or start ?
+                    await dialogContext.BeginDialogAsync(DialogId.Auth, cancellationToken: cancellationToken); // Begin auth or start ?
                 }
                 else
                 {
-                    await dialogContext.BeginDialogAsync(Start, null, cancellationToken);
+                    await dialogContext.BeginDialogAsync(DialogId.Start, null, cancellationToken);
                 }
             }
             else
@@ -331,7 +318,7 @@ namespace PPTExpertConnect
             }
 
             await step.Context.SendActivityAsync("Login was not successful please try again. Aborting.", cancellationToken: cancellationToken);
-            return await step.ReplaceDialogAsync(Auth, null, cancellationToken);
+            return await step.ReplaceDialogAsync(DialogId.Auth, null, cancellationToken);
 
         }
 
@@ -417,11 +404,11 @@ namespace PPTExpertConnect
 
             if (choice.Equals(Constants.Complete))
             {
-                return await stepContext.ReplaceDialogAsync(ProjectCompletePath, userInfo, cancellationToken);
+                return await stepContext.ReplaceDialogAsync(DialogId.ProjectCompletePath, userInfo, cancellationToken);
             }
             if (choice.Equals(Constants.Revision))
             {
-                return await stepContext.ReplaceDialogAsync(ProjectRevisionPath, userInfo, cancellationToken);
+                return await stepContext.ReplaceDialogAsync(DialogId.ProjectRevisionPath, userInfo, cancellationToken);
             }
 
             //TODO: handle case of message not a part of the two texts
