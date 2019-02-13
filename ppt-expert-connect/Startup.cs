@@ -28,6 +28,7 @@ namespace PPTExpertConnect
     {
         private ILoggerFactory _loggerFactory;
         private readonly bool _isProduction;
+        private int _stackTraceLength = 300;
 
         public Startup(IHostingEnvironment env)
         {
@@ -95,7 +96,17 @@ namespace PPTExpertConnect
                     options.OnTurnError = async (context, exception) =>
                     {
                         logger.LogError($"Exception caught : {exception}");
-                        await context.SendActivityAsync("Sorry, it looks like something went wrong.");
+
+                        var stackTrace = exception.StackTrace;
+                        if (stackTrace.Length > _stackTraceLength)
+                            stackTrace = stackTrace.Substring(0, _stackTraceLength) + "…";
+                        stackTrace = stackTrace.Replace(Environment.NewLine, "  \n");
+
+                        var message = exception.Message.Replace(Environment.NewLine, "  \n");
+
+                        var exceptionStr = $"**{message}**  \n\n{stackTrace}";
+
+                        await context.SendActivityAsync($"Sorry, it looks like something went wrong. \n\n{exceptionStr}");
                     };
 
                     // The Memory Storage used here is for local bot debugging only. When the bot
