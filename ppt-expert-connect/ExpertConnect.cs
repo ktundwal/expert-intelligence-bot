@@ -145,11 +145,10 @@ namespace PPTExpertConnect
                     await _accessors.UserInfoAccessor.DeleteAsync(turnContext, cancellationToken);
                     await _accessors.DialogStateAccessor.DeleteAsync(turnContext, cancellationToken);
                     #endregion  
-
-                    //TODO: send welcome message
+                    
                     await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
                     await SendWelcomeMessageAsync(turnContext, cancellationToken);
-                    return;
+                    goto End;
                 }
                 var token = await ((BotFrameworkAdapter)turnContext.Adapter)
                     .GetUserTokenAsync(turnContext, _OAuthConnectionSettingName, null, cancellationToken)
@@ -274,6 +273,7 @@ namespace PPTExpertConnect
                 await turnContext.SendActivityAsync($"{turnContext.Activity.Type} event detected", cancellationToken: cancellationToken);
             }
 
+            End:
             // Save the dialog state into the conversation state.
             await _accessors.ConversationState.SaveChangesAsync(turnContext, false, cancellationToken);
 
@@ -355,6 +355,8 @@ namespace PPTExpertConnect
                 message,
                 "vsoTicket-251", 
                 cancellationToken);
+
+            await context.Context.SendActivityAsync("Message has been sent to user", null, null, cancellationToken);
 
             return await context.EndDialogAsync(null, cancellationToken);
         }

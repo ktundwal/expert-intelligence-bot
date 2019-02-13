@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="manifest\manifest.zip" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="ExpertConnect.bot">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

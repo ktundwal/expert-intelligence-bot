@@ -188,7 +188,7 @@ namespace PPTExpertConnect.Helpers
 
         public static DriveItem UploadPowerPointFileToDrive(GraphServiceClient graphClient, DriveItem folder, string style)
         {
-            var location = style.Split(",", StringSplitOptions.RemoveEmptyEntries)[0];
+            var location = style.Split(",", StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
             location = "dev";
             using (MemoryStream ms = new MemoryStream()) //TODO: will memory run out of space?
             using (FileStream file = new FileStream($@"C:\{location}\template.pptx", FileMode.Open, FileAccess.Read))
