@@ -1,0 +1,61 @@
+{
+  "name": "ExpertConnect-Test",
+  "padlock": "PLACEHOLDER",
+  "version": "2.0",
+  "services": [
+    {
+        "tenantId": "PLACEHOLDER",
+        "subscriptionId": "PLACEHOLDER",
+        "resourceGroup": "ecbot",
+        "serviceName": "ExpertConnect-Test",
+        "type": "abs",
+        "name": "ExpertConnect-Test",
+        "id": "1"
+    },
+    {
+        "connectionString": "PLACEHOLDER",
+        "tenantId": "PLACEHOLDER",
+        "subscriptionId": "PLACEHOLDER",
+        "resourceGroup": "ecbot",
+        "serviceName": "expertconnecttest87fd",
+        "type": "blob",
+        "id": "2"
+    },
+    {
+      "appId": "",
+      "appPassword": "",
+      "endpoint": "http://localhost:3978/api/messages",
+      "type": "endpoint",
+      "name": "development",
+      "id": "3"
+    },
+    {
+        "appId": "PLACEHOLDER",
+        "appPassword": "PLACEHOLDER",
+        "endpoint": "https://PLACEHOLDER.azurewebsites.net/api/messages",
+        "type": "endpoint",
+        "name": "production",
+        "id": "4"
+    },
+    {
+        "instrumentationKey": "PLACEHOLDER",
+        "applicationId": "PLACEHOLDER",
+        "apiKeys": {},
+        "tenantId": "PLACEHOLDER",
+        "subscriptionId": "PLACEHOLDER",
+        "resourceGroup": "ecbot",
+        "serviceName": "ExpertConnect-Testkravtf",
+        "type": "appInsights",
+        "id": "5"
+    },
+    {
+        "appId": "PLACEHOLDER",
+        "authoringKey": "PLACEHOLDER",
+        "version": "0.1",
+        "region": "westus",
+        "type": "luis",
+        "name": "ExpertConnectTestLuisApplication",
+        "id": "6"
+    }
+  ]
+}
