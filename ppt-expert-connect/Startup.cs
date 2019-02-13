@@ -18,6 +18,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Logging;
 
 namespace com.microsoft.ExpertConnect
 {
@@ -63,6 +64,8 @@ namespace com.microsoft.ExpertConnect
             IdTable idTable = null;
             EndUserAndAgentIdMapping endUserAndAgentIdMapping = null;
             ICredentialProvider credentialProvider = null;
+
+            IdentityModelEventSource.ShowPII = true; //To show detail of error and see the problem
 
             services.AddBot<PPTExpertConnect.ExpertConnect>(options =>
                 {
