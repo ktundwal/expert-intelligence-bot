@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using AdaptiveCards;
-using com.microsoft.ExpertConnect.Models;
-using static  com.microsoft.ExpertConnect.Helpers.AdaptiveCardHelper;
+using Microsoft.ExpertConnect.Models;
+using static  Microsoft.ExpertConnect.Helpers.AdaptiveCardHelper;
 
-namespace com.microsoft.ExpertConnect.Helpers
+namespace Microsoft.ExpertConnect.Helpers
 {
     public class CardBuilder
     {

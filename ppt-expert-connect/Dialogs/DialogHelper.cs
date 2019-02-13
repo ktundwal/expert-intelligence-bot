@@ -5,11 +5,11 @@ using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Schema;
 using Newtonsoft.Json;
-using com.microsoft.ExpertConnect.Helpers;
-using com.microsoft.ExpertConnect.Models;
+using Microsoft.ExpertConnect.Helpers;
+using Microsoft.ExpertConnect.Models;
 using DriveItem = Microsoft.Graph.DriveItem;
 
-namespace com.microsoft.ExpertConnect.Dialogs
+namespace Microsoft.ExpertConnect.Dialogs
 {
     public class DialogHelper
     {

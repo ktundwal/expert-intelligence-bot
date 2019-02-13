@@ -3,7 +3,7 @@
 
 using Microsoft.Bot.Builder.Dialogs;
 
-namespace com.microsoft.ExpertConnect
+namespace Microsoft.ExpertConnect
 {
     // This class calls the Microsoft Graph API. The following OAuth scopes are used:
     // 'OpenId' 'email' 'Mail.Send.Shared' 'Mail.Read' 'profile' 'User.Read' 'User.ReadBasic.All'

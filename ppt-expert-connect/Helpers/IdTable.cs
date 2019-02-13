@@ -7,7 +7,7 @@ using Microsoft.Bot.Schema;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 
-namespace com.microsoft.ExpertConnect.Helpers
+namespace Microsoft.ExpertConnect.Helpers
 {
     // member: botName = BotId
     // channel: AgentChannelName = AgentChannelId

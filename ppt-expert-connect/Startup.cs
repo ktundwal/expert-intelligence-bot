@@ -3,8 +3,8 @@
 
 using System;
 using System.Linq;
-using com.microsoft.ExpertConnect.Helpers;
-using com.microsoft.ExpertConnect.Models;
+using Microsoft.ExpertConnect.Helpers;
+using Microsoft.ExpertConnect.Models;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
@@ -20,7 +20,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Logging;
 
-namespace com.microsoft.ExpertConnect
+namespace Microsoft.ExpertConnect
 {
     /// <summary>
     /// The Startup class configures services and the request pipeline.
