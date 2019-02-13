@@ -1,270 +1,663 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using AdaptiveCards;
+using com.microsoft.ExpertConnect;
+using com.microsoft.ExpertConnect.Dialogs;
+using com.microsoft.ExpertConnect.Helpers;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Builder.Azure;
 using Microsoft.Bot.Builder.Dialogs;
+using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
+using Microsoft.Bot.Connector.Authentication;
+using Microsoft.Extensions.Configuration;
+using com.microsoft.ExpertConnect.Models;
+using Microsoft.Bot.Connector.Teams;
+using Microsoft.Bot.Connector.Teams.Models;
 
-namespace com.microsoft.ExpertConnect
+namespace PPTExpertConnect
 {
-    /// <summary>
-    /// Main entry point and orchestration for bot.
-    /// </summary>
     public class ExpertConnect : IBot
     {
-        // Supported LUIS Intents
-        public const string GreetingIntent = "Greeting";
-        public const string CancelIntent = "Cancel";
-        public const string HelpIntent = "Help";
-        public const string NoneIntent = "None";
+        private const string PreCompletionSelectionPath = "PreCompletionSelection";
+        private const string UserToSelectProjectStatePath = "UserToSelectProjectState";
+        private const string ReplyToUserPath = "ReplyToUser";
+        private const string ReplyToAgentPath = "ReplyToAgent";
 
-        /// <summary>
-        /// Key in the bot config (.bot file) for the LUIS instance.
-        /// In the .bot file, multiple instances of LUIS can be configured.
-        /// </summary>
-        public static readonly string LuisConfiguration = "ExpertConnectTestLuisApplication";
+        private const string HelpText = @"Call Taranbir or Kapil ...";
 
-        private readonly IStatePropertyAccessor<GreetingState> _greetingStateAccessor;
-        private readonly IStatePropertyAccessor<DialogState> _dialogStateAccessor;
-        private readonly UserState _userState;
-        private readonly ConversationState _conversationState;
-        private readonly BotServices _services;
+        private const string WelcomeText = @"This bot will help you prepare PowerPoint files.
+                                        Type anything to get logged in. Type 'logout' to sign-out";
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="ExpertConnect"/> class.
-        /// </summary>
-        /// <param name="botServices">Bot services.</param>
-        /// <param name="accessors">Bot State Accessors.</param>
-        public ExpertConnect(BotServices services, UserState userState, ConversationState conversationState, ILoggerFactory loggerFactory)
+        private readonly BotAccessors _accessors;
+        private readonly AzureBlobTranscriptStore _transcriptStore;
+        private readonly IdTable _idTable;
+        private readonly EndUserAndAgentIdMapping _endUserAndAgentIdMapping;
+        private readonly ILogger _logger;
+        private DialogSet _dialogs;
+        private CardBuilder cb;
+
+        private readonly AppSettings _appSettings;
+        private readonly SimpleCredentialProvider _botCredentials;
+
+        private readonly string _OAuthConnectionSettingName;
+        public ExpertConnect(
+            AzureBlobTranscriptStore transcriptStore, 
+            BotAccessors accessors, 
+            ILoggerFactory loggerFactory, 
+            IOptions<AppSettings> appSettings, 
+            IdTable idTable, 
+            EndUserAndAgentIdMapping endUserAndAgentIdMapping,
+            ICredentialProvider credentials,
+            IConfiguration configuration)
         {
-            _services = services ?? throw new ArgumentNullException(nameof(services));
-            _userState = userState ?? throw new ArgumentNullException(nameof(userState));
-            _conversationState = conversationState ?? throw new ArgumentNullException(nameof(conversationState));
-
-            _greetingStateAccessor = _userState.CreateProperty<GreetingState>(nameof(GreetingState));
-            _dialogStateAccessor = _conversationState.CreateProperty<DialogState>(nameof(DialogState));
-
-            // Verify LUIS configuration.
-            if (!_services.LuisServices.ContainsKey(LuisConfiguration))
+            if (loggerFactory == null)
             {
-                throw new InvalidOperationException($"The bot configuration does not contain a service type of `luis` with the id `{LuisConfiguration}`.");
+                throw new System.ArgumentNullException(nameof(loggerFactory));
             }
 
-            Dialogs = new DialogSet(_dialogStateAccessor);
-            Dialogs.Add(new GreetingDialog(_greetingStateAccessor, loggerFactory));
+            _OAuthConnectionSettingName = configuration.GetSection("OAuthConnectionSettingsName")?.Value;
+            if (string.IsNullOrWhiteSpace(_OAuthConnectionSettingName))
+            {
+                throw new InvalidOperationException("OAuthConnectionSettingName must be configured prior to running the bot.");
+            }
+
+            _logger = loggerFactory.CreateLogger<ExpertConnect>();
+            _logger.LogTrace("Turn start.");
+            _accessors = accessors ?? throw new ArgumentNullException(nameof(accessors));
+            _transcriptStore = transcriptStore ?? throw new ArgumentNullException(nameof(transcriptStore)); // Test Mode ?
+            _appSettings = appSettings?.Value ?? throw new ArgumentNullException(nameof(appSettings));
+
+            _idTable = idTable ?? throw new ArgumentNullException(nameof(idTable));
+            _endUserAndAgentIdMapping = endUserAndAgentIdMapping;
+
+            _botCredentials = (SimpleCredentialProvider)credentials ?? throw new ArgumentNullException(nameof(appSettings));
+            
+            cb = new CardBuilder(_appSettings);
+            
+            _dialogs = new DialogSet(accessors.DialogStateAccessor);
+            
+            _dialogs.Add(OAuthHelpers.Prompt(_OAuthConnectionSettingName));
+
+            var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
+            _dialogs.Add(new WaterfallDialog(DialogId.Auth, authDialog));
+
+            _dialogs.Add(new IntroductionDialog(DialogId.Start, cb));
+            _dialogs.Add(new TemplateDetailDialog(DialogId.DetailPath, cb));
+            _dialogs.Add(new ExampleTemplateDialog(DialogId.ExamplePath, cb));
+            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, cb, _OAuthConnectionSettingName));
+            _dialogs.Add(new ProjectRevisionDialog(DialogId.ProjectRevisionPath, cb));
+            _dialogs.Add(new ProjectCompleteDialog(DialogId.ProjectCompletePath, cb));
+
+            var replyToUserSteps = new WaterfallStep[] { ReplyToUserStep };
+            _dialogs.Add(new WaterfallDialog(ReplyToUserPath, replyToUserSteps));
+
+            var replyToAgentSteps = new WaterfallStep[] { ReplyToAgentStep };
+            _dialogs.Add(new WaterfallDialog(ReplyToAgentPath, replyToAgentSteps));
+
+            var agentToUserForPostProjectCompletionBranching = new WaterfallStep[]{ ShowPostProjectCompletionChoices };
+            _dialogs.Add(new WaterfallDialog(PreCompletionSelectionPath, agentToUserForPostProjectCompletionBranching));
+
+            var handleProjectCompletionReplyFromAgent = new WaterfallStep[] { PostCompletionChoiceSelection };
+            _dialogs.Add(new WaterfallDialog(UserToSelectProjectStatePath, handleProjectCompletionReplyFromAgent));
+
+            _dialogs.Add(new TextPrompt(DialogId.SimpleTextPrompt));
         }
 
-        private DialogSet Dialogs { get; set; }
-
-        /// <summary>
-        /// Run every turn of the conversation. Handles orchestration of messages.
-        /// </summary>
-        /// <param name="turnContext">Bot Turn Context.</param>
-        /// <param name="cancellationToken">Task CancellationToken.</param>
-        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
-        public async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken)
+        
+        public async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var activity = turnContext.Activity;
-
-            // Create a dialog context
-            var dc = await Dialogs.CreateContextAsync(turnContext);
-
-            if (activity.Type == ActivityTypes.Message)
+            if (turnContext == null)
             {
-                // Perform a call to LUIS to retrieve results for the current activity message.
-                var luisResults = await _services.LuisServices[LuisConfiguration].RecognizeAsync(dc.Context, cancellationToken);
+                throw new ArgumentNullException(nameof(turnContext));
+            }
+            var dialogContext = await _dialogs.CreateContextAsync(turnContext, cancellationToken);
 
-                // If any entities were updated, treat as interruption.
-                // For example, "no my name is tony" will manifest as an update of the name to be "tony".
-                var topScoringIntent = luisResults?.GetTopScoringIntent();
+            if (turnContext.Activity.Type == ActivityTypes.Message)
+            {
+                // This bot is not case sensitive.
+                var text = turnContext.Activity.Text.ToLowerInvariant();
 
-                var topIntent = topScoringIntent.Value.intent;
-
-                // update greeting state with any entities captured
-                await UpdateGreetingState(luisResults, dc.Context);
-
-                // Handle conversation interrupts first.
-                var interrupted = await IsTurnInterruptedAsync(dc, topIntent);
-                if (interrupted)
+                if (text == "help")
                 {
-                    // Bypass the dialog.
-                    // Save state before the next turn.
-                    await _conversationState.SaveChangesAsync(turnContext);
-                    await _userState.SaveChangesAsync(turnContext);
+                    await turnContext.SendActivityAsync(HelpText, cancellationToken: cancellationToken);
                     return;
                 }
 
-                // Continue the current dialog
-                var dialogResult = await dc.ContinueDialogAsync();
-
-                // if no one has responded,
-                if (!dc.Context.Responded)
+                if (text == "logout")
                 {
-                    // examine results from active dialog
-                    switch (dialogResult.Status)
-                    {
-                        case DialogTurnStatus.Empty:
-                            switch (topIntent)
-                            {
-                                case GreetingIntent:
-                                    await dc.BeginDialogAsync(nameof(GreetingDialog));
-                                    break;
+                    var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
+                    await botAdapter.SignOutUserAsync(turnContext, _OAuthConnectionSettingName, cancellationToken: cancellationToken);
 
-                                case NoneIntent:
+                    #region DialogCleanupState
+                    await dialogContext.CancelAllDialogsAsync(cancellationToken);
+                    await _transcriptStore.DeleteTranscriptAsync(turnContext.Activity.ChannelId,
+                        turnContext.Activity.Conversation.Id);
+                    await _accessors.UserInfoAccessor.DeleteAsync(turnContext, cancellationToken);
+                    await _accessors.DialogStateAccessor.DeleteAsync(turnContext, cancellationToken);
+                    #endregion  
+                    
+                    await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
+                    await SendWelcomeMessageAsync(turnContext, cancellationToken);
+                    goto End;
+                }
+                var token = await ((BotFrameworkAdapter)turnContext.Adapter)
+                    .GetUserTokenAsync(turnContext, _OAuthConnectionSettingName, null, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (token != null)
+                {
+                    var results = await dialogContext.ContinueDialogAsync(cancellationToken);
+
+                    if (results.Status is DialogTurnStatus.Complete)
+                    {
+                        var userInfo = results.Result as UserInfo;
+                        await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
+
+                        switch (userInfo?.State)
+                        {
+                            case UserDialogState.ProjectSelectExampleOptions:
+                                await dialogContext.BeginDialogAsync(DialogId.ExamplePath, userInfo, cancellationToken);
+                                break;
+                            case UserDialogState.ProjectCollectTemplateDetails:
+                                await dialogContext.BeginDialogAsync(DialogId.DetailPath, userInfo, cancellationToken);
+                                break;
+                            case UserDialogState.ProjectCollectDetails:
+                                await dialogContext.BeginDialogAsync(DialogId.PostSelectionPath, userInfo,
+                                    cancellationToken);
+                                break;
+                            case UserDialogState.ProjectCreated:
+                                var agentConversationId = await CreateAgentConversationMessage(turnContext,
+                                    $"PowerPoint request from {turnContext.Activity.From.Name} via {turnContext.Activity.ChannelId}",
+                                    cb.V2VsoTicketCard(251, "https://www.microsoft.com"));
+                                
+                                await _endUserAndAgentIdMapping.CreateNewMapping("vsoTicket-251", // Obtain this information from userInfo Class
+                                    turnContext.Activity.From.Name,
+                                    turnContext.Activity.From.Id,
+                                    JsonConvert.SerializeObject(turnContext.Activity.GetConversationReference()),
+                                    agentConversationId);
+                                break;
+                            case UserDialogState.ProjectUnderRevision:
+                                var vsoTicketForUser =
+                                    await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(turnContext.Activity.From.Id);
+
+                                var agentInfo = await _endUserAndAgentIdMapping.GetAgentConversationId(vsoTicketForUser);
+
+                                await SendMessageToAgentAsReplyToConversationInAgentsChannel(turnContext, turnContext.Activity.Text,
+                                    agentInfo, vsoTicketForUser);
+                                userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
+                                await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+
+                    if (results.Status == DialogTurnStatus.Empty)
+                    {
+                        var userProfile = await _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), cancellationToken);
+
+                        // Move the following code outside later ?
+                        var didAgentUseACommand = DidAgentUseCommandOnBot(turnContext) || false;
+
+                        if (didAgentUseACommand)
+                        {
+                            switch (GetCommandFromAgent(_appSettings.BotName, turnContext.Activity.Text))
+                            {
+                                case "reply to user":
+                                    await dialogContext.BeginDialogAsync(ReplyToUserPath, null, cancellationToken);
+                                    break;
+                                case "project completed":
+                                    await dialogContext.BeginDialogAsync(PreCompletionSelectionPath, null, cancellationToken);
+                                    break;
                                 default:
-                                    // Help or no intent identified, either way, let's provide some help.
-                                    // to the user
-                                    await dc.Context.SendActivityAsync("I didn't understand what you just said to me.");
                                     break;
                             }
-
-                            break;
-
-                        case DialogTurnStatus.Waiting:
-                            // The active dialog is waiting for a response from the user, so do nothing.
-                            break;
-
-                        case DialogTurnStatus.Complete:
-                            await dc.EndDialogAsync();
-                            break;
-
-                        default:
-                            await dc.CancelAllDialogsAsync();
-                            break;
-                    }
-                }
-            }
-            else if (activity.Type == ActivityTypes.ConversationUpdate)
-            {
-                if (activity.MembersAdded != null)
-                {
-                    // Iterate over all new members added to the conversation.
-                    foreach (var member in activity.MembersAdded)
-                    {
-                        // Greet anyone that was not the target (recipient) of this message.
-                        // To learn more about Adaptive Cards, see https://aka.ms/msbot-adaptivecards for more details.
-                        if (member.Id != activity.Recipient.Id)
+                        }
+                        else if (userProfile.State == UserDialogState.ProjectInOneOnOneConversation)
                         {
-                            var welcomeCard = CreateAdaptiveCardAttachment();
-                            var response = CreateResponse(activity, welcomeCard);
-                            await dc.Context.SendActivityAsync(response);
+                            await dialogContext.BeginDialogAsync(ReplyToAgentPath, null, cancellationToken);
+                        }
+                        else if (userProfile.State == UserDialogState.ProjectCompleted)
+                        {
+                            await dialogContext.BeginDialogAsync(UserToSelectProjectStatePath, null, cancellationToken);
+                        }
+                        else
+                        {
+                            await dialogContext.BeginDialogAsync(DialogId.Start, userProfile, cancellationToken);
                         }
                     }
                 }
-            }
-
-            await _conversationState.SaveChangesAsync(turnContext);
-            await _userState.SaveChangesAsync(turnContext);
-        }
-
-        // Determine if an interruption has occurred before we dispatch to any active dialog.
-        private async Task<bool> IsTurnInterruptedAsync(DialogContext dc, string topIntent)
-        {
-            // See if there are any conversation interrupts we need to handle.
-            if (topIntent.Equals(CancelIntent))
-            {
-                if (dc.ActiveDialog != null)
+                else
                 {
-                    await dc.CancelAllDialogsAsync();
-                    await dc.Context.SendActivityAsync("Ok. I've canceled our last activity.");
+                    await dialogContext.BeginDialogAsync(DialogId.Auth, null, cancellationToken);
+                }
+            }
+            else if (turnContext.Activity.Type == ActivityTypes.ConversationUpdate)
+            {
+                bool isGroup = turnContext.Activity.Conversation.IsGroup ?? false;
+                if (turnContext.Activity.ChannelId == "msteams" && isGroup) 
+                {
+                    await SaveAgentChannelIdInAzureStore(turnContext, _botCredentials);
+                }
+                await SaveBotIdInAzureStorage(turnContext, _appSettings.BotName);
+            }
+            else if (turnContext.Activity.Type == ActivityTypes.Invoke || turnContext.Activity.Type == ActivityTypes.Event)
+            {
+                // This handles the MS Teams Invoke Activity sent when magic code is not used.
+                // See: https://docs.microsoft.com/en-us/microsoftteams/platform/concepts/authentication/auth-oauth-card#getting-started-with-oauthcard-in-teams
+                // The Teams manifest schema is found here: https://docs.microsoft.com/en-us/microsoftteams/platform/resources/schema/manifest-schema
+                // It also handles the Event Activity sent from the emulator when the magic code is not used.
+                // See: https://blog.botframework.com/2018/08/28/testing-authentication-to-your-bot-using-the-bot-framework-emulator/
+                await dialogContext.ContinueDialogAsync(cancellationToken);
+                if (!turnContext.Responded)
+                {
+                    await dialogContext.BeginDialogAsync(DialogId.Auth, cancellationToken: cancellationToken); // Begin auth or start ?
                 }
                 else
                 {
-                    await dc.Context.SendActivityAsync("I don't have anything to cancel.");
+                    await dialogContext.BeginDialogAsync(DialogId.Start, null, cancellationToken);
                 }
-
-                return true;        // Handled the interrupt.
+            }
+            else
+            {
+                await turnContext.SendActivityAsync($"{turnContext.Activity.Type} event detected", cancellationToken: cancellationToken);
             }
 
-            if (topIntent.Equals(HelpIntent))
-            {
-                await dc.Context.SendActivityAsync("Let me try to provide some help.");
-                await dc.Context.SendActivityAsync("I understand greetings, being asked for help, or being asked to cancel what I am doing.");
-                if (dc.ActiveDialog != null)
-                {
-                    await dc.RepromptDialogAsync();
-                }
+            End:
+            // Save the dialog state into the conversation state.
+            await _accessors.ConversationState.SaveChangesAsync(turnContext, false, cancellationToken);
 
-                return true;        // Handled the interrupt.
-            }
-
-            return false;           // Did not handle the interrupt.
+            // Save the user profile updates into the user state.
+            await _accessors.UserState.SaveChangesAsync(turnContext, false, cancellationToken);
         }
 
-        // Create an attachment message response.
-        private Activity CreateResponse(Activity activity, Attachment attachment)
+        #region Auth
+        /// <summary>
+        /// This <see cref="WaterfallStep"/> prompts the user to log in.
+        /// </summary>
+        /// <param name="step">A <see cref="WaterfallStepContext"/> provides context for the current waterfall step.</param>
+        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
+        /// or threads to receive notice of cancellation.</param>
+        /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
+        private static async Task<DialogTurnResult> PromptStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
         {
-            var response = activity.CreateReply();
-            response.Attachments = new List<Attachment>() { attachment };
-            return response;
-        }
-
-        // Load attachment from file.
-        private Attachment CreateAdaptiveCardAttachment()
-        {
-            var adaptiveCard = File.ReadAllText(@".\Dialogs\Welcome\Resources\welcomeCard.json");
-            return new Attachment()
-            {
-                ContentType = "application/vnd.microsoft.card.adaptive",
-                Content = JsonConvert.DeserializeObject(adaptiveCard),
-            };
+            return await step.BeginDialogAsync(OAuthHelpers.LoginPromptDialogId, cancellationToken: cancellationToken);
         }
 
         /// <summary>
-        /// Helper function to update greeting state with entities returned by LUIS.
+        /// In this step we check that a token was received and prompt the user as needed.
         /// </summary>
-        /// <param name="luisResult">LUIS recognizer <see cref="RecognizerResult"/>.</param>
-        /// <param name="turnContext">A <see cref="ITurnContext"/> containing all the data needed
-        /// for processing this conversation turn.</param>
-        /// <returns>A task that represents the work queued to execute.</returns>
-        private async Task UpdateGreetingState(RecognizerResult luisResult, ITurnContext turnContext)
+        /// <param name="step">A <see cref="WaterfallStepContext"/> provides context for the current waterfall step.</param>
+        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
+        /// or threads to receive notice of cancellation.</param>
+        /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
+        private async Task<DialogTurnResult> LoginStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
         {
-            if (luisResult.Entities != null && luisResult.Entities.HasValues)
+            // Get the token from the previous step. Note that we could also have gotten the
+            // token directly from the prompt itself. There is an example of this in the next method.
+            var tokenResponse = (TokenResponse)step.Result;
+            if (tokenResponse != null)
             {
-                // Get latest GreetingState
-                var greetingState = await _greetingStateAccessor.GetAsync(turnContext, () => new GreetingState());
-                var entities = luisResult.Entities;
+                var userProfile = await _accessors.UserInfoAccessor.GetAsync(step.Context, () => new UserInfo(), cancellationToken);
+                userProfile.Token = tokenResponse;
 
-                // Supported LUIS Entities
-                string[] userNameEntities = { "userName", "userName_patternAny" };
-                string[] userLocationEntities = { "userLocation", "userLocation_patternAny" };
+                var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
+                var user = await GraphClient.GetMeAsync(client);
+                await step.Context.SendActivityAsync($"Kon'nichiwa { user.DisplayName}! You are now logged in.", cancellationToken: cancellationToken);
+                return await step.EndDialogAsync(null, cancellationToken); // Maybe just end ??
+            }
 
-                // Update any entities
-                // Note: Consider a confirm dialog, instead of just updating.
-                foreach (var name in userNameEntities)
+            await step.Context.SendActivityAsync("Login was not successful please try again. Aborting.", cancellationToken: cancellationToken);
+            return await step.ReplaceDialogAsync(DialogId.Auth, null, cancellationToken);
+
+        }
+
+        /// <summary>
+        /// Greet new users as they are added to the conversation.
+        /// </summary>
+        /// <param name="turnContext">Provides the <see cref="ITurnContext"/> for the turn of the bot.</param>
+        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
+        /// or threads to receive notice of cancellation.</param>
+        /// <returns>A <see cref="Task"/> representing the operation result of the Turn operation.</returns>
+        private static async Task SendWelcomeMessageAsync(ITurnContext turnContext, CancellationToken cancellationToken)
+        {
+            await turnContext.SendActivityAsync(
+                $"Welcome to ExpertConnect {turnContext.Activity.From.Name}. {WelcomeText}",
+                cancellationToken: cancellationToken);
+        }
+        #endregion
+
+        #region ReplyToUser/Agent
+
+        private async Task<DialogTurnResult> ReplyToUserStep(WaterfallStepContext context, CancellationToken cancellationToken)
+        {
+            var message = 
+                    extractMessageFromCommand(_appSettings.BotName, "reply to user", context.Context.Activity.Text);
+
+            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo("vsoTicket-251");
+
+          var userInfo =
+                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
+            userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
+
+            await SendMessageToUserEx(context.Context,
+                endUserInfo,
+                message,
+                "vsoTicket-251", 
+                cancellationToken);
+
+            await context.Context.SendActivityAsync("Message has been sent to user", null, null, cancellationToken);
+
+            return await context.EndDialogAsync(null, cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> ReplyToAgentStep(WaterfallStepContext context,
+            CancellationToken cancellationToken)
+        {
+            var message = context.Context.Activity.Text;
+            if (message.Equals(string.Empty))
+            {
+                return await context.EndDialogAsync(null, cancellationToken);
+            }
+
+            var vsoTicketForUser =
+                await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(context.Context.Activity.From.Id);
+
+            var agentInfo = await _endUserAndAgentIdMapping.GetAgentConversationId(vsoTicketForUser);
+
+            await SendMessageToAgentAsReplyToConversationInAgentsChannel(context.Context, message, agentInfo, vsoTicketForUser);
+
+            return await context.EndDialogAsync(null, cancellationToken);
+        }
+
+        #endregion
+
+        #region PostProjectCompletion
+        
+        private async Task<DialogTurnResult> ShowPostProjectCompletionChoices(WaterfallStepContext stepContext,
+            CancellationToken cancellationToken)
+        {
+            var userInfo = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
+            userInfo.State = UserDialogState.ProjectCompleted;
+
+            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo("vsoTicket-251");
+
+           await SendCardToUserEx(stepContext.Context, endUserInfo, cb.V2PresentationResponse(endUserInfo.Name), "vsoTicket-251", cancellationToken);
+
+            return await stepContext.EndDialogAsync(null, cancellationToken);
+        }
+
+        private async Task<DialogTurnResult> PostCompletionChoiceSelection(WaterfallStepContext stepContext,
+            CancellationToken cancellationToken)
+        {
+            var choice = stepContext.Context.Activity.Text;
+            var userInfo =
+                await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
+
+            if (choice.Equals(Constants.Complete))
+            {
+                return await stepContext.ReplaceDialogAsync(DialogId.ProjectCompletePath, userInfo, cancellationToken);
+            }
+            if (choice.Equals(Constants.Revision))
+            {
+                return await stepContext.ReplaceDialogAsync(DialogId.ProjectRevisionPath, userInfo, cancellationToken);
+            }
+
+            //TODO: handle case of message not a part of the two texts
+            return null;
+        }
+        #endregion
+
+        #region Helpers
+
+        private async Task SaveBotIdInAzureStorage(ITurnContext context, string botName)
+        {
+            try
+            {
+                if (context.Activity.Recipient.Name.Equals(botName))
                 {
-                    // Check if we found valid slot values in entities returned from LUIS.
-                    if (entities[name] != null)
-                    {
-                        // Capitalize and set new user name.
-                        var newName = (string)entities[name][0];
-                        greetingState.Name = char.ToUpper(newName[0]) + newName.Substring(1);
-                        break;
-                    }
+                    await _idTable.SetBotId(context.Activity.Recipient);
                 }
-
-                foreach (var city in userLocationEntities)
-                {
-                    if (entities[city] != null)
-                    {
-                        // Capitalize and set new city.
-                        var newCity = (string)entities[city][0];
-                        greetingState.City = char.ToUpper(newCity[0]) + newCity.Substring(1);
-                        break;
-                    }
-                }
-
-                // Set the new values into state.
-                await _greetingStateAccessor.SetAsync(turnContext, greetingState);
+            }
+            catch (System.Exception e)
+            {
+                System.Console.WriteLine(e.ToString());
+                // Trace.TraceError($"Error setting bot id. {e}");
             }
         }
+        private async Task SaveAgentChannelIdInAzureStore(ITurnContext context, SimpleCredentialProvider credentials)
+        {
+            try
+            {
+                var connectorClient = await BotConnectorUtility.BuildConnectorClientAsync(
+                    credentials.AppId, credentials.Password, context.Activity.ServiceUrl);
+
+                var ci = GetChannelId(connectorClient, context, _appSettings.AgentChannelName);
+                await _idTable.SetAgentChannel(ci.Name, ci.Id);
+            }
+            catch (SystemException e)
+            {
+                System.Console.WriteLine(e.ToString());
+            }
+        }
+        private static ChannelInfo GetChannelId(ConnectorClient connectorClient, ITurnContext context, string channelName)
+        {
+            var teamInfo = context.Activity.GetChannelData<TeamsChannelData>().Team;
+            ConversationList channels = connectorClient.GetTeamsConnectorClient().Teams.FetchChannelList(teamInfo.Id);
+            var channelInfo = channels.Conversations.FirstOrDefault(c => c.Name != null && c.Name.Equals(channelName));
+            if (channelInfo == null) throw new System.Exception($"{channelName} doesn't exist in {context.Activity.GetChannelData<TeamsChannelData>().Team.Name} Team");
+            return channelInfo;
+        }
+        private async Task<string> CreateAgentConversationMessage(ITurnContext context, string topicName, AdaptiveCard cardToSend)
+        {
+            var serviceUrl = context.Activity.ServiceUrl;
+            var agentChannelInfo = await _idTable.GetAgentChannelInfo();
+            ChannelAccount botMsTeamsChannelAccount = await _idTable.GetBotId();
+
+            var connectorClient =
+                BotConnectorUtility.BuildConnectorClientAsync(
+                    _botCredentials.AppId,
+                    _botCredentials.Password,
+                    serviceUrl);
+
+            try
+            {
+                var channelData = new TeamsChannelData { Channel = agentChannelInfo, Notification = new NotificationInfo(true)};
+
+                IMessageActivity agentMessage = Activity.CreateMessageActivity();
+                agentMessage.From = botMsTeamsChannelAccount;
+                //                agentMessage.Recipient =
+                //                    new ChannelAccount(ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"]);
+                agentMessage.Type = ActivityTypes.Message;
+                agentMessage.ChannelId = "msteams";
+                agentMessage.ServiceUrl = serviceUrl;
+
+                agentMessage.Attachments = new List<Attachment>
+                {
+                    new Attachment {ContentType = AdaptiveCard.ContentType, Content = cardToSend}
+                };
+
+                var agentMessageActivity = (Activity)agentMessage;
+
+                ConversationParameters conversationParams = new ConversationParameters(
+                    isGroup: true,
+                    bot: null,
+                    members: null,
+                    topicName: topicName,
+                    activity: agentMessageActivity,
+                    channelData: channelData);
+
+                var conversationResourceResponse = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(
+                    async ()
+                        => await connectorClient.Result.Conversations.CreateConversationAsync(conversationParams));
+
+                return conversationResourceResponse.Id;
+            }
+            catch (System.Exception e)
+            {
+                System.Console.WriteLine(e.ToString());
+                throw;
+            }
+        }
+        private async Task SendMessageToUserEx(ITurnContext context,
+            EndUserModel endUserModel,
+            string messageToSend,
+            string vsoId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                BotAdapter adapter = context.Adapter;
+
+                await adapter.ContinueConversationAsync(
+                    _botCredentials.AppId,
+                    JsonConvert.DeserializeObject<ConversationReference>(endUserModel.Conversation),
+                    CreateCallback(messageToSend),
+                    cancellationToken
+                );
+            }
+            catch (Exception e)
+            {
+                System.Console.WriteLine(e.ToString());
+                throw;
+            }
+        }
+
+        private async Task SendCardToUserEx(ITurnContext context, EndUserModel endUserModel, AdaptiveCard card,
+            string vsoId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                BotAdapter adapter = context.Adapter;
+                await adapter.ContinueConversationAsync(
+                    _botCredentials.AppId,
+                    JsonConvert.DeserializeObject<ConversationReference>(endUserModel.Conversation),
+                    CreateCallback(card),
+
+                    cancellationToken);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+        
+
+        private BotCallbackHandler CreateCallback(string message)
+        {
+            return async (turnContext, token) =>
+            {
+                var dialogContext = await _dialogs.CreateContextAsync(turnContext, token);
+                turnContext.Activity.Text = message;
+                await turnContext.SendActivityAsync(message, null, null, token);
+                await dialogContext.ContinueDialogAsync(cancellationToken: token);
+            };
+        }
+
+        private BotCallbackHandler CreateCallback(AdaptiveCard card)
+        {
+            return async (context, token) =>
+            {
+                var dialogContext = await _dialogs.CreateContextAsync(context, token);
+                await context.SendActivityAsync(DialogHelper.CreateAdaptiveCardAsActivity(card), token);
+                await dialogContext.ContinueDialogAsync(token);
+            };
+        }
+
+        private async Task<ResourceResponse> SendMessageToAgentAsReplyToConversationInAgentsChannel(
+            ITurnContext context,
+            string messageToSend,
+            string agentConversationId,
+            string vsoId)
+        {
+            try
+            {
+                ChannelAccount botAccount = await _idTable.GetBotId();
+
+                var activity = context.Activity;
+                var serviceUrl = "https://smba.trafficmanager.net/amer/";
+
+                using (ConnectorClient connector = await BotConnectorUtility.BuildConnectorClientAsync(
+                    _botCredentials.AppId,
+                    _botCredentials.Password,
+                    serviceUrl))
+                {
+                    IMessageActivity message = Activity.CreateMessageActivity();
+                    message.From = botAccount;
+                    message.ReplyToId = agentConversationId;
+                    message.Conversation = new ConversationAccount
+                    {
+                        Id = agentConversationId,
+                        IsGroup = true,
+                    };
+
+                    var agentChannelInfo = await _idTable.GetAgentChannelInfo();
+                    var channelData = new TeamsChannelData() { Channel = agentChannelInfo, Notification = new NotificationInfo(true) };
+
+                    message.Text = $"[{activity.From.Name}]: {messageToSend}";
+                    message.TextFormat = "plain";
+                    message.ServiceUrl = serviceUrl;
+                    message.ChannelData = channelData;
+
+                    ResourceResponse response = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(async ()
+                        => await connector.Conversations.SendToConversationAsync((Activity)message));
+                   
+                    return response;
+                }
+            }
+            catch (Exception e)
+            {
+                System.Console.WriteLine(e.ToString());
+                throw;
+            }
+        }
+
+        private bool DidAgentUseCommandOnBot(ITurnContext context)
+        {
+            var isGroup = context.Activity.Conversation.IsGroup ?? false;
+            var mentions = context.Activity.GetMentions();
+
+            // TODO: mentions.length could crash if null!!!!
+            return (isGroup && mentions.Length > 0 && mentions.FirstOrDefault().Text.Contains(_appSettings.BotName));
+        }
+
+        private string GetCommandFromAgent(string botName, string message)
+        {
+            var atBotPattern = new Regex($"^<at>({botName})</at>");
+            var fullPattern = new Regex($"^<at>({botName})</at> (.*)// (.*)");
+            if (atBotPattern.IsMatch(message))
+            {
+                return fullPattern.Match(message).Groups[2].Value;
+            }
+            return null;
+        }
+
+        private string extractMessageFromCommand(string botName, string command, string message)
+        {
+            var atBotPattern = new Regex($"^<at>({botName})</at>");
+            var commandPattern = new Regex($" ({command}) ");
+            var fullPattern = new Regex($"^<at>({botName})</at> ({command}) (.*)");
+
+            if (atBotPattern.IsMatch(message) && commandPattern.IsMatch(message))
+            {
+                return fullPattern.Match(message).Groups[3].Value;
+            }
+
+            return null;
+        }
+        #endregion
     }
+    
 }
