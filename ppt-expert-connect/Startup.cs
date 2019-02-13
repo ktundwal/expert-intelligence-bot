@@ -70,7 +70,7 @@ namespace com.microsoft.ExpertConnect
                     var botFilePath = Configuration.GetSection("botFilePath")?.Value;
 
                     // Loads .bot configuration file and adds a singleton that your Bot can access through dependency injection.
-                    var botConfig = BotConfiguration.Load(botFilePath ?? @".\ExpertConnect.bot", secretKey);
+                    var botConfig = BotConfiguration.Load(botFilePath ?? @".\ExpertConnect-Test.bot", secretKey);
                     services.AddSingleton(sp =>
                         botConfig ??
                         throw new InvalidOperationException(

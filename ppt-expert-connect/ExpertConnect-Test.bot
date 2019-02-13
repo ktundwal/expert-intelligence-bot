@@ -1,61 +1,74 @@
 {
-  "name": "ExpertConnect-Test",
-  "padlock": "kN7a/uMFkYCwAIl00iQZTg==!9iE2rRDPD7yrDYgaxx7dguaADz9a2+iBS3+3H4jFnaay8wvqtt84o3MBwofbvuf1",
-  "version": "2.0",
-  "services": [
-    {
-      "tenantId": "4e2d4700-fe80-45a7-b797-b554cdb508f6",
-      "subscriptionId": "afcc27a7-2928-4f22-9373-2a1c93408b79",
-      "resourceGroup": "ecbot",
-      "serviceName": "ExpertConnect-Test",
-      "type": "abs",
-      "name": "ExpertConnect-Test",
-      "id": "1"
-    },
-    {
-      "connectionString": "HYu5p00nqS9y0F2EUfHYyw==!nX90rz+BRMsdjWnWm4mESgArDMCnPn+5b1aZAol8OOuGpYGemdlgR/siWBU+o8mKWuBLBUzR3+PFe66AgH5BkGO3h33vc1uQPQJGdo3OadCvUD4VsC+WBsju6CT8MKi8HZbhZ25sfIyLR9hfiIxo4z/987xx0BtTbeH4IQiUiJEqvGy43jjPGtXKGLCKc/jZLaUfPhcNaQiZY17WPO0Zd32aCvz4LRbDG9fwyiAb5+o=",
-      "tenantId": "4e2d4700-fe80-45a7-b797-b554cdb508f6",
-      "subscriptionId": "afcc27a7-2928-4f22-9373-2a1c93408b79",
-      "resourceGroup": "ecbot",
-      "serviceName": "expertconnecttest87fd",
-      "type": "blob",
-      "id": "2"
-    },
-    {
-      "appId": "",
-      "appPassword": "",
-      "endpoint": "http://localhost:3978/api/messages",
-      "type": "endpoint",
-      "name": "development",
-      "id": "3"
-    },
-    {
-      "appId": "c276d8b2-9947-4424-90fe-1b768ee88cac",
-      "appPassword": "vW8vaeaba65kFJhx8pKu9A==!xSsR6hUWUxpozzbKf2o8A96nSlgw0b67sP1YXTMd62Q=",
-      "endpoint": "https://expertconnect-test.azurewebsites.net/api/messages",
-      "type": "endpoint",
-      "name": "production",
-      "id": "4"
-    },
-    {
-        "instrumentationKey": "cbctsI5bzDbiF4WVAL4bWQ==!+X772XhaArRT9txRhBJrM7IpmfaRfQrGrnOgBZJBo9/1V7I9v0t66IrtlVeoBflk",
-        "applicationId": "1367263b-4fc2-4df8-818a-ab4c770eed69",
-        "apiKeys": {},
-        "tenantId": "4e2d4700-fe80-45a7-b797-b554cdb508f6",
-        "subscriptionId": "afcc27a7-2928-4f22-9373-2a1c93408b79",
-        "resourceGroup": "ecbot",
-        "serviceName": "ExpertConnect-Testkravtf",
-        "type": "appInsights",
-        "id": "5"
-    },
-    {
-        "appId": "c948c708-cdbe-4b66-a2a6-edea596d889f",
-        "authoringKey": "fCiI/Mro6ggrBydAJvxVGA==!a3UbE2VR6sxiijVULxvPSz51ltFZLI1ZAPsDD2qxPQNgl397WE7962w8dI6TvuQw",
-        "version": "0.1",
-        "region": "westus",
-        "type": "luis",
-        "name": "ExpertConnectTestLuisApplication",
-        "id": "6"
-    }
-  ]
+    "name": "ExpertConnect-Test",
+    "description": "",
+    "services": [
+        {
+            "type": "abs",
+            "tenantId": "4e2d4700-fe80-45a7-b797-b554cdb508f6",
+            "subscriptionId": "afcc27a7-2928-4f22-9373-2a1c93408b79",
+            "resourceGroup": "ecbot",
+            "serviceName": "ExpertConnect-Test",
+            "name": "ExpertConnect-Test",
+            "id": "1",
+            "appId": "c276d8b2-9947-4424-90fe-1b768ee88cac"
+        },
+        {
+            "type": "blob",
+            "connectionString": "zGjQ9YLu6MhA09NZi3ZdWg==!2yf8ZJ/UJkZwVc+YLFvTJL8gjKe9qmql0+HgWq6AZeETPXRm1IPWACDP5RWAgK3u82o9YSMrwOUndIGSSLXgYKDmolhqm43OoQUG2gUHZwcIhnUtlu2bXrfsLgjV1gBIYwk0DOgS681YadFn12OoHPecphG/6BUWBFEbwJAWB9ytgSBZlYKxNTx2HA5TfCHkV3hsUmNx/UgpmEqSikxavR39ArAi9IVn/GJXq/HzFrM=",
+            "tenantId": "4e2d4700-fe80-45a7-b797-b554cdb508f6",
+            "subscriptionId": "afcc27a7-2928-4f22-9373-2a1c93408b79",
+            "resourceGroup": "ecbot",
+            "serviceName": "expertconnecttest87fd",
+            "id": "2"
+        },
+        {
+            "type": "endpoint",
+            "appId": "",
+            "appPassword": "",
+            "endpoint": "http://localhost:3978/api/messages",
+            "name": "development",
+            "id": "3"
+        },
+        {
+            "type": "endpoint",
+            "appId": "c276d8b2-9947-4424-90fe-1b768ee88cac",
+            "appPassword": "Wu6bYhqP1xa55e2hbr+0Bg==!XcmCrbiHr28F0cITmzfTTP2rPbreK2F4lnHV0tdKIqI=",
+            "endpoint": "https://expertconnect-test.azurewebsites.net/api/messages",
+            "name": "production",
+            "id": "4"
+        },
+        {
+            "type": "appInsights",
+            "instrumentationKey": "LvgA7uGgiABH+9uDKuWgXQ==!J7YlpYAAJczPZ2tsemjTQfFCEkFDqj0Q0Hy2BftuYTRhcapuVtAtBSi4vtCMspPU",
+            "applicationId": "1367263b-4fc2-4df8-818a-ab4c770eed69",
+            "apiKeys": {},
+            "tenantId": "4e2d4700-fe80-45a7-b797-b554cdb508f6",
+            "subscriptionId": "afcc27a7-2928-4f22-9373-2a1c93408b79",
+            "resourceGroup": "ecbot",
+            "serviceName": "ExpertConnect-Testkravtf",
+            "id": "5"
+        },
+        {
+            "type": "luis",
+            "appId": "c948c708-cdbe-4b66-a2a6-edea596d889f",
+            "authoringKey": "8Gy92RV0mGFJB5j2z1zpWw==!8yVvBhEXXsYgo0DEJyv604o4mB6fkoDPBubFnx9xU85T3FLQCWRW8DDm8XsqfNpN",
+            "version": "0.1",
+            "region": "westus",
+            "name": "ExpertConnectTestLuisApplication",
+            "id": "6"
+        },
+        {
+            "type": "blob",
+            "name": "azureBlobDevelopment",
+            "serviceName": "expertconnect-dev.azurewebsites.net",
+            "tenantId": "expertconnectdev.onmicrosoft.com",
+            "subscriptionId": "afcc27a7-2928-4f22-9373-2a1c93408b79",
+            "resourceGroup": "ecbot",
+            "connectionString": "9Df3R3KfggkCffcsIhHXZQ==!LikN+us+RTB0tGaK5Up5pp1roWczYfzCIXyQCqtqTOfLa65fpejIY7B5+0Hdxl4U3LqU3x/RqVY/FWLlpUIjGHLOMPHJAhTZPWKiZ+PtdLTCYfqDDCYvhZ9HIDgU741UZ7N2dSmj3rjjc2Sgbdt0LBkA7SpJTjiHGAPzH17xGV2FHKq5Bxhe4WpFmRw2N9rTLqgbK5ZHCqtMq8Zyzd8BAhariVdmR/cSqdJ5xOdZ2K5AIfGp8iEFCD8z8vpHQdo+wsw8R6ZqsWg/evtL7OKofw==",
+            "container": "presentationbotstore",
+            "id": "0"
+        }
+    ],
+    "padlock": "kN7a/uMFkYCwAIl00iQZTg==!9iE2rRDPD7yrDYgaxx7dguaADz9a2+iBS3+3H4jFnaay8wvqtt84o3MBwofbvuf1",
+    "version": "2.0"
 }
