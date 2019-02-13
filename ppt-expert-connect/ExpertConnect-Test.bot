@@ -14,7 +14,7 @@
         },
         {
             "type": "blob",
-            "connectionString": "zGjQ9YLu6MhA09NZi3ZdWg==!2yf8ZJ/UJkZwVc+YLFvTJL8gjKe9qmql0+HgWq6AZeETPXRm1IPWACDP5RWAgK3u82o9YSMrwOUndIGSSLXgYKDmolhqm43OoQUG2gUHZwcIhnUtlu2bXrfsLgjV1gBIYwk0DOgS681YadFn12OoHPecphG/6BUWBFEbwJAWB9ytgSBZlYKxNTx2HA5TfCHkV3hsUmNx/UgpmEqSikxavR39ArAi9IVn/GJXq/HzFrM=",
+            "connectionString": "Sr79U4gVG4/Z8UNaUbK9Ow==!QXKZQkSSAI+LuyPeNnbtYp/eQPyH9tKpZytZ9TJzL4TrLq3NAWw/4ebI5/B+jP3Gn/xa7FehfaMv9acErrkOZmzWsKJSrZ9MsjlMxQ4egj4WujfQDUSvyN8/vu2M5bDNAh03wSc7i8g6Q5GWKYMW/QPIUhwvM5xZ8m4FFKtfukINT7QoTLc3cDdIRaOIBqvRdLGPgyEdBJBv7HqgM6c+dAHbupvyQlHXGT8gegDFpyE=",
             "tenantId": "4e2d4700-fe80-45a7-b797-b554cdb508f6",
             "subscriptionId": "afcc27a7-2928-4f22-9373-2a1c93408b79",
             "resourceGroup": "ecbot",
@@ -32,14 +32,14 @@
         {
             "type": "endpoint",
             "appId": "c276d8b2-9947-4424-90fe-1b768ee88cac",
-            "appPassword": "Wu6bYhqP1xa55e2hbr+0Bg==!XcmCrbiHr28F0cITmzfTTP2rPbreK2F4lnHV0tdKIqI=",
+            "appPassword": "aoFWNcH+yA1nxXM8xEM2og==!wuSY0CUDQacnhqfMsw/71u60mMr+XkE6xouf9nPKC0A=",
             "endpoint": "https://expertconnect-test.azurewebsites.net/api/messages",
             "name": "production",
             "id": "4"
         },
         {
             "type": "appInsights",
-            "instrumentationKey": "LvgA7uGgiABH+9uDKuWgXQ==!J7YlpYAAJczPZ2tsemjTQfFCEkFDqj0Q0Hy2BftuYTRhcapuVtAtBSi4vtCMspPU",
+            "instrumentationKey": "mtooSVyes8a14j6Uq3p1AQ==!EJkJY0yP3SBz14dmOOuhEEQkICC7TR0hU/zkyzvqE2K2vCJOOdNBLk7+5SjopgME",
             "applicationId": "1367263b-4fc2-4df8-818a-ab4c770eed69",
             "apiKeys": {},
             "tenantId": "4e2d4700-fe80-45a7-b797-b554cdb508f6",
@@ -51,7 +51,7 @@
         {
             "type": "luis",
             "appId": "c948c708-cdbe-4b66-a2a6-edea596d889f",
-            "authoringKey": "8Gy92RV0mGFJB5j2z1zpWw==!8yVvBhEXXsYgo0DEJyv604o4mB6fkoDPBubFnx9xU85T3FLQCWRW8DDm8XsqfNpN",
+            "authoringKey": "BpMlamvsBS2M44t5ine9nw==!vSzw14DsX39p5vn4yoJYSqfkAi9z+7KSph0SDis/JPebAmR1CZC5U9BltrUzwQLM",
             "version": "0.1",
             "region": "westus",
             "name": "ExpertConnectTestLuisApplication",
@@ -64,7 +64,7 @@
             "tenantId": "expertconnectdev.onmicrosoft.com",
             "subscriptionId": "afcc27a7-2928-4f22-9373-2a1c93408b79",
             "resourceGroup": "ecbot",
-            "connectionString": "9Df3R3KfggkCffcsIhHXZQ==!LikN+us+RTB0tGaK5Up5pp1roWczYfzCIXyQCqtqTOfLa65fpejIY7B5+0Hdxl4U3LqU3x/RqVY/FWLlpUIjGHLOMPHJAhTZPWKiZ+PtdLTCYfqDDCYvhZ9HIDgU741UZ7N2dSmj3rjjc2Sgbdt0LBkA7SpJTjiHGAPzH17xGV2FHKq5Bxhe4WpFmRw2N9rTLqgbK5ZHCqtMq8Zyzd8BAhariVdmR/cSqdJ5xOdZ2K5AIfGp8iEFCD8z8vpHQdo+wsw8R6ZqsWg/evtL7OKofw==",
+            "connectionString": "jSnsqN7vGRxzHNc4pXTNMQ==!Yl7hhZzHTTwd3vr6CM5yvsb5FTlFtpZnGOyAtLb4kmMW6NKbSVkMJdoaG/1aZRQlMsBcqgvhQpYcp3bRd0aqQrfqHHCd33si12S9avrlenrlpm904FFem1BbsIGMHH6nc4Q1RxrMLmnG6Kn8IokHulpkO7fwSsnddYFhYqIKNFLZq5MObJWtvfCC+i4mvSmBXiLgpmzy+TTVb9NLkFcVdj2UMhRzyDYwuqky1LbYdp8dYCXhx9o7U/EAWgbnBnL0fr79CqLPXxe2ExMP8W96vQ==",
             "container": "presentationbotstore",
             "id": "0"
         }
