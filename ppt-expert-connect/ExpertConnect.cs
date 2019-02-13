@@ -635,7 +635,7 @@ namespace PPTExpertConnect
         private string GetCommandFromAgent(string botName, string message)
         {
             var atBotPattern = new Regex($"^<at>({botName})</at>");
-            var fullPattern = new Regex($"^<at>({botName})</at> (.*) (.*)");
+            var fullPattern = new Regex($"^<at>({botName})</at> (.*)// (.*)");
             if (atBotPattern.IsMatch(message))
             {
                 return fullPattern.Match(message).Groups[2].Value;

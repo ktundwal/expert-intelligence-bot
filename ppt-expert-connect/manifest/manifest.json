@@ -25,7 +25,7 @@
   "accentColor": "#ffffff",
   "staticTabs": [
     {
-      "contentUrl": "https://bcde8066.ngrok.io/public/tab/tabConfig/tab.aspx",
+      "contentUrl": "https://e1a4f0b6.ngrok.io/public/tab/tabConfig/tab.aspx",
       "entityId": "statictab",
       "name": "Bot Info",
       "scopes": [
@@ -36,7 +36,7 @@
   ],
   "configurableTabs": [
     {
-      "configurationUrl": "https://bcde8066.ngrok.io/public/tab/tabConfig/index.html",
+      "configurationUrl": "https://e1a4f0b6.ngrok.io/public/tab/tabConfig/index.html",
       "canUpdateConfiguration": false,
       "scopes": [ "team", "groupchat" ]
     }
@@ -53,31 +53,27 @@
           ],
           "commands": [
             {
-              "title": "reply to user",
+              "title": "reply to user//",
               "description": "Sends the message to user. Bot will act as tunnel"
             },
             {
-              "title": "project completed",
-              "description": "Ask for user's review of the project"
-            },
-            {
-              "title": "post job on UpWork",
+              "title": "post job on UpWork//",
               "description": "Post job on UpWork platform"
             },
             {
-              "title": "post job on FancyHands",
+              "title": "post job on FancyHands//",
               "description": "Post job on FancyHands platform"
             },
             {
-              "title": "project completed",
+              "title": "project completed//",
               "description": "Project is complete. Sends the user a feedback form"
             },
             {
-              "title": "help",
+              "title": "help//",
               "description": "To show the list of command for user interactions"
             },
             {
-              "title": "hello",
+              "title": "hello//",
               "description": "Runs the simplest hello dialog"
             }
           ]
@@ -90,7 +86,7 @@
     "messageTeamMembers"
   ],
   "validDomains": [
-    "bcde8066.ngrok.io",
+    "e1a4f0b6.ngrok.io",
     "token.botframework.com"
   ]
 }
