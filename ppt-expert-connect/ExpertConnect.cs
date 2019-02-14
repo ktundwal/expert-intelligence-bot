@@ -49,6 +49,7 @@ namespace PPTExpertConnect
 
         private VsoHelper _vso;
         private CardBuilder cb;
+        private readonly IConfiguration _configuration;
 
         private readonly AppSettings _appSettings;
         private readonly SimpleCredentialProvider _botCredentials;
@@ -80,6 +81,8 @@ namespace PPTExpertConnect
             _accessors = accessors ?? throw new ArgumentNullException(nameof(accessors));
             _transcriptStore = transcriptStore ?? throw new ArgumentNullException(nameof(transcriptStore)); // Test Mode ?
             _appSettings = appSettings?.Value ?? throw new ArgumentNullException(nameof(appSettings));
+
+            _configuration = configuration;
 
             _idTable = idTable ?? throw new ArgumentNullException(nameof(idTable));
             _endUserAndAgentIdMapping = endUserAndAgentIdMapping;
@@ -120,6 +123,8 @@ namespace PPTExpertConnect
 
         public async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken = default(CancellationToken))
         {
+            _logger.LogTrace($"VSO username {_configuration.GetSection("VsoUsername")}");
+
             if (turnContext == null)
             {
                 throw new ArgumentNullException(nameof(turnContext));
