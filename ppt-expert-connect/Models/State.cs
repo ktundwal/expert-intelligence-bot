@@ -24,6 +24,7 @@ namespace com.microsoft.ExpertConnect.Models
 
         // State management 
         public UserDialogState State { get; set; }
+        public string VsoId { get; set; }
     }
 
     public enum UserDialogState

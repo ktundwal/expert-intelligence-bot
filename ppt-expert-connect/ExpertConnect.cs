@@ -45,6 +45,8 @@ namespace PPTExpertConnect
         private readonly EndUserAndAgentIdMapping _endUserAndAgentIdMapping;
         private readonly ILogger _logger;
         private DialogSet _dialogs;
+
+        private VsoHelper _vso;
         private CardBuilder cb;
 
         private readonly AppSettings _appSettings;
@@ -84,6 +86,7 @@ namespace PPTExpertConnect
             _botCredentials = (SimpleCredentialProvider)credentials ?? throw new ArgumentNullException(nameof(appSettings));
             
             cb = new CardBuilder(_appSettings);
+            _vso = new VsoHelper(_appSettings);
             
             _dialogs = new DialogSet(accessors.DialogStateAccessor);
             
@@ -114,7 +117,6 @@ namespace PPTExpertConnect
             _dialogs.Add(new TextPrompt(DialogId.SimpleTextPrompt));
         }
 
-        
         public async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (turnContext == null)
@@ -139,18 +141,25 @@ namespace PPTExpertConnect
                     var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
                     await botAdapter.SignOutUserAsync(turnContext, _OAuthConnectionSettingName, cancellationToken: cancellationToken);
 
-                    #region DialogCleanupState
                     await dialogContext.CancelAllDialogsAsync(cancellationToken);
-                    await _transcriptStore.DeleteTranscriptAsync(turnContext.Activity.ChannelId,
+                    await _transcriptStore.DeleteTranscriptAsync(
+                        turnContext.Activity.ChannelId,
                         turnContext.Activity.Conversation.Id);
                     await _accessors.UserInfoAccessor.DeleteAsync(turnContext, cancellationToken);
                     await _accessors.DialogStateAccessor.DeleteAsync(turnContext, cancellationToken);
-                    #endregion  
-                    
+
                     await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
                     await SendWelcomeMessageAsync(turnContext, cancellationToken);
                     goto End;
                 }
+
+                if (text == "debug")
+                {
+                    var stack = dialogContext.Stack;
+                    await turnContext.SendActivityAsync(JsonConvert.SerializeObject(stack.Select(obj => obj.Id )));
+                    return;
+                }
+
                 var token = await ((BotFrameworkAdapter)turnContext.Adapter)
                     .GetUserTokenAsync(turnContext, _OAuthConnectionSettingName, null, cancellationToken)
                     .ConfigureAwait(false);
@@ -177,15 +186,14 @@ namespace PPTExpertConnect
                                     cancellationToken);
                                 break;
                             case UserDialogState.ProjectCreated:
-                                var agentConversationId = await CreateAgentConversationMessage(turnContext,
-                                    $"PowerPoint request from {turnContext.Activity.From.Name} via {turnContext.Activity.ChannelId}",
-                                    cb.V2VsoTicketCard(251, "https://www.microsoft.com"));
-                                
-                                await _endUserAndAgentIdMapping.CreateNewMapping("vsoTicket-251", // Obtain this information from userInfo Class
-                                    turnContext.Activity.From.Name,
-                                    turnContext.Activity.From.Id,
-                                    JsonConvert.SerializeObject(turnContext.Activity.GetConversationReference()),
-                                    agentConversationId);
+                                await DialogHelper.CreateProjectAndSendToUserAndAgent(
+                                    turnContext,
+                                    userInfo,
+                                    cb,
+                                    _vso,
+                                    _botCredentials,
+                                    _idTable,
+                                    _endUserAndAgentIdMapping);
                                 break;
                             case UserDialogState.ProjectUnderRevision:
                                 var vsoTicketForUser =
@@ -292,6 +300,7 @@ namespace PPTExpertConnect
         /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
         private static async Task<DialogTurnResult> PromptStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
         {
+            await step.Context.SendActivityAsync(JsonConvert.SerializeObject(step.Context.Activity));
             return await step.BeginDialogAsync(OAuthHelpers.LoginPromptDialogId, cancellationToken: cancellationToken);
         }
 
@@ -659,5 +668,4 @@ namespace PPTExpertConnect
         }
         #endregion
     }
-    
 }

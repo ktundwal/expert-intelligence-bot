@@ -117,9 +117,9 @@ namespace com.microsoft.ExpertConnect.Dialogs
             }
 
             userInfo.State = UserDialogState.ProjectCreated;
-
-            await stepContext.Context.SendActivityAsync(
-                DialogHelper.CreateAdaptiveCardAsActivity(_cardBuilder.V2VsoTicketCard(251, "https://www.microsoft.com")), cancellationToken);
+//
+//            await stepContext.Context.SendActivityAsync(
+//                DialogHelper.CreateAdaptiveCardAsActivity(_cardBuilder.V2VsoTicketCard(251, "https://www.microsoft.com")), cancellationToken);
 
             return await stepContext.EndDialogAsync(userInfo, cancellationToken);
         }
