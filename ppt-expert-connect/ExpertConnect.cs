@@ -302,22 +302,22 @@ namespace PPTExpertConnect
                                 // we have the token, start the ppt dialog or resume one if one already is on stack
                                 // for now just let the user know we are all set.
                                 await turnContext.SendActivityAsync(
-                                    $"{turnContext.Activity.Type} Verification code is valid. Token = {token.Token.Substring(0, 15)}",
+                                    $"{turnContext.Activity.Type} Verification code {magicCode} was sent to us and we have fetched user token with it. " +
+                                    $"Token = {token.Token.Substring(0, 15)}...",
                                     cancellationToken: cancellationToken);
                             }
                             else
                             {
                                 // we dont have the token,prompt again
                                 await turnContext.SendActivityAsync(
-                                    $"{turnContext.Activity.Type} Verification code is null. Verification code was {magicCode}. " +
-                                    $"we dont know what to do next, probably prompt again.",
+                                    $"{turnContext.Activity.Type} FYI: Verification code {magicCode} was sent to us. Ignoring. ",
                                     cancellationToken: cancellationToken);
                             }
                         }
                         else
                         {
                             await turnContext.SendActivityAsync(
-                                $"{turnContext.Activity.Type} with {turnContext.Activity.Name} but we dont have magicCode. Dont know what to do",
+                                $"{turnContext.Activity.Type} with {turnContext.Activity.Name} but we werent given any verification code. FYI",
                                 cancellationToken: cancellationToken);
                         }
                     }
@@ -392,7 +392,7 @@ namespace PPTExpertConnect
                 return await step.EndDialogAsync(null, cancellationToken); // Maybe just end ??
             }
 
-            await step.Context.SendActivityAsync("Login was not successful please try again. Aborting.", cancellationToken: cancellationToken);
+            await step.Context.SendActivityAsync("Login was not successful please try again. Starting Auth dialog back again.", cancellationToken: cancellationToken);
             return await step.ReplaceDialogAsync(DialogId.Auth, null, cancellationToken);
 
         }
