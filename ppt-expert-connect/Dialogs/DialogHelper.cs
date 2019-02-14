@@ -1,10 +1,16 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
+using com.microsoft.ExpertConnect.Helpers;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Schema;
 using Newtonsoft.Json;
+using Microsoft.ExpertConnect.Helpers;
+using Microsoft.Bot.Connector;
+using Microsoft.Bot.Connector.Authentication;
+using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.ExpertConnect.Helpers;
 using Microsoft.ExpertConnect.Models;
 using DriveItem = Microsoft.Graph.DriveItem;
@@ -75,5 +81,90 @@ namespace Microsoft.ExpertConnect.Dialogs
 
             return uploadedItem;
         }
+
+        public static async Task CreateProjectAndSendToUserAndAgent(ITurnContext context, UserInfo userInfo, CardBuilder cb, VsoHelper vso, SimpleCredentialProvider credentials, IdTable idTable, EndUserAndAgentIdMapping endUserAndAgentTable)
+        {
+            var ticketNumber = await vso.CreateProject(context, userInfo);
+            if (ticketNumber == int.MinValue)
+            {
+                throw new System.Exception("rsadad");
+            }
+            var cardToSend = cb.V2VsoTicketCard(ticketNumber, "https://www.microsoft.com");
+
+            await context.SendActivityAsync(CreateAdaptiveCardAsActivity(cardToSend));
+
+            var agentConversationId = await CreateAgentConversationMessage(
+                context,
+                $"PowerPoint request from {context.Activity.From.Name} via {context.Activity.ChannelId}",
+                credentials,
+                idTable,
+                cardToSend);
+
+            var endUserMapping = await endUserAndAgentTable.CreateNewMapping(
+                ticketNumber.ToString(), // Obtain this information from userInfo Class
+                context.Activity.From.Name,
+                context.Activity.From.Id,
+                JsonConvert.SerializeObject(context.Activity.GetConversationReference()),
+                agentConversationId);
+
+            await endUserAndAgentTable.SaveInVso(
+                ticketNumber.ToString(),
+                vso,
+                endUserMapping);
+        }
+
+        private static async Task<string> CreateAgentConversationMessage(ITurnContext context, string topicName, SimpleCredentialProvider credentials, IdTable idTable, AdaptiveCard cardToSend)
+        {
+            var serviceUrl = context.Activity.ServiceUrl;
+            var agentChannelInfo = await idTable.GetAgentChannelInfo();
+            ChannelAccount botMsTeamsChannelAccount = await idTable.GetBotId();
+
+            var connectorClient =
+                BotConnectorUtility.BuildConnectorClientAsync(
+                    credentials.AppId,
+                    credentials.Password,
+                    serviceUrl);
+
+            try
+            {
+                var channelData = new TeamsChannelData { Channel = agentChannelInfo, Notification = new NotificationInfo(true) };
+
+                IMessageActivity agentMessage = Activity.CreateMessageActivity();
+                agentMessage.From = botMsTeamsChannelAccount;
+                //                agentMessage.Recipient =
+                //                    new ChannelAccount(ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"]);
+                agentMessage.Type = ActivityTypes.Message;
+                agentMessage.ChannelId = "msteams";
+                agentMessage.ServiceUrl = serviceUrl;
+
+                agentMessage.Attachments = new List<Attachment>
+                {
+                    new Attachment {ContentType = AdaptiveCard.ContentType, Content = cardToSend}
+                };
+
+                var agentMessageActivity = (Activity)agentMessage;
+
+                ConversationParameters conversationParams = new ConversationParameters(
+                    isGroup: true,
+                    bot: null,
+                    members: null,
+                    topicName: topicName,
+                    activity: agentMessageActivity,
+                    channelData: channelData);
+
+                var conversationResourceResponse = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(
+                    async ()
+                        => await connectorClient.Result.Conversations.CreateConversationAsync(conversationParams));
+
+                return conversationResourceResponse.Id;
+            }
+            catch (System.Exception e)
+            {
+                System.Console.WriteLine(e.ToString());
+                throw;
+            }
+        }
+
+
     }
 }

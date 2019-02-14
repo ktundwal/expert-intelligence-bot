@@ -1,8 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Bot.Schema;
+using com.microsoft.ExpertConnect.Helpers;
+using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
+using Microsoft.VisualStudio.Services.WebApi.Patch;
+using Microsoft.VisualStudio.Services.WebApi.Patch.Json;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 
@@ -59,7 +63,7 @@ namespace Microsoft.ExpertConnect.Helpers
             public string AgentConversationId { get; set; }
         }
 
-        public async Task CreateNewMapping(string vsoId,
+        public async Task<EndUserAndAgentIdMappingEntity> CreateNewMapping(string vsoId,
             string endUserName,
             string endUserId,
             string endUserConversationReference,
@@ -71,7 +75,8 @@ namespace Microsoft.ExpertConnect.Helpers
                 vsoId, endUserName, endUserId, endUserConversationReference, agentConversationId);
             TableOperation insertOrReplaceOperation = TableOperation.InsertOrReplace(entity);
 
-            await _endUserAndAgentIdMappingClient.ExecuteAsync(insertOrReplaceOperation);
+            var result = await _endUserAndAgentIdMappingClient.ExecuteAsync(insertOrReplaceOperation);
+            return entity;
         }
 
         public async Task<string> GetAgentConversationId(string vsoId)
@@ -151,6 +156,50 @@ namespace Microsoft.ExpertConnect.Helpers
             }
 
             return returnVal;
+        }
+
+        public async Task SaveInVso(string vsoId, VsoHelper vso, EndUserAndAgentIdMappingEntity endUserAndAgentIdMappingEntity)
+        {
+            Uri uri = new Uri(vso.Uri);
+            JsonPatchDocument patchDocument = new JsonPatchDocument()
+            {
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add,
+                    Path = $"/fields/{VsoHelper.AgentConversationIdFieldName}",
+                    Value = endUserAndAgentIdMappingEntity.AgentConversationId,
+                },
+                new JsonPatchOperation
+                {
+                    Operation = Operation.Add, Path = $"/fields/{VsoHelper.EndUserIdFieldName}", Value = endUserAndAgentIdMappingEntity.EndUserId,
+                },
+                new JsonPatchOperation
+                {
+                    Operation = Operation.Add, Path = $"/fields/{VsoHelper.EndUserNameFieldName}", Value = endUserAndAgentIdMappingEntity.EndUserName,
+                },
+            };
+
+            using (WorkItemTrackingHttpClient workItemTrackingHttpClient = vso.GetWorkItemTrackingHttpClient())
+            {
+                try
+                {
+                    Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem result =
+                        await workItemTrackingHttpClient.UpdateWorkItemAsync(patchDocument, Convert.ToInt32(vsoId));
+
+                    Trace.TraceInformation($"Project {vsoId} successfully updated. {this}");
+                }
+                catch (Exception ex)
+                {
+//                    WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
+//                    {
+//                        {"function", "SaveInVso" },
+//                        {"debugNote", "Failed to update project" },
+//                        {"vsoId", vsoId },
+//                    });
+                    Console.WriteLine("SaveInVso Failed to update project");
+                    throw;
+                }
+            }
         }
     }
 
