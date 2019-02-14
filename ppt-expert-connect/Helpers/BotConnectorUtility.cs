@@ -12,7 +12,7 @@ using Microsoft.Bot.Connector.Authentication;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.Rest.TransientFaultHandling;
 
-namespace com.microsoft.ExpertConnect.Helpers
+namespace Microsoft.ExpertConnect.Helpers
 {
     public static class BotConnectorUtility
     {

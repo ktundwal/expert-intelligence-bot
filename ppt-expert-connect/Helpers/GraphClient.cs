@@ -8,7 +8,7 @@ using DelegateAuthenticationProvider = Microsoft.Graph.DelegateAuthenticationPro
 using DriveItem = Microsoft.Graph.DriveItem;
 using GraphServiceClient = Microsoft.Graph.GraphServiceClient;
 
-namespace com.microsoft.ExpertConnect.Helpers
+namespace Microsoft.ExpertConnect.Helpers
 {
     public static class GraphClient
     {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using AdaptiveCards;
 using Microsoft.Bot.Schema;
 
-namespace com.microsoft.ExpertConnect.Helpers
+namespace Microsoft.ExpertConnect.Helpers
 {
     public class AdaptiveCardHelper
     { 

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using Microsoft.Bot.Builder.AI.Luis;
 using Microsoft.Bot.Configuration;
 
-namespace com.microsoft.ExpertConnect
+namespace Microsoft.ExpertConnect
 {
     /// <summary>
     /// Represents references to external services.

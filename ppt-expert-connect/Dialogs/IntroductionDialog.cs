@@ -1,10 +1,10 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
-using com.microsoft.ExpertConnect.Helpers;
-using com.microsoft.ExpertConnect.Models;
+using Microsoft.ExpertConnect.Helpers;
+using Microsoft.ExpertConnect.Models;
 
-namespace com.microsoft.ExpertConnect.Dialogs
+namespace Microsoft.ExpertConnect.Dialogs
 {
     public class IntroductionDialog : ComponentDialog
     {

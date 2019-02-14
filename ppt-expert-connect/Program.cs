@@ -5,7 +5,7 @@ using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace com.microsoft.ExpertConnect
+namespace Microsoft.ExpertConnect
 {
     public class Program
     {

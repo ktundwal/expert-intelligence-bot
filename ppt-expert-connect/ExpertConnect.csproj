@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <CodeAnalysisRuleSet>ExpertConnect.ruleset</CodeAnalysisRuleSet>
-    <RootNamespace>com.microsoft.ExpertConnect</RootNamespace>
+    <RootNamespace>Microsoft.ExpertConnect</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

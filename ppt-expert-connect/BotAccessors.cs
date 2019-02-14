@@ -2,12 +2,12 @@
 // Licensed under the MIT License.
 
 using System;
-using com.microsoft.ExpertConnect.Models;
+using Microsoft.ExpertConnect.Models;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using UserState = Microsoft.Bot.Builder.UserState;
 
-namespace com.microsoft.ExpertConnect
+namespace Microsoft.ExpertConnect
 {
     public class BotAccessors
     {

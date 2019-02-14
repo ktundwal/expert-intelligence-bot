@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace com.microsoft.ExpertConnect.Dialogs
+namespace Microsoft.ExpertConnect.Dialogs
 {
     public class DialogId
     {

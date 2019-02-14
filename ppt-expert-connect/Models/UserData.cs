@@ -1,4 +1,4 @@
-﻿namespace com.microsoft.ExpertConnect.Models
+﻿namespace Microsoft.ExpertConnect.Models
 {
     public static class UserData
     {

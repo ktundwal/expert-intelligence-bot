@@ -1,6 +1,6 @@
 ﻿using Microsoft.Bot.Schema;
 
-namespace com.microsoft.ExpertConnect.Models
+namespace Microsoft.ExpertConnect.Models
 {
     public class State
     {

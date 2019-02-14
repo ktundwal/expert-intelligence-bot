@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace com.microsoft.ExpertConnect.Helpers
+namespace Microsoft.ExpertConnect.Helpers
 {
     public class Constants
     {
