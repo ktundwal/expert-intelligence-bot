@@ -24,6 +24,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.ExpertConnect.Models;
 using Microsoft.Bot.Connector.Teams;
 using Microsoft.Bot.Connector.Teams.Models;
+using Newtonsoft.Json.Linq;
 
 namespace PPTExpertConnect
 {
@@ -151,9 +152,17 @@ namespace PPTExpertConnect
                     await SendWelcomeMessageAsync(turnContext, cancellationToken);
                     goto End;
                 }
+
                 var token = await ((BotFrameworkAdapter)turnContext.Adapter)
                     .GetUserTokenAsync(turnContext, _OAuthConnectionSettingName, null, cancellationToken)
                     .ConfigureAwait(false);
+
+                if (text == "token")
+                {
+                    string tokenDisplayValue = token != null ? token.Token.Substring(0, 15) : "we dont have it";
+                    await turnContext.SendActivityAsync($"Your token is {tokenDisplayValue}", cancellationToken: cancellationToken);
+                    return;
+                }
 
                 if (token != null)
                 {
@@ -262,11 +271,56 @@ namespace PPTExpertConnect
                 await dialogContext.ContinueDialogAsync(cancellationToken);
                 if (!turnContext.Responded)
                 {
-                    await dialogContext.BeginDialogAsync(DialogId.Auth, cancellationToken: cancellationToken); // Begin auth or start ?
+                    if (IsTeamsVerificationInvoke(turnContext))
+                    {
+                        if (turnContext.Activity.Value is JObject magicCodeObject)
+                        {
+                            var magicCode = magicCodeObject.GetValue("state")?.ToString();
+
+                            var botFrameworkAdapter = (BotFrameworkAdapter)turnContext.Adapter;
+
+                            var token = await botFrameworkAdapter.GetUserTokenAsync(turnContext: turnContext,
+                                    connectionName: _OAuthConnectionSettingName,
+                                    magicCode: magicCode,
+                                    cancellationToken: cancellationToken)
+                                .ConfigureAwait(false);
+                            if (token != null)
+                            {
+                                // we have the token, start the ppt dialog or resume one if one already is on stack
+                                // for now just let the user know we are all set.
+                                await turnContext.SendActivityAsync(
+                                    $"{turnContext.Activity.Type} Verification code is valid. Token = {token.Token.Substring(0, 15)}",
+                                    cancellationToken: cancellationToken);
+                            }
+                            else
+                            {
+                                // we dont have the token,prompt again
+                                await turnContext.SendActivityAsync(
+                                    $"{turnContext.Activity.Type} Verification code is null. Verification code was {magicCode}. " +
+                                    $"we dont know what to do next, probably prompt again.",
+                                    cancellationToken: cancellationToken);
+                            }
+                        }
+                        else
+                        {
+                            await turnContext.SendActivityAsync(
+                                $"{turnContext.Activity.Type} with {turnContext.Activity.Name} but we dont have magicCode. Dont know what to do",
+                                cancellationToken: cancellationToken);
+                        }
+                    }
+                    else
+                    {
+                        await turnContext.SendActivityAsync(
+                            $"{turnContext.Activity.Type} with turnContext.Responded= {turnContext.Responded} and likely its not 'signin\verifyState'. " +
+                            $"Incoming message is {JsonConvert.SerializeObject(turnContext.Activity, Formatting.Indented)}",
+                            cancellationToken: cancellationToken);
+                    }
                 }
                 else
                 {
-                    await dialogContext.BeginDialogAsync(DialogId.Start, null, cancellationToken);
+                    await turnContext.SendActivityAsync(
+                        $"{turnContext.Activity.Type} with turnContext.Responded= {turnContext.Responded} we should be ok ",
+                        cancellationToken: cancellationToken);
                 }
             }
             else
@@ -283,6 +337,12 @@ namespace PPTExpertConnect
         }
 
         #region Auth
+        private bool IsTeamsVerificationInvoke(ITurnContext turnContext)
+        {
+            var activity = turnContext.Activity;
+            return activity.Type == ActivityTypes.Invoke && activity.Name == "signin/verifyState";
+        }
+
         /// <summary>
         /// This <see cref="WaterfallStep"/> prompts the user to log in.
         /// </summary>
