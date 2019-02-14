@@ -123,7 +123,7 @@ namespace PPTExpertConnect
 
         public async Task OnTurnAsync(ITurnContext turnContext, CancellationToken cancellationToken = default(CancellationToken))
         {
-            _logger.LogTrace($"VSO username {_configuration.GetSection("VsoUsername")}");
+            _logger.LogTrace($"VSO username {_configuration.GetSection("VsoUsername").Value}");
 
             if (turnContext == null)
             {
