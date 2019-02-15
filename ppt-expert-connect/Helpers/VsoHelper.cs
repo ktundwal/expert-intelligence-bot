@@ -4,9 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
-using Microsoft.ExpertConnect.Helpers;
 using Microsoft.ExpertConnect.Models;
-using Microsoft.IdentityModel.Protocols;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Client;
@@ -14,7 +12,7 @@ using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.VisualStudio.Services.WebApi.Patch;
 using Microsoft.VisualStudio.Services.WebApi.Patch.Json;
 
-namespace com.microsoft.ExpertConnect.Helpers
+namespace Microsoft.ExpertConnect.Helpers
 {
     public class VsoHelper
     {

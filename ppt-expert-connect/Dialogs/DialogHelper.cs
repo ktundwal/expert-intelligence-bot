@@ -2,7 +2,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
-using com.microsoft.ExpertConnect.Helpers;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.Bot.Connector;
