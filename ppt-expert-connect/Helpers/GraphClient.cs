@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.Graph;
@@ -185,6 +186,22 @@ namespace Microsoft.ExpertConnect.Helpers
         }
 
         public static DriveItem UploadPowerPointFileToDrive(GraphServiceClient graphClient, DriveItem folder, string style)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                WebClient c = new WebClient();
+                byte[] responseData = c.DownloadData("https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RE27I0K");
+
+                ms.Write(responseData, 0, (int)responseData.Length);
+
+                string todayDate = DateTime.Now.ToString("yyyy-MM-dd");
+                string projectId = "unknown";
+                string projectIdentifier = $"ppt-project-{projectId}-{todayDate}";
+                return UploadFileAsync(graphClient, folder, $"{projectIdentifier}/{projectIdentifier}.pptx", ms).Result;
+            }
+        }
+
+        public static DriveItem UploadPowerPointFileToDriveEx(GraphServiceClient graphClient, DriveItem folder, string style)
         {
             var location = style.Split(",", StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
             location = "dev";
