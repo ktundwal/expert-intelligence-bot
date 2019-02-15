@@ -99,7 +99,8 @@ namespace Microsoft.ExpertConnect
                     // Catches any errors that occur during a conversation turn and logs them.
                     options.OnTurnError = async (context, exception) =>
                     {
-                        logger.LogError($"ON_TURN_ERROR_{context.Activity.Type.ToUpper()}",
+                        logger.LogError(
+                            $"ON_TURN_ERROR_{context.Activity.Type.ToUpper()}",
                             exception,
                             JsonConvert.SerializeObject(context.Activity, Formatting.Indented));
 

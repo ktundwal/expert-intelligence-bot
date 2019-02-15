@@ -130,234 +130,294 @@ namespace Microsoft.ExpertConnect
 
             _logger.LogTrace($"ON_TURN_RCVD_{turnContext.Activity.Type.ToUpper()}", serializedTurnContextActivity);
 
-
             var dialogContext = await _dialogs.CreateContextAsync(turnContext, cancellationToken);
-
-            var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
 
             switch (turnContext.Activity.Type)
             {
                 case ActivityTypes.Message:
                 {
-                    // This bot is not case sensitive.
-                    var text = turnContext.Activity.Text.ToLowerInvariant();
-
-                    if (text == "help")
-                    {
-                        await turnContext.SendActivityAsync(HelpText, cancellationToken: cancellationToken);
-                        return;
-                    }
-
-                    if (text == "logout")
-                    {
-                        await botAdapter.SignOutUserAsync(turnContext, _oAuthConnectionSettingName, cancellationToken: cancellationToken);
-
-                        await dialogContext.CancelAllDialogsAsync(cancellationToken);
-                        await _transcriptStore.DeleteTranscriptAsync(
-                            turnContext.Activity.ChannelId,
-                            turnContext.Activity.Conversation.Id);
-                        await _accessors.UserInfoAccessor.DeleteAsync(turnContext, cancellationToken);
-                        await _accessors.DialogStateAccessor.DeleteAsync(turnContext, cancellationToken);
-
-                        await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
-                        await SendWelcomeMessageAsync(turnContext, cancellationToken);
-                        goto End;
-                    }
-
-                    if (text == "stack")
-                    {
-                        var stack = dialogContext.Stack;
-                        await turnContext.SendActivityAsync(JsonConvert.SerializeObject(stack.Select(obj => obj.Id)),
-                            cancellationToken: cancellationToken);
-                        return;
-                    }
-
-                    var token = await ((BotFrameworkAdapter)turnContext.Adapter)
-                        .GetUserTokenAsync(turnContext, _oAuthConnectionSettingName, null, cancellationToken)
-                        .ConfigureAwait(false);
-
-                    if (text == "token")
-                    {
-                        string tokenDisplayValue = token != null ? token.Token.Substring(0, 15) : "we dont have it";
-                        await turnContext.SendActivityAsync($"Your token is {tokenDisplayValue}", cancellationToken: cancellationToken);
-                        return;
-                    }
-
-                    if (token != null)
-                    {
-                        var results = await dialogContext.ContinueDialogAsync(cancellationToken);
-
-                        if (results.Status is DialogTurnStatus.Complete)
-                        {
-                            var userInfo = results.Result as UserInfo;
-                            await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
-
-                            switch (userInfo?.State)
-                            {
-                                case UserDialogState.ProjectSelectExampleOptions:
-                                    await dialogContext.BeginDialogAsync(DialogId.ExamplePath, userInfo, cancellationToken);
-                                    break;
-                                case UserDialogState.ProjectCollectTemplateDetails:
-                                    await dialogContext.BeginDialogAsync(DialogId.DetailPath, userInfo, cancellationToken);
-                                    break;
-                                case UserDialogState.ProjectCollectDetails:
-                                    await dialogContext.BeginDialogAsync(DialogId.PostSelectionPath, userInfo,
-                                        cancellationToken: cancellationToken);
-                                    break;
-                                case UserDialogState.ProjectCreated:
-                                    await DialogHelper.CreateProjectAndSendToUserAndAgent(
-                                        turnContext,
-                                        userInfo,
-                                        _cb,
-                                        _vso,
-                                        _botCredentials,
-                                        _idTable,
-                                        _endUserAndAgentIdMapping);
-                                    break;
-                                case UserDialogState.ProjectUnderRevision:
-                                    var vsoTicketForUser =
-                                        await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(turnContext.Activity.From.Id);
-
-                                    var agentInfo = await _endUserAndAgentIdMapping.GetAgentConversationId(vsoTicketForUser);
-
-                                    await SendMessageToAgentAsReplyToConversationInAgentsChannel(turnContext, turnContext.Activity.Text,
-                                        agentInfo, vsoTicketForUser);
-                                    userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
-                                    await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
-                                    break;
-                            }
-                        }
-
-                        if (results.Status == DialogTurnStatus.Empty)
-                        {
-                            var userProfile = await _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), cancellationToken);
-
-                            // Move the following code outside later ?
-                            var didAgentUseACommand = DidAgentUseCommandOnBot(turnContext) || false;
-
-                            if (didAgentUseACommand)
-                            {
-                                switch (GetCommandFromAgent(_appSettings.BotName, turnContext.Activity.Text))
-                                {
-                                    case "reply to user":
-                                        await dialogContext.BeginDialogAsync(ReplyToUserPath, null, cancellationToken);
-                                        break;
-                                    case "project completed":
-                                        await dialogContext.BeginDialogAsync(PreCompletionSelectionPath, null, cancellationToken);
-                                        break;
-                                }
-                            }
-                            else if (userProfile.State == UserDialogState.ProjectInOneOnOneConversation)
-                            {
-                                await dialogContext.BeginDialogAsync(ReplyToAgentPath, null, cancellationToken);
-                            }
-                            else if (userProfile.State == UserDialogState.ProjectCompleted)
-                            {
-                                await dialogContext.BeginDialogAsync(UserToSelectProjectStatePath, null, cancellationToken);
-                            }
-                            else
-                            {
-                                await dialogContext.BeginDialogAsync(DialogId.Start, userProfile, cancellationToken);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        await dialogContext.BeginDialogAsync(DialogId.Auth, null, cancellationToken);
-                    }
+                    await ProcessUserMessage(turnContext, cancellationToken, dialogContext);
 
                     break;
                 }
 
                 case ActivityTypes.ConversationUpdate:
                 {
-                    bool isGroup = turnContext.Activity.Conversation.IsGroup ?? false;
-                    if (turnContext.Activity.ChannelId == Constants.MsTeamsChannelId && isGroup)
-                    {
-                        await SaveAgentChannelIdInAzureStore(turnContext, _botCredentials);
-                    }
-
-                    await SaveBotIdInAzureStorage(turnContext, _appSettings.BotName);
+                    await ProcessConversationUpdate(turnContext);
                     break;
                 }
 
                 case ActivityTypes.Invoke:
                 case ActivityTypes.Event:
                 {
-                    // This handles the MS Teams Invoke Activity sent when magic code is not used.
-                    // See: https://docs.microsoft.com/en-us/microsoftteams/platform/concepts/authentication/auth-oauth-card#getting-started-with-oauthcard-in-teams
-                    // The Teams manifest schema is found here: https://docs.microsoft.com/en-us/microsoftteams/platform/resources/schema/manifest-schema
-                    // It also handles the Event Activity sent from the emulator when the magic code is not used.
-                    // See: https://blog.botframework.com/2018/08/28/testing-authentication-to-your-bot-using-the-bot-framework-emulator/
-                    await dialogContext.ContinueDialogAsync(cancellationToken);
-                    if (!turnContext.Responded)
-                    {
-                        if (IsTeamsVerificationInvoke(turnContext))
-                        {
-                            if (turnContext.Activity.Value is JObject magicCodeObject)
-                            {
-                                var magicCode = magicCodeObject.GetValue("state")?.ToString();
-
-                                var botFrameworkAdapter = (BotFrameworkAdapter)turnContext.Adapter;
-
-                                var token = await botFrameworkAdapter.GetUserTokenAsync(turnContext: turnContext,
-                                        connectionName: _oAuthConnectionSettingName,
-                                        magicCode: magicCode,
-                                        cancellationToken: cancellationToken)
-                                    .ConfigureAwait(false);
-                                if (token != null)
-                                {
-                                    // we have the token, start the ppt dialog or resume one if one already is on stack
-                                    // for now just let the user know we are all set.
-                                    await turnContext.SendActivityAsync(
-                                        $"{turnContext.Activity.Type} Verification code {magicCode} was sent to us and we have fetched user token with it. " +
-                                        $"Token = {token.Token.Substring(0, 15)}...",
-                                        cancellationToken: cancellationToken);
-                                }
-                                else
-                                {
-                                    // we dont have the token,prompt again
-                                    await turnContext.SendActivityAsync(
-                                        $"{turnContext.Activity.Type} FYI: Verification code {magicCode} was sent to us. Ignoring. ",
-                                        cancellationToken: cancellationToken);
-                                }
-                            }
-                            else
-                            {
-                                await turnContext.SendActivityAsync(
-                                    $"{turnContext.Activity.Type} with {turnContext.Activity.Name} but we werent given any verification code. FYI",
-                                    cancellationToken: cancellationToken);
-                            }
-                        }
-                        else
-                        {
-                            await turnContext.SendActivityAsync(
-                                $"{turnContext.Activity.Type} with turnContext.Responded= {turnContext.Responded} and likely its not 'signin\verifyState'. " +
-                                $"Incoming message is {serializedTurnContextActivity}",
-                                cancellationToken: cancellationToken);
-                        }
-                    }
-                    else
-                    {
-                        await turnContext.SendActivityAsync(
-                            $"{turnContext.Activity.Type} with turnContext.Responded= {turnContext.Responded} we should be ok ",
-                            cancellationToken: cancellationToken);
-                    }
+                    await ProcessInvokeOrEvent(turnContext, cancellationToken, dialogContext, serializedTurnContextActivity);
 
                     break;
                 }
+
                 default:
-                    await turnContext.SendActivityAsync($"{turnContext.Activity.Type} event detected", cancellationToken: cancellationToken);
+                    await turnContext.SendActivityAsync(
+                        $"DEBUG: Unexpected {turnContext.Activity.Type} event detected",
+                        cancellationToken: cancellationToken);
                     break;
             }
+        }
 
-            End:
+        private async Task ProcessUserMessage(
+            ITurnContext turnContext,
+            CancellationToken cancellationToken,
+            DialogContext dialogContext)
+        {
+            var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
+
+            // This bot is not case sensitive.
+            var text = turnContext.Activity.Text.ToLowerInvariant();
+
+            // this will not prompt the user. safe to call as soon as we receive message from user.
+            var token = await ((BotFrameworkAdapter) turnContext.Adapter)
+                .GetUserTokenAsync(turnContext, _oAuthConnectionSettingName, null, cancellationToken)
+                .ConfigureAwait(false);
+
+            // there is no default here because it could be prompt reply for our own dialogs
+            switch (text)
+            {
+                case "help":
+                    await turnContext.SendActivityAsync(HelpText, cancellationToken: cancellationToken);
+                    return;
+                case "logout":
+                    await ProcessLogout(turnContext, cancellationToken, botAdapter, dialogContext);
+                    return;
+                case "stack":
+                    await turnContext.SendActivityAsync(
+                        JsonConvert.SerializeObject(dialogContext.Stack.Select(obj => obj.Id)),
+                        cancellationToken: cancellationToken);
+                    return;
+                case "token":
+                    string tokenDisplayValue = token != null ? token.Token.Substring(0, 15) : "TOKEN_UNAVAILABLE";
+                    await turnContext.SendActivityAsync(
+                        $"Your token is {tokenDisplayValue}",
+                        cancellationToken: cancellationToken);
+                    return;
+            }
+
+            // if token is available, process user's message else start the auth prompt. In latter case we will ignore user's message
+            if (token != null)
+            {
+                await ProcessUserMessageWhenTokenIsAvailable(turnContext, cancellationToken, dialogContext);
+            }
+            else
+            {
+                await dialogContext.BeginDialogAsync(DialogId.Auth, null, cancellationToken);
+            }
 
             // Save the dialog state into the conversation state.
             await _accessors.ConversationState.SaveChangesAsync(turnContext, false, cancellationToken);
 
             // Save the user profile updates into the user state.
             await _accessors.UserState.SaveChangesAsync(turnContext, false, cancellationToken);
+        }
+
+        private async Task ProcessConversationUpdate(ITurnContext turnContext)
+        {
+            bool isGroup = turnContext.Activity.Conversation.IsGroup ?? false;
+            if (turnContext.Activity.ChannelId == Constants.MsTeamsChannelId && isGroup)
+            {
+                await SaveAgentChannelIdInAzureStore(turnContext, _botCredentials);
+            }
+
+            await SaveBotIdInAzureStorage(turnContext, _appSettings.BotName);
+        }
+
+        private async Task ProcessLogout(
+            ITurnContext turnContext,
+            CancellationToken cancellationToken,
+            BotFrameworkAdapter botAdapter,
+            DialogContext dialogContext)
+        {
+            await botAdapter.SignOutUserAsync(turnContext, _oAuthConnectionSettingName, cancellationToken: cancellationToken);
+
+            await dialogContext.CancelAllDialogsAsync(cancellationToken);
+            await _transcriptStore.DeleteTranscriptAsync(
+                turnContext.Activity.ChannelId,
+                turnContext.Activity.Conversation.Id);
+            await _accessors.UserInfoAccessor.DeleteAsync(turnContext, cancellationToken);
+            await _accessors.DialogStateAccessor.DeleteAsync(turnContext, cancellationToken);
+
+            await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
+            await SendWelcomeMessageAsync(turnContext, cancellationToken);
+
+            // now that we have cleared 'all' states we need to put dialog state and user profile back in.
+
+            // Save the dialog state into the conversation state.
+            await _accessors.ConversationState.SaveChangesAsync(turnContext, false, cancellationToken);
+
+            // Save the user profile updates into the user state.
+            await _accessors.UserState.SaveChangesAsync(turnContext, false, cancellationToken);
+        }
+
+        private async Task ProcessInvokeOrEvent(
+            ITurnContext turnContext,
+            CancellationToken cancellationToken,
+            DialogContext dialogContext,
+            string serializedTurnContextActivity)
+        {
+            // This handles the MS Teams Invoke Activity sent when magic code is not used.
+            // See: https://docs.microsoft.com/en-us/microsoftteams/platform/concepts/authentication/auth-oauth-card#getting-started-with-oauthcard-in-teams
+            // The Teams manifest schema is found here: https://docs.microsoft.com/en-us/microsoftteams/platform/resources/schema/manifest-schema
+            // It also handles the Event Activity sent from the emulator when the magic code is not used.
+            // See: https://blog.botframework.com/2018/08/28/testing-authentication-to-your-bot-using-the-bot-framework-emulator/
+            await dialogContext.ContinueDialogAsync(cancellationToken);
+            if (!turnContext.Responded)
+            {
+                if (IsTeamsVerificationInvoke(turnContext))
+                {
+                    if (turnContext.Activity.Value is JObject magicCodeObject)
+                    {
+                        var magicCode = magicCodeObject.GetValue("state")?.ToString();
+
+                        var botFrameworkAdapter = (BotFrameworkAdapter) turnContext.Adapter;
+
+                        var token = await botFrameworkAdapter.GetUserTokenAsync(
+                            turnContext: turnContext,
+                            connectionName: _oAuthConnectionSettingName,
+                            magicCode: magicCode,
+                            cancellationToken: cancellationToken)
+                            .ConfigureAwait(false);
+                        if (token != null)
+                        {
+                            // we have the token, start the ppt dialog or resume one if one already is on stack
+                            // for now just let the user know we are all set.
+                            await turnContext.SendActivityAsync(
+                                $"DEBUG: {turnContext.Activity.Type.ToUpper()} " +
+                                $"Verification code {magicCode} was sent to us and we have fetched user token with it. " +
+                                $"Token = {token.Token.Substring(0, 15)}...",
+                                cancellationToken: cancellationToken);
+                        }
+                        else
+                        {
+                            // we dont have the token,prompt again
+                            await turnContext.SendActivityAsync(
+                                $"DEBUG: {turnContext.Activity.Type.ToUpper()} " +
+                                $"Verification code {magicCode} was sent to us. Ignoring. ",
+                                cancellationToken: cancellationToken);
+                        }
+                    }
+                    else
+                    {
+                        await turnContext.SendActivityAsync(
+                            $"DEBUG: {turnContext.Activity.Type.ToUpper()} with {turnContext.Activity.Name} " +
+                            $"but we weren't given any verification code. FYI",
+                            cancellationToken: cancellationToken);
+                    }
+                }
+                else
+                {
+                    await turnContext.SendActivityAsync(
+                        $"DEBUG: {turnContext.Activity.Type.ToUpper()} with turnContext.Responded= {turnContext.Responded} " +
+                        $"and likely its not 'signin\verifyState'. " +
+                        $"Incoming message is {serializedTurnContextActivity}",
+                        cancellationToken: cancellationToken);
+                }
+            }
+            else
+            {
+                await turnContext.SendActivityAsync(
+                    $"DEBUG: {turnContext.Activity.Type.ToUpper()} with turnContext.Responded= {turnContext.Responded} " +
+                    $"we should be ok ",
+                    cancellationToken: cancellationToken);
+            }
+        }
+
+        private async Task ProcessUserMessageWhenTokenIsAvailable(
+            ITurnContext turnContext,
+            CancellationToken cancellationToken,
+            DialogContext dialogContext)
+        {
+            var results = await dialogContext.ContinueDialogAsync(cancellationToken);
+
+            switch (results.Status)
+            {
+                case DialogTurnStatus.Complete:
+                {
+                    var userInfo = results.Result as UserInfo;
+                    await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
+
+                    switch (userInfo?.State)
+                    {
+                        case UserDialogState.ProjectSelectExampleOptions:
+                            await dialogContext.BeginDialogAsync(DialogId.ExamplePath, userInfo, cancellationToken);
+                            break;
+                        case UserDialogState.ProjectCollectTemplateDetails:
+                            await dialogContext.BeginDialogAsync(DialogId.DetailPath, userInfo, cancellationToken);
+                            break;
+                        case UserDialogState.ProjectCollectDetails:
+                            await dialogContext.BeginDialogAsync(DialogId.PostSelectionPath, userInfo, cancellationToken);
+                            break;
+                        case UserDialogState.ProjectCreated:
+                            await DialogHelper.CreateProjectAndSendToUserAndAgent(
+                                turnContext,
+                                userInfo,
+                                _cb,
+                                _vso,
+                                _botCredentials,
+                                _idTable,
+                                _endUserAndAgentIdMapping);
+                            break;
+                        case UserDialogState.ProjectUnderRevision:
+                            var vsoTicketForUser =
+                                await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(turnContext.Activity.From.Id);
+
+                            var agentInfo = await _endUserAndAgentIdMapping.GetAgentConversationId(vsoTicketForUser);
+
+                            await SendMessageToAgentAsReplyToConversationInAgentsChannel(
+                                turnContext,
+                                turnContext.Activity.Text,
+                                agentInfo, 
+                                vsoTicketForUser);
+                            userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
+                            await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
+                            break;
+                    }
+
+                    break;
+                }
+
+                case DialogTurnStatus.Empty:
+                {
+                    var userProfile =
+                        await _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), cancellationToken);
+
+                    // Move the following code outside later ?
+                    var didAgentUseACommand = DidAgentUseCommandOnBot(turnContext) || false;
+
+                    if (didAgentUseACommand)
+                    {
+                        switch (GetCommandFromAgent(_appSettings.BotName, turnContext.Activity.Text))
+                        {
+                            case "reply to user":
+                                await dialogContext.BeginDialogAsync(ReplyToUserPath, null, cancellationToken);
+                                break;
+                            case "project completed":
+                                await dialogContext.BeginDialogAsync(PreCompletionSelectionPath, null, cancellationToken);
+                                break;
+                        }
+                    }
+                    else if (userProfile.State == UserDialogState.ProjectInOneOnOneConversation)
+                    {
+                        await dialogContext.BeginDialogAsync(ReplyToAgentPath, null, cancellationToken);
+                    }
+                    else if (userProfile.State == UserDialogState.ProjectCompleted)
+                    {
+                        await dialogContext.BeginDialogAsync(UserToSelectProjectStatePath, null, cancellationToken);
+                    }
+                    else
+                    {
+                        await dialogContext.BeginDialogAsync(DialogId.Start, userProfile, cancellationToken);
+                    }
+
+                    break;
+                }
+            }
         }
 
         #region Auth
@@ -443,7 +503,7 @@ namespace Microsoft.ExpertConnect
                 context.Context,
                 endUserInfo,
                 message,
-                "vsoTicket-251", 
+                "vsoTicket-251",
                 cancellationToken);
 
             await context.Context.SendActivityAsync("Message has been sent to user", null, null, cancellationToken);
@@ -489,7 +549,8 @@ namespace Microsoft.ExpertConnect
             return await stepContext.EndDialogAsync(null, cancellationToken);
         }
 
-        private async Task<DialogTurnResult> PostCompletionChoiceSelection(WaterfallStepContext stepContext,
+        private async Task<DialogTurnResult> PostCompletionChoiceSelection(
+            WaterfallStepContext stepContext,
             CancellationToken cancellationToken)
         {
             var choice = stepContext.Context.Activity.Text;
