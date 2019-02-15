@@ -14,6 +14,8 @@ namespace Microsoft.ExpertConnect.Helpers
         public const string PresentationDesign = "Presentation Design";
         public static string PresentationDesignUrl = "presentation_design_icon.png";
 
+        public static readonly string MsTeamsChannelId = "msteams";
+
         #region IntroductionCard
         public const string V2Introduction = 
             "Welcome to Expert Connect for PowerPoint. " +

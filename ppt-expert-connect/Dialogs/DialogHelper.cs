@@ -5,14 +5,13 @@ using AdaptiveCards;
 using com.microsoft.ExpertConnect.Helpers;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
-using Microsoft.Bot.Schema;
-using Newtonsoft.Json;
-using Microsoft.ExpertConnect.Helpers;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Connector.Teams.Models;
+using Microsoft.Bot.Schema;
 using Microsoft.ExpertConnect.Helpers;
 using Microsoft.ExpertConnect.Models;
+using Newtonsoft.Json;
 using DriveItem = Microsoft.Graph.DriveItem;
 
 namespace Microsoft.ExpertConnect.Dialogs
@@ -25,13 +24,15 @@ namespace Microsoft.ExpertConnect.Dialogs
 
             return result;
         }
+
         public static PromptOptions CreateAdaptiveCardAsPrompt(AdaptiveCard card)
         {
             return new PromptOptions
             {
-                Prompt = (Activity)MessageFactory.Attachment(CreateAdaptiveCardAttachment(card))
+                Prompt = MessageFactory.Attachment(CreateAdaptiveCardAttachment(card)) as Activity,
             };
         }
+
         public static Attachment CreateAdaptiveCardAttachment(AdaptiveCard card)
         {
             var adaptiveCardAttachment = new Attachment()
@@ -134,12 +135,12 @@ namespace Microsoft.ExpertConnect.Dialogs
                 //                agentMessage.Recipient =
                 //                    new ChannelAccount(ConfigurationManager.AppSettings["AgentToAssignVsoTasksTo"]);
                 agentMessage.Type = ActivityTypes.Message;
-                agentMessage.ChannelId = "msteams";
+                agentMessage.ChannelId = Constants.MsTeamsChannelId;
                 agentMessage.ServiceUrl = serviceUrl;
 
                 agentMessage.Attachments = new List<Attachment>
                 {
-                    new Attachment {ContentType = AdaptiveCard.ContentType, Content = cardToSend}
+                    new Attachment {ContentType = AdaptiveCard.ContentType, Content = cardToSend},
                 };
 
                 var agentMessageActivity = (Activity)agentMessage;
@@ -164,7 +165,5 @@ namespace Microsoft.ExpertConnect.Dialogs
                 throw;
             }
         }
-
-
     }
 }

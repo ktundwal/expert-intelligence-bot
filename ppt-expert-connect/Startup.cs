@@ -19,6 +19,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Logging;
+using Newtonsoft.Json;
 
 namespace Microsoft.ExpertConnect
 {
@@ -67,7 +68,7 @@ namespace Microsoft.ExpertConnect
 
             IdentityModelEventSource.ShowPII = true; //To show detail of error and see the problem
 
-            services.AddBot<PPTExpertConnect.ExpertConnect>(options =>
+            services.AddBot<ExpertConnect>(options =>
                 {
                     var secretKey = Configuration.GetSection("botFileSecret")?.Value;
                     var botFilePath = Configuration.GetSection("botFilePath")?.Value;
@@ -93,16 +94,20 @@ namespace Microsoft.ExpertConnect
                     credentialProvider = options.CredentialProvider;
 
                     // Creates a logger for the application to use.
-                    ILogger logger = _loggerFactory.CreateLogger<PPTExpertConnect.ExpertConnect>();
+                    ILogger logger = _loggerFactory.CreateLogger<ExpertConnect>();
 
                     // Catches any errors that occur during a conversation turn and logs them.
                     options.OnTurnError = async (context, exception) =>
                     {
-                        logger.LogError($"Exception caught : {exception}");
+                        logger.LogError($"ON_TURN_ERROR_{context.Activity.Type.ToUpper()}",
+                            exception,
+                            JsonConvert.SerializeObject(context.Activity, Formatting.Indented));
 
                         var stackTrace = exception.StackTrace;
                         if (stackTrace.Length > _stackTraceLength)
+                        {
                             stackTrace = stackTrace.Substring(0, _stackTraceLength) + "…";
+                        }
                         stackTrace = stackTrace.Replace(Environment.NewLine, "  \n");
 
                         var message = exception.Message.Replace(Environment.NewLine, "  \n");
