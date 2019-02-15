@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.ExpertConnect.Models;
+using Microsoft.Extensions.Configuration;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Client;
@@ -37,14 +38,14 @@ namespace Microsoft.ExpertConnect.Helpers
 
         private static bool IsSupportedTask(string taskType) => TaskTypes.Any(taskType.Contains);
 
-        private readonly AppSettings _appSettings;
+        private readonly IConfiguration _configuration;
 
-        public VsoHelper(AppSettings appSettings)
+        public VsoHelper(IConfiguration configuration)
         {
-            _appSettings = appSettings ?? throw new ArgumentNullException(nameof(appSettings));
+            _configuration = configuration;
 
-            Uri = appSettings.VsoOrgUrl;
-            Project = appSettings.VsoProject;
+            Uri = Helper.GetValueFromConfiguration(configuration, AppSettingsKey.VsoOrgUrl);
+            Project = Helper.GetValueFromConfiguration(configuration, AppSettingsKey.VsoProject);
 
         }
 
@@ -52,10 +53,10 @@ namespace Microsoft.ExpertConnect.Helpers
         {
             try
             {
-                Trace.TraceInformation($"Vso username is {_appSettings.VsoUsername}");
+                Trace.TraceInformation($"Vso username is {Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.VsoUsername)}");
                 VssConnection connection = new VssConnection(new Uri(Uri), new VssAadCredential(
-                    _appSettings.VsoUsername,
-                    _appSettings.VsoPassword));
+                    Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.VsoUsername),
+                    Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.VsoPassword)));
                 return connection.GetClient<WorkItemTrackingHttpClient>();
             }
             catch (Exception e)
@@ -540,13 +541,13 @@ namespace Microsoft.ExpertConnect.Helpers
 
                 // TODO: Need to obtain User Data
                 var userProfile = context.Activity.From.Name; // TODO: Replace with user object
-                var deadline = DateTime.UtcNow.AddHours(Convert.ToInt32(_appSettings.ResearchProjectViaTeamsMinHours));
+                var deadline = DateTime.UtcNow.AddHours(Convert.ToInt32(Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.ResearchProjectViaTeamsMinHours)));
 
                 var vsoTicketNumber = await CreateTaskInVso(
                     ResearchTaskType,
                     context.Activity.From.Name,
                     userChoices,
-                    _appSettings.AgentToAssignVsoTasksTo,
+                    Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.AgentToAssignVsoTasksTo),
                     deadline,
                     string.Empty, // TODO: Why?
                     userProfile,

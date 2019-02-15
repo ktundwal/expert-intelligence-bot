@@ -2,17 +2,22 @@
 using System.Linq;
 using AdaptiveCards;
 using Microsoft.ExpertConnect.Models;
-using static  Microsoft.ExpertConnect.Helpers.AdaptiveCardHelper;
+using Microsoft.Extensions.Configuration;
+using static Microsoft.ExpertConnect.Helpers.AdaptiveCardHelper;
 
 namespace Microsoft.ExpertConnect.Helpers
 {
     public class CardBuilder
     {
-        private readonly AppSettings _appSettings;
+        private readonly IConfiguration _configuration;
+        private readonly string _botURL;
+        private readonly string _assetPath;
 
-        public CardBuilder(AppSettings settings)
+        public CardBuilder(IConfiguration config)
         {
-            _appSettings = settings;
+            _configuration = config;
+            _botURL = Helper.GetValueFromConfiguration(config, AppSettingsKey.BotUrl);
+            _assetPath = Helper.GetValueFromConfiguration(config, AppSettingsKey.AssetsPath);
         }
 
         public AdaptiveCard IntroductionCard()
@@ -208,7 +213,6 @@ namespace Microsoft.ExpertConnect.Helpers
             }
         }
 
-
         /* V2 mockups */
         public AdaptiveCard PresentationIntro()
         {
@@ -321,11 +325,11 @@ namespace Microsoft.ExpertConnect.Helpers
                 {
                     CreateAdaptiveColumnWithImagePreviewBelow(
                         Constants.ColorDark,
-                        _appSettings.GetImageUrlFromLocation(@"template_dark.png")),
+                        Helper.GetAssetLocationUrl(_botURL, _assetPath, @"template_dark.png")),
                     CreateAdaptiveColumnWithImagePreviewBelow(
                         Constants.ColorLight,
-                        _appSettings.GetImageUrlFromLocation(@"template_light.png"))
-                }
+                        Helper.GetAssetLocationUrl(_botURL, _assetPath, @"template_light.png")),
+                },
             };
 
             AdaptiveColumnSet optionSetB = new AdaptiveColumnSet()
@@ -334,16 +338,16 @@ namespace Microsoft.ExpertConnect.Helpers
                 {
                     CreateAdaptiveColumnWithImagePreviewBelow(
                         Constants.Colorful,
-                        _appSettings.GetImageUrlFromLocation(@"template_colorful.png")),
+                        Helper.GetAssetLocationUrl(_botURL, _assetPath, @"template_colorful.png")),
                     CreateAdaptiveColumnWithText(
                         Constants.NoneOfThese,
-                        Constants.DescribeWhatIWant)
-                }
+                        Constants.DescribeWhatIWant),
+                },
             };
 
             card.Body.Add(optionSetA);
             card.Body.Add(optionSetB);
-            
+
             return card;
         }
 
@@ -353,32 +357,32 @@ namespace Microsoft.ExpertConnect.Helpers
             card.Body.Add(new AdaptiveTextBlock
             {
                 Text = Constants.V2ExampleInfo,
-                Wrap = true
+                Wrap = true,
             });
 
             card.Body.Add(V2StyleExampleContainer("Light, Modern, Photos", "https://www.microsoft.com/", new List<string>()
             {
-                _appSettings.GetImageUrlFromLocation(@"example_light_1.png"),
-                _appSettings.GetImageUrlFromLocation(@"example_light_2.png"),
-                _appSettings.GetImageUrlFromLocation(@"example_light_3.png")
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"example_light_1.png"),
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"example_light_2.png"),
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"example_light_3.png"),
             }));
 
             card.Body.Add(V2StyleExampleContainer("Dark, Corporate, Photos", "https://www.microsoft.com/", new List<string>()
             {
-                _appSettings.GetImageUrlFromLocation(@"example_dark_1.png"),
-                _appSettings.GetImageUrlFromLocation(@"example_dark_2.png"),
-                _appSettings.GetImageUrlFromLocation(@"example_dark_3.png")
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"example_dark_1.png"),
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"example_dark_2.png"),
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"example_dark_3.png"),
             }));
 
             card.Body.Add(V2StyleExampleContainer("Colorful, Abstract, Shapes", "https://www.microsoft.com/", new List<string>()
             {
-                _appSettings.GetImageUrlFromLocation(@"example_colorful_1.png"),
-                _appSettings.GetImageUrlFromLocation(@"example_colorful_2.png"),
-                _appSettings.GetImageUrlFromLocation(@"example_colorful_3.png")
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"example_colorful_1.png"),
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"example_colorful_2.png"),
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"example_colorful_3.png"),
             }));
 
             card.Body.Add(V2CustomDesignContainer());
-           
+
             return card;
         }
 
@@ -393,18 +397,18 @@ namespace Microsoft.ExpertConnect.Helpers
             };
 
             var styleA = AdaptiveCardHelper.CreateAdaptiveColumnWithImage("Photos",
-                _appSettings.GetImageUrlFromLocation(@"graphic_photos.png"), true, true);
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"graphic_photos.png"), true, true);
             var styleB = AdaptiveCardHelper.CreateAdaptiveColumnWithImage("Illustrations",
-                _appSettings.GetImageUrlFromLocation(@"graphic_illustrations.png"), true, true);
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"graphic_illustrations.png"), true, true);
             var styleC = AdaptiveCardHelper.CreateAdaptiveColumnWithImage("Shapes",
-                _appSettings.GetImageUrlFromLocation(@"graphic_shapes.png"), true, true);
+                Helper.GetAssetLocationUrl(_botURL, _assetPath, @"graphic_shapes.png"), true, true);
 
             AdaptiveColumnSet optionSetA = new AdaptiveColumnSet()
             {
                 Columns =
                 {
-                    styleA, styleB
-                }
+                    styleA, styleB,
+                },
             };
 
             AdaptiveColumnSet optionSetB = new AdaptiveColumnSet()
@@ -414,11 +418,10 @@ namespace Microsoft.ExpertConnect.Helpers
                     styleC,
                     CreateAdaptiveColumnWithText(
                         Constants.NoneOfThese,
-                        Constants.DescribeWhatIWant)
+                        Constants.DescribeWhatIWant),
                 },
-                Spacing = AdaptiveSpacing.Padding
+                Spacing = AdaptiveSpacing.Padding,
             };
-
 
             card.Body.Add(description);
             card.Body.Add(optionSetA);
@@ -475,7 +478,7 @@ namespace Microsoft.ExpertConnect.Helpers
             AdaptiveTextBlock projectTextBlock = new AdaptiveTextBlock
             {
                 Text = $"All set! **Your project number is {projectNumber}.**",
-                Wrap = true
+                Wrap = true,
 
             };
 
@@ -484,7 +487,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 Spacing = AdaptiveSpacing.Large,
                 Text = "You'll hear back from us in 2 business days. " +
                        "The freelancer will send you their work, and you can give feedback for revisions.",
-                Wrap = true
+                Wrap = true,
 
             };
 
@@ -493,21 +496,21 @@ namespace Microsoft.ExpertConnect.Helpers
                 Spacing = AdaptiveSpacing.Padding,
                 HorizontalAlignment = AdaptiveHorizontalAlignment.Center,
                 AltText = "ProjectSentImage",
-                UrlString = _appSettings.GetImageUrlFromLocation("confirmation_job_created.png")
+                UrlString = Helper.GetAssetLocationUrl(_botURL, _assetPath, "confirmation_job_created.png"),
             };
 
             AdaptiveTextBlock invitationTextBlock = new AdaptiveTextBlock
             {
                 Spacing = AdaptiveSpacing.Medium,
                 Text = "Invite your colleagues to try this service for free by sending them this link:",
-                Wrap = true
+                Wrap = true,
             };
 
             AdaptiveTextBlock invitationTextLink = new AdaptiveTextBlock
             {
                 Spacing = AdaptiveSpacing.None,
                 Text = $"[{inviteUrl}]({inviteUrl})",
-                Wrap = true
+                Wrap = true,
             };
 
             card.Body.Add(projectTextBlock);
@@ -560,7 +563,7 @@ namespace Microsoft.ExpertConnect.Helpers
             foreach (var star in Enumerable.Range(1, 5))
             {
                 stars.Columns.Add(CreateAdaptiveColumnWithImage(star.ToString(),
-                    _appSettings.GetImageUrlFromLocation(@"star_rating_graphic_large.png")));
+                    Helper.GetAssetLocationUrl(_botURL, _assetPath, @"star_rating_graphic_large.png")));
             }
 
             card.Body.Add(ratingTextBlock);
@@ -575,15 +578,15 @@ namespace Microsoft.ExpertConnect.Helpers
 
             AdaptiveColumnSet learningSet = new AdaptiveColumnSet();
             learningSet.Columns.Add(CreateAdaptiveColumnWithImage("",
-                articleImage ?? _appSettings.GetImageUrlFromLocation(@"StyleOptions/style_select_dark_modern_2.png")));
+                articleImage ?? Helper.GetAssetLocationUrl(_botURL, _assetPath, @"StyleOptions/style_select_dark_modern_2.png")));
             AdaptiveColumn learningDescriptions = new AdaptiveColumn()
             {
                 Width = "2",
                 Items = new List<AdaptiveElement>
                 {
                     new AdaptiveTextBlock("Course") {IsSubtle = true, Wrap = true},
-                    new AdaptiveTextBlock($"**[{articleTitle}]({articleLink})**") {Wrap = true}
-                }
+                    new AdaptiveTextBlock($"**[{articleTitle}]({articleLink})**") {Wrap = true},
+                },
             };
             learningSet.Columns.Add(learningDescriptions);
 
@@ -619,8 +622,7 @@ namespace Microsoft.ExpertConnect.Helpers
             };
         }
 
-        private AdaptiveCard V2StyleExampleCard(string style = "", string templateUrl = "",
-            List<string> imageUrls = null)
+        private AdaptiveCard V2StyleExampleCard(string style = "", string templateUrl = "", List<string> imageUrls = null)
         {
             AdaptiveCard card = new AdaptiveCard();
             AdaptiveTextBlock styleTextBlock = new AdaptiveTextBlock($"**Styles:** {style} ([preview]({templateUrl}))");
@@ -634,20 +636,19 @@ namespace Microsoft.ExpertConnect.Helpers
 
             return card;
         }
-        private AdaptiveContainer V2StyleExampleContainer (string style = "", string templateUrl = "",
-            List<string> imageUrls = null)
+
+        private AdaptiveContainer V2StyleExampleContainer (string style = "", string templateUrl = "", List<string> imageUrls = null)
         {
             AdaptiveContainer card = new AdaptiveContainer()
             {
                 //Separator = true,
-                Spacing = AdaptiveSpacing.ExtraLarge
+                Spacing = AdaptiveSpacing.ExtraLarge,
             };
 
             AdaptiveTextBlock styleTextBlock = new AdaptiveTextBlock($"**Styles:** {style} ([preview]({templateUrl}))");
             AdaptiveColumnSet imageSet = new AdaptiveColumnSet();
 
             imageUrls.ForEach((url) => { imageSet.Columns.Add(CreateAdaptiveColumnWithImage(null, url)); });
-
 
             AdaptiveSubmitAction action = CreateSubmitAction("Make mine like this", style);
             AdaptiveContainer ctaContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithText("Make mine like this");
@@ -668,22 +669,21 @@ namespace Microsoft.ExpertConnect.Helpers
             AdaptiveTextBlock textBlock = new AdaptiveTextBlock(Constants.V2SomethingDifferent);
             textBlock.Wrap = true;
 
-
             card.Body.Add(textBlock);
             card.Actions.Add(CreateSubmitAction(Constants.V2LetsBegin));
 
             return card;
         }
+
         private AdaptiveContainer V2CustomDesignContainer()
         {
             AdaptiveContainer card = new AdaptiveContainer()
             {
                 Separator = true,
-                Spacing = AdaptiveSpacing.ExtraLarge
+                Spacing = AdaptiveSpacing.ExtraLarge,
             };
             AdaptiveTextBlock textBlock = new AdaptiveTextBlock(Constants.V2SomethingDifferent);
             textBlock.Wrap = true;
-
 
             AdaptiveSubmitAction action = CreateSubmitAction(Constants.CreateBrief);
             AdaptiveContainer ctaContainer = AdaptiveCardHelper.CreateAdaptiveContainerWithText(Constants.CreateBrief);

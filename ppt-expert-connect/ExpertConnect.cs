@@ -49,8 +49,6 @@ namespace Microsoft.ExpertConnect
         private readonly VsoHelper _vso;
         private readonly CardBuilder _cb;
         private readonly IConfiguration _configuration;
-
-        private readonly AppSettings _appSettings;
         private readonly SimpleCredentialProvider _botCredentials;
 
         private readonly string _oAuthConnectionSettingName;
@@ -59,7 +57,6 @@ namespace Microsoft.ExpertConnect
             AzureBlobTranscriptStore transcriptStore,
             BotAccessors accessors,
             ILoggerFactory loggerFactory,
-            IOptions<AppSettings> appSettings,
             IdTable idTable,
             EndUserAndAgentIdMapping endUserAndAgentIdMapping,
             ICredentialProvider credentials,
@@ -70,7 +67,7 @@ namespace Microsoft.ExpertConnect
                 throw new System.ArgumentNullException(nameof(loggerFactory));
             }
 
-            _oAuthConnectionSettingName = configuration.GetSection("OAuthConnectionSettingsName")?.Value;
+            _oAuthConnectionSettingName = Helper.GetValueFromConfiguration(configuration, AppSettingsKey.OAuthConnectionSettingsName);
             if (string.IsNullOrWhiteSpace(_oAuthConnectionSettingName))
             {
                 throw new InvalidOperationException("OAuthConnectionSettingName must be configured prior to running the bot.");
@@ -80,16 +77,15 @@ namespace Microsoft.ExpertConnect
             _logger.LogTrace("Turn start.");
             _accessors = accessors ?? throw new ArgumentNullException(nameof(accessors));
             _transcriptStore = transcriptStore ?? throw new ArgumentNullException(nameof(transcriptStore)); // Test Mode ?
-            _appSettings = appSettings?.Value ?? throw new ArgumentNullException(nameof(appSettings));
 
             _configuration = configuration;
 
             _idTable = idTable ?? throw new ArgumentNullException(nameof(idTable));
             _endUserAndAgentIdMapping = endUserAndAgentIdMapping;
 
-            _botCredentials = (SimpleCredentialProvider)credentials ?? throw new ArgumentNullException(nameof(appSettings));
-            _cb = new CardBuilder(_appSettings);
-            _vso = new VsoHelper(_appSettings);
+            _botCredentials = (SimpleCredentialProvider) credentials;
+            _cb = new CardBuilder(configuration);
+            _vso = new VsoHelper(configuration);
             _dialogs = new DialogSet(accessors.DialogStateAccessor);
             _dialogs.Add(OAuthHelpers.Prompt(_oAuthConnectionSettingName));
 
@@ -167,8 +163,6 @@ namespace Microsoft.ExpertConnect
             CancellationToken cancellationToken,
             DialogContext dialogContext)
         {
-            var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
-
             // This bot is not case sensitive.
             var text = turnContext.Activity.Text.ToLowerInvariant();
 
@@ -182,38 +176,38 @@ namespace Microsoft.ExpertConnect
             {
                 case "help":
                     await turnContext.SendActivityAsync(HelpText, cancellationToken: cancellationToken);
-                    return;
+                    break;
+
                 case "logout":
-                    await ProcessLogout(turnContext, cancellationToken, botAdapter, dialogContext);
-                    return;
+                    await ProcessLogout(turnContext, cancellationToken, dialogContext);
+                    break;
+
                 case "stack":
                     await turnContext.SendActivityAsync(
                         JsonConvert.SerializeObject(dialogContext.Stack.Select(obj => obj.Id)),
                         cancellationToken: cancellationToken);
-                    return;
+                    break;
+
                 case "token":
                     string tokenDisplayValue = token != null ? token.Token.Substring(0, 15) : "TOKEN_UNAVAILABLE";
                     await turnContext.SendActivityAsync(
                         $"Your token is {tokenDisplayValue}",
                         cancellationToken: cancellationToken);
-                    return;
-            }
+                    break;
 
-            // if token is available, process user's message else start the auth prompt. In latter case we will ignore user's message
-            if (token != null)
-            {
-                await ProcessUserMessageWhenTokenIsAvailable(turnContext, cancellationToken, dialogContext);
-            }
-            else
-            {
-                await dialogContext.BeginDialogAsync(DialogId.Auth, null, cancellationToken);
-            }
+                default:
+                    // if token is available, process user's message else start the auth prompt. In latter case we will ignore user's message
+                    if (token != null)
+                    {
+                        await ProcessUserMessageWhenTokenIsAvailable(turnContext, cancellationToken, dialogContext);
+                    }
+                    else
+                    {
+                        await dialogContext.BeginDialogAsync(DialogId.Auth, null, cancellationToken);
+                    }
 
-            // Save the dialog state into the conversation state.
-            await _accessors.ConversationState.SaveChangesAsync(turnContext, false, cancellationToken);
-
-            // Save the user profile updates into the user state.
-            await _accessors.UserState.SaveChangesAsync(turnContext, false, cancellationToken);
+                    break;
+            }
         }
 
         private async Task ProcessConversationUpdate(ITurnContext turnContext)
@@ -224,15 +218,16 @@ namespace Microsoft.ExpertConnect
                 await SaveAgentChannelIdInAzureStore(turnContext, _botCredentials);
             }
 
-            await SaveBotIdInAzureStorage(turnContext, _appSettings.BotName);
+            await SaveBotIdInAzureStorage(turnContext, Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.BotName));
         }
 
         private async Task ProcessLogout(
             ITurnContext turnContext,
             CancellationToken cancellationToken,
-            BotFrameworkAdapter botAdapter,
             DialogContext dialogContext)
         {
+            var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
+
             await botAdapter.SignOutUserAsync(turnContext, _oAuthConnectionSettingName, cancellationToken: cancellationToken);
 
             await dialogContext.CancelAllDialogsAsync(cancellationToken);
@@ -325,6 +320,13 @@ namespace Microsoft.ExpertConnect
                     $"we should be ok ",
                     cancellationToken: cancellationToken);
             }
+
+
+            // Save the dialog state into the conversation state.
+            await _accessors.ConversationState.SaveChangesAsync(turnContext, false, cancellationToken);
+
+            // Save the user profile updates into the user state.
+            await _accessors.UserState.SaveChangesAsync(turnContext, false, cancellationToken);
         }
 
         private async Task ProcessUserMessageWhenTokenIsAvailable(
@@ -391,7 +393,7 @@ namespace Microsoft.ExpertConnect
 
                     if (didAgentUseACommand)
                     {
-                        switch (GetCommandFromAgent(_appSettings.BotName, turnContext.Activity.Text))
+                        switch (GetCommandFromAgent(Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.BotName), turnContext.Activity.Text))
                         {
                             case "reply to user":
                                 await dialogContext.BeginDialogAsync(ReplyToUserPath, null, cancellationToken);
@@ -417,6 +419,13 @@ namespace Microsoft.ExpertConnect
                     break;
                 }
             }
+
+
+            // Save the dialog state into the conversation state.
+            await _accessors.ConversationState.SaveChangesAsync(turnContext, false, cancellationToken);
+
+            // Save the user profile updates into the user state.
+            await _accessors.UserState.SaveChangesAsync(turnContext, false, cancellationToken);
         }
 
         #region Auth
@@ -490,7 +499,7 @@ namespace Microsoft.ExpertConnect
         private async Task<DialogTurnResult> ReplyToUserStep(WaterfallStepContext context, CancellationToken cancellationToken)
         {
             var message = 
-                    ExtractMessageFromCommand(_appSettings.BotName, "reply to user", context.Context.Activity.Text);
+                    ExtractMessageFromCommand(Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.BotName), "reply to user", context.Context.Activity.Text);
 
             var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo("vsoTicket-251");
 
@@ -594,7 +603,7 @@ namespace Microsoft.ExpertConnect
                 var connectorClient = await BotConnectorUtility.BuildConnectorClientAsync(
                     credentials.AppId, credentials.Password, context.Activity.ServiceUrl);
 
-                var ci = GetChannelId(connectorClient, context, _appSettings.AgentChannelName);
+                var ci = GetChannelId(connectorClient, context, Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.AgentChannelName));
                 await _idTable.SetAgentChannel(ci.Name, ci.Id);
             }
             catch (SystemException e)
@@ -785,7 +794,7 @@ namespace Microsoft.ExpertConnect
             var mentions = context.Activity.GetMentions();
 
             // TODO: mentions.length could crash if null!!!!
-            return isGroup && mentions.Length > 0 && mentions.FirstOrDefault().Text.Contains(_appSettings.BotName);
+            return isGroup && mentions.Length > 0 && mentions.FirstOrDefault().Text.Contains(Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.BotName));
         }
 
         private string GetCommandFromAgent(string botName, string message)

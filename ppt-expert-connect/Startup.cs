@@ -196,8 +196,8 @@ namespace Microsoft.ExpertConnect
 
             // Add functionality to inject IOptions<T>
             services.AddOptions();
-            // Add our AppSettings object so it can be injected
-            services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
+//            // Add our AppSettings object so it can be injected
+//            services.Configure<AppSettings>(Configuration.GetSection("AppSettings"));
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)

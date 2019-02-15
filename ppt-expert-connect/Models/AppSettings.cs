@@ -1,30 +1,17 @@
 ﻿namespace Microsoft.ExpertConnect.Models
 {
-    public class AppSettings
+    public static class AppSettingsKey
     {
-        public string Url { get; set; }
-
-        public string AssetsPath { get; set; }
-
-        public string AgentChannelName { get; set; }
-
-        public string BotName { get; set; }
-
-        public string VsoOrgUrl { get; set; }
-
-        public string VsoProject { get; set; }
-
-        public string VsoUsername { get; set; }
-
-        public string VsoPassword { get; set; }
-
-        public string ResearchProjectViaTeamsMinHours { get; set; }
-
-        public string AgentToAssignVsoTasksTo { get; set; }
-
-        public string GetImageUrlFromLocation(string location)
-        {
-            return Url + AssetsPath + location;
-        }
+        public const string BotUrl = "botUrl";
+        public const string AssetsPath = "AssetsPath";
+        public const string AgentChannelName = "AgentChannelName";
+        public const string BotName = "BotName";
+        public const string VsoOrgUrl = "VsoOrgUrl";
+        public const string VsoProject = "VsoProject";
+        public const string VsoUsername = "VsoUsername";
+        public const string VsoPassword = "VsoPassword";
+        public const string ResearchProjectViaTeamsMinHours = "ResearchProjectViaTeamsMinHours";
+        public const string AgentToAssignVsoTasksTo = "AgentToAssignVsoTasksTo";
+        public const string OAuthConnectionSettingsName = "OAuthConnectionSettingsName";
     }
 }
