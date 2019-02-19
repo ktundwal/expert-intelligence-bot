@@ -8,8 +8,7 @@
         public const string BotName = "BotName";
         public const string VsoOrgUrl = "VsoOrgUrl";
         public const string VsoProject = "VsoProject";
-        public const string VsoUsername = "VsoUsername";
-        public const string VsoPassword = "VsoPassword";
+        public const string VsoToken = "VsoToken";
         public const string ResearchProjectViaTeamsMinHours = "ResearchProjectViaTeamsMinHours";
         public const string AgentToAssignVsoTasksTo = "AgentToAssignVsoTasksTo";
         public const string OAuthConnectionSettingsName = "OAuthConnectionSettingsName";

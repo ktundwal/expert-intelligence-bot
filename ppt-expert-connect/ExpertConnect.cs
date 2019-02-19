@@ -260,6 +260,9 @@ namespace Microsoft.ExpertConnect
             // The Teams manifest schema is found here: https://docs.microsoft.com/en-us/microsoftteams/platform/resources/schema/manifest-schema
             // It also handles the Event Activity sent from the emulator when the magic code is not used.
             // See: https://blog.botframework.com/2018/08/28/testing-authentication-to-your-bot-using-the-bot-framework-emulator/
+//            await turnContext.SendActivityAsync(
+//                JsonConvert.SerializeObject(dialogContext.Stack.Select(obj => obj.Id)),
+//                cancellationToken: cancellationToken);
             await dialogContext.ContinueDialogAsync(cancellationToken);
             if (!turnContext.Responded)
             {
@@ -444,7 +447,7 @@ namespace Microsoft.ExpertConnect
         /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
         private static async Task<DialogTurnResult> PromptStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
         {
-            await step.Context.SendActivityAsync(JsonConvert.SerializeObject(step.Context.Activity));
+//            await step.Context.SendActivityAsync(JsonConvert.SerializeObject(step.Context.Activity));
             return await step.BeginDialogAsync(OAuthHelpers.LoginPromptDialogId, cancellationToken: cancellationToken);
         }
 

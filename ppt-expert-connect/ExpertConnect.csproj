@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
@@ -22,15 +22,17 @@
     <PackageReference Include="Microsoft.Bot.Connector.Teams" Version="0.9.0" />
     <PackageReference Include="Microsoft.Bot.Schema" Version="4.1.5" />
     <PackageReference Include="Microsoft.Graph" Version="1.10.0" />
-    <PackageReference Include="Microsoft.TeamFoundation.DistributedTask.Common.Contracts" Version="15.131.1" />
-    <PackageReference Include="Microsoft.TeamFoundationServer.Client" Version="15.131.1" />
-    <PackageReference Include="Microsoft.VisualStudio.Services.Client" Version="15.131.1" />
-    <PackageReference Include="Microsoft.VisualStudio.Services.InteractiveClient" Version="15.131.1" />
+    <PackageReference Include="Microsoft.TeamFoundation.DistributedTask.Common.Contracts" Version="16.147.0-preview" />
+    <PackageReference Include="Microsoft.TeamFoundationServer.Client" Version="16.147.0-preview" />
+    <PackageReference Include="Microsoft.TeamFoundationServer.ExtendedClient" Version="16.147.0-preview" />
+    <PackageReference Include="Microsoft.VisualStudio.Services.Client" Version="16.147.0-preview" />
+    <PackageReference Include="Microsoft.VisualStudio.Services.InteractiveClient" Version="16.147.0-preview" />
     <PackageReference Include="skeyMicrosoftTeamFoundationWorkItemTrackingClient" Version="1.0.0" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.0-beta008">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="System.Net.Http" Version="4.3.4" />
   </ItemGroup>
 
   <ItemGroup>

@@ -194,7 +194,7 @@ namespace Microsoft.ExpertConnect.Helpers
 
                 ms.Write(responseData, 0, (int)responseData.Length);
 
-                string todayDate = DateTime.Now.ToString("yyyy-MM-dd");
+                string todayDate = DateTime.Now.ToString("yyyy-MM-dd hh:mm tt");
                 string projectId = "unknown";
                 string projectIdentifier = $"ppt-project-{projectId}-{todayDate}";
                 return UploadFileAsync(graphClient, folder, $"{projectIdentifier}/{projectIdentifier}.pptx", ms).Result;
@@ -212,7 +212,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 file.Read(bytes, 0, (int)file.Length);
                 ms.Write(bytes, 0, (int)file.Length);
 
-                string todaysDate = DateTime.Now.ToString("yyyy-MM-dd");
+                string todaysDate = DateTime.Now.ToString("yyyy-MM-dd hh:mm tt");
                 string projectId = "unknown";
                 string projectIdentifier = $"ppt-project-{projectId}-{todaysDate}";
                 return (UploadFileAsync(graphClient, folder, $"{projectIdentifier}/{projectIdentifier}.pptx", ms)).Result;

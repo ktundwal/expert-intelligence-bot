@@ -33,11 +33,12 @@ namespace Microsoft.ExpertConnect.Dialogs
                 DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.PresentationIntro()),
                 cancellationToken);
         }
+
         private async Task<DialogTurnResult> PostIntroductionStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
             // Get the current profile object from user state.
             var userInfo = DialogHelper.GetUserInfoFromContext(stepContext);
-            
+
             userInfo.Introduction = (string)stepContext.Result;
             userInfo.State = UserDialogState.ProjectStarted;
 
@@ -47,7 +48,7 @@ namespace Microsoft.ExpertConnect.Dialogs
             }
             else if (userInfo.Introduction.Equals(Constants.V2LetsBegin))
             {
-                userInfo.State = UserDialogState.ProjectCollectingTemplateDetails;
+                userInfo.State = UserDialogState.ProjectCollectTemplateDetails;
             }
 
             return await stepContext.EndDialogAsync(userInfo, cancellationToken);

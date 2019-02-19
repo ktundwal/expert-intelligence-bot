@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi;
 using Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models;
 using Microsoft.VisualStudio.Services.Client;
+using Microsoft.VisualStudio.Services.Common;
 using Microsoft.VisualStudio.Services.WebApi;
 using Microsoft.VisualStudio.Services.WebApi.Patch;
 using Microsoft.VisualStudio.Services.WebApi.Patch.Json;
@@ -53,10 +54,7 @@ namespace Microsoft.ExpertConnect.Helpers
         {
             try
             {
-                Trace.TraceInformation($"Vso username is {Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.VsoUsername)}");
-                VssConnection connection = new VssConnection(new Uri(Uri), new VssAadCredential(
-                    Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.VsoUsername),
-                    Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.VsoPassword)));
+                VssConnection connection = new VssConnection(new Uri(Uri), new VssBasicCredential(string.Empty, Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.VsoToken)));
                 return connection.GetClient<WorkItemTrackingHttpClient>();
             }
             catch (Exception e)
@@ -109,7 +107,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 {
                     Operation = Operation.Add,
                     Path = "/fields/System.Title",
-                    Value = $"Web research request from {userProfileAlias} via {channelId} due {targetDate}"
+                    Value = $"PPT request from {userProfileAlias} via {channelId} due {targetDate}"
                 },
                 new JsonPatchOperation()
                 {
