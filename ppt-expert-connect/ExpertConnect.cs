@@ -199,6 +199,9 @@ namespace Microsoft.ExpertConnect
 
                 case "reset":
                     await ProcessCleanup(turnContext, cancellationToken, dialogContext);
+                    await turnContext.SendActivityAsync(
+                        "All your states have been cleared",
+                        cancellationToken: cancellationToken);
                     break;
 
                 default:
@@ -387,7 +390,7 @@ namespace Microsoft.ExpertConnect
                             await SendMessageToAgentAsReplyToConversationInAgentsChannel(
                                 turnContext,
                                 turnContext.Activity.Text,
-                                agentInfo, 
+                                agentInfo,
                                 vsoTicketForUser);
                             userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
                             await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
@@ -518,20 +521,20 @@ namespace Microsoft.ExpertConnect
 
         private async Task<DialogTurnResult> ReplyToUserStep(WaterfallStepContext context, CancellationToken cancellationToken)
         {
-            var message = 
+            var message =
                     ExtractMessageFromCommand(Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.BotName), "reply to user", context.Context.Activity.Text);
-
-            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo("vsoTicket-251");
 
             var userInfo =
                 await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
+
+            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo(userInfo.VsoId);
             userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
 
             await SendMessageToUserEx(
                 context.Context,
                 endUserInfo,
                 message,
-                "vsoTicket-251",
+                userInfo.VsoId,
                 cancellationToken);
 
             await context.Context.SendActivityAsync("Message has been sent to user", null, null, cancellationToken);
@@ -570,9 +573,9 @@ namespace Microsoft.ExpertConnect
             var userInfo = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
             userInfo.State = UserDialogState.ProjectCompleted;
 
-            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo("vsoTicket-251");
+            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo(userInfo.VsoId);
 
-            await SendCardToUserEx(stepContext.Context, endUserInfo, _cb.V2PresentationResponse(endUserInfo.Name), "vsoTicket-251", cancellationToken);
+            await SendCardToUserEx(stepContext.Context, endUserInfo, _cb.V2PresentationResponse(endUserInfo.Name), userInfo.VsoId, cancellationToken);
 
             return await stepContext.EndDialogAsync(null, cancellationToken);
         }
@@ -820,7 +823,7 @@ namespace Microsoft.ExpertConnect
         private string GetCommandFromAgent(string botName, string message)
         {
             var atBotPattern = new Regex($"^<at>({botName})</at>");
-            var fullPattern = new Regex($"^<at>({botName})</at> (.*)// (.*)");
+            var fullPattern = new Regex($@"^<at>({botName})</at> \((.*)\) (.*)");
             return atBotPattern.IsMatch(message) ? fullPattern.Match(message).Groups[2].Value : null;
         }
 
@@ -828,7 +831,7 @@ namespace Microsoft.ExpertConnect
         {
             var atBotPattern = new Regex($"^<at>({botName})</at>");
             var commandPattern = new Regex($" ({command}) ");
-            var fullPattern = new Regex($"^<at>({botName})</at> ({command}) (.*)");
+            var fullPattern = new Regex($@"^<at>({botName})</at> \(({command})\) (.*)");
 
             if (atBotPattern.IsMatch(message) && commandPattern.IsMatch(message))
             {

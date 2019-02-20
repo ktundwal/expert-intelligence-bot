@@ -2,7 +2,7 @@
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.3/MicrosoftTeams.schema.json",
   "manifestVersion": "1.3",
   "version": "0.6",
-  "id": "95676a9d-852c-46a2-b5e7-ec2a82b00eb7",
+  "id": "d5751a7a-0fb2-49c3-9865-ccebde9e4e05",
   "packageName": "com.onmicrosoft.teams.ecbot.dev",
   "developer": {
     "name": "Microsoft",
@@ -25,7 +25,7 @@
   "accentColor": "#ffffff",
   "staticTabs": [
     {
-      "contentUrl": "https://e1a4f0b6.ngrok.io/public/tab/tabConfig/tab.aspx",
+      "contentUrl": "https://678fd848.ngrok.io/public/tab/tabConfig/tab.aspx",
       "entityId": "statictab",
       "name": "Bot Info",
       "scopes": [
@@ -36,14 +36,14 @@
   ],
   "configurableTabs": [
     {
-      "configurationUrl": "https://e1a4f0b6.ngrok.io/public/tab/tabConfig/index.html",
+      "configurationUrl": "https://678fd848.ngrok.io/public/tab/tabConfig/index.html",
       "canUpdateConfiguration": false,
       "scopes": [ "team", "groupchat" ]
     }
   ],
   "bots": [
     {
-      "botId": "95676a9d-852c-46a2-b5e7-ec2a82b00eb7",
+      "botId": "d5751a7a-0fb2-49c3-9865-ccebde9e4e05",
       "isNotificationOnly": false,
       "scopes": [ "team", "personal", "groupchat" ],
       "commandLists": [
@@ -53,28 +53,20 @@
           ],
           "commands": [
             {
-              "title": "reply to user//",
+              "title": "(reply to user)",
               "description": "Sends the message to user. Bot will act as tunnel"
             },
             {
-              "title": "post job on UpWork//",
+              "title": "(post job on UpWork)",
               "description": "Post job on UpWork platform"
             },
             {
-              "title": "post job on FancyHands//",
+              "title": "(post job on FancyHands)",
               "description": "Post job on FancyHands platform"
             },
             {
-              "title": "project completed//",
+              "title": "(project completed)",
               "description": "Project is complete. Sends the user a feedback form"
-            },
-            {
-              "title": "help//",
-              "description": "To show the list of command for user interactions"
-            },
-            {
-              "title": "hello//",
-              "description": "Runs the simplest hello dialog"
             }
           ]
         }
@@ -86,7 +78,7 @@
     "messageTeamMembers"
   ],
   "validDomains": [
-    "e1a4f0b6.ngrok.io",
+    "678fd848.ngrok.io",
     "token.botframework.com"
   ]
 }

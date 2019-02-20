@@ -118,7 +118,7 @@ namespace Microsoft.ExpertConnect.Helpers
         #region Buttons
 
         public const string CreateBrief = "Create a brief";
-        public const string AddedEverythingToFile = "Okay, I've added everythign to the file";
+        public const string AddedEverythingToFile = "Okay, I've added everything to the file";
         public const string LooksGood = "Looks good, send the job";
         public const string ChangeSomething = "Let me start over";
         public const string Complete = "This is complete";
