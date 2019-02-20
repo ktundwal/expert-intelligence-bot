@@ -237,7 +237,7 @@ namespace Microsoft.ExpertConnect
         {
             var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
             await botAdapter.SignOutUserAsync(turnContext, _oAuthConnectionSettingName, cancellationToken: cancellationToken);
-            await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
+            await turnContext.SendActivityAsync("You have been signed out. Login to continue.", cancellationToken: cancellationToken);
 
             // await SendWelcomeMessageAsync(turnContext, cancellationToken);
         }
