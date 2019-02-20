@@ -200,7 +200,7 @@ namespace Microsoft.ExpertConnect
                 case "reset":
                     await ProcessCleanup(turnContext, cancellationToken, dialogContext);
                     await turnContext.SendActivityAsync(
-                        "All your states have been cleared",
+                        "All your states have been cleared. Please type something to get started.",
                         cancellationToken: cancellationToken);
                     break;
 
