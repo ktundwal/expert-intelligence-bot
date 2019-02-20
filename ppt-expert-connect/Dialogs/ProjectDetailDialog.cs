@@ -4,6 +4,7 @@ using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.ExpertConnect.Helpers;
 using Microsoft.ExpertConnect.Models;
+using Microsoft.Extensions.Configuration;
 
 namespace Microsoft.ExpertConnect.Dialogs
 {
@@ -15,12 +16,15 @@ namespace Microsoft.ExpertConnect.Dialogs
 
         private readonly CardBuilder _cardBuilder;
         private readonly string _oAuthConnectionSettingName;
+        private readonly string _shareFileWith;
 
-        public ProjectDetailDialog(string id, CardBuilder cb, string oAuthConnection) : base(id)
+        public ProjectDetailDialog(string id, CardBuilder cb, IConfiguration config)
+            : base(id)
         {
             InitialDialogId = InitialId;
             _cardBuilder = cb;
-            _oAuthConnectionSettingName = oAuthConnection;
+            _oAuthConnectionSettingName = Helper.GetValueFromConfiguration(config, AppSettingsKey.OAuthConnectionSettingsName);
+            _shareFileWith = Helper.GetValueFromConfiguration(config, AppSettingsKey.ShareFileWith);
 
             var steps = new WaterfallStep[]
             {
@@ -61,7 +65,8 @@ namespace Microsoft.ExpertConnect.Dialogs
                 cancellationToken);
         }
 
-        private async Task<DialogTurnResult> UserInfoAddedStep(WaterfallStepContext stepContext,
+        private async Task<DialogTurnResult> UserInfoAddedStep(
+            WaterfallStepContext stepContext,
             CancellationToken cancellationToken)
         {
             // Get the current profile object from user state.
@@ -77,13 +82,14 @@ namespace Microsoft.ExpertConnect.Dialogs
                 .ConfigureAwait(false);
             if (token != null)
             {
-                var driveItem = DialogHelper.UploadAnItemToOneDrive(token, userInfo.Style);
+                var driveItem = DialogHelper.UploadAnItemToOneDrive(token, userInfo.Style, _shareFileWith);
                 // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
                 return await stepContext.PromptAsync(
                 TextPrompt,
                 DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.ConfirmationCard(driveItem.WebUrl)),
                 cancellationToken);
             }
+
             return await stepContext.PromptAsync(
                     TextPrompt,
                     DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.ConfirmationCard("UploadFailed")),
@@ -93,18 +99,20 @@ namespace Microsoft.ExpertConnect.Dialogs
         private async Task<DialogTurnResult> SummaryStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
             var userInfo = DialogHelper.GetUserInfoFromContext(stepContext);
+
             // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
+
             return await stepContext.PromptAsync(
                 TextPrompt,
                 DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.SummaryCard(userInfo)),
                 cancellationToken);
 
         }
+
         private async Task<DialogTurnResult> TicketStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
             // Get the current profile object from user state.
             var userInfo = DialogHelper.GetUserInfoFromContext(stepContext);
-            
             var message = stepContext.Context.Activity.Text;
 
             if (message.Equals(Constants.ChangeSomething))

@@ -6,6 +6,7 @@
         public const string AssetsPath = "AssetsPath";
         public const string AgentChannelName = "AgentChannelName";
         public const string BotName = "BotName";
+        public const string ShareFileWith = "ShareFileWith";
         public const string VsoOrgUrl = "VsoOrgUrl";
         public const string VsoProject = "VsoProject";
         public const string VsoToken = "VsoToken";

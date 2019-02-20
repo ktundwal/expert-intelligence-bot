@@ -39,6 +39,8 @@ namespace Microsoft.ExpertConnect
         private const string WelcomeText = @"This bot will help you prepare PowerPoint files.
                                         Type anything to get logged in. Type 'logout' to sign-out";
 
+        private const string WelcomeMessage = @"Thank you for signing in. Say something to get started, or we will continue where you left off.";
+
         private readonly BotAccessors _accessors;
         private readonly AzureBlobTranscriptStore _transcriptStore;
         private readonly IdTable _idTable;
@@ -95,7 +97,7 @@ namespace Microsoft.ExpertConnect
             _dialogs.Add(new IntroductionDialog(DialogId.Start, _cb));
             _dialogs.Add(new TemplateDetailDialog(DialogId.DetailPath, _cb));
             _dialogs.Add(new ExampleTemplateDialog(DialogId.ExamplePath, _cb));
-            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, _cb, _oAuthConnectionSettingName));
+            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, _cb, configuration));
             _dialogs.Add(new ProjectRevisionDialog(DialogId.ProjectRevisionPath, _cb));
             _dialogs.Add(new ProjectCompleteDialog(DialogId.ProjectCompletePath, _cb));
 
@@ -195,6 +197,10 @@ namespace Microsoft.ExpertConnect
                         cancellationToken: cancellationToken);
                     break;
 
+                case "reset":
+                    await ProcessCleanup(turnContext, cancellationToken, dialogContext);
+                    break;
+
                 default:
                     // if token is available, process user's message else start the auth prompt. In latter case we will ignore user's message
                     if (token != null)
@@ -227,18 +233,23 @@ namespace Microsoft.ExpertConnect
             DialogContext dialogContext)
         {
             var botAdapter = (BotFrameworkAdapter)turnContext.Adapter;
-
             await botAdapter.SignOutUserAsync(turnContext, _oAuthConnectionSettingName, cancellationToken: cancellationToken);
+            await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
 
+            // await SendWelcomeMessageAsync(turnContext, cancellationToken);
+        }
+
+        private async Task ProcessCleanup(
+            ITurnContext turnContext,
+            CancellationToken cancellationToken,
+            DialogContext dialogContext)
+        {
             await dialogContext.CancelAllDialogsAsync(cancellationToken);
             await _transcriptStore.DeleteTranscriptAsync(
                 turnContext.Activity.ChannelId,
                 turnContext.Activity.Conversation.Id);
             await _accessors.UserInfoAccessor.DeleteAsync(turnContext, cancellationToken);
             await _accessors.DialogStateAccessor.DeleteAsync(turnContext, cancellationToken);
-
-            await turnContext.SendActivityAsync("You have been signed out.", cancellationToken: cancellationToken);
-            await SendWelcomeMessageAsync(turnContext, cancellationToken);
 
             // now that we have cleared 'all' states we need to put dialog state and user profile back in.
 
@@ -431,6 +442,11 @@ namespace Microsoft.ExpertConnect
             await _accessors.UserState.SaveChangesAsync(turnContext, false, cancellationToken);
         }
 
+        private async Task SendWelcomeMessage(ITurnContext context, CancellationToken cancellationToken)
+        {
+            await context.SendActivityAsync(WelcomeMessage, cancellationToken: cancellationToken);
+        }
+
         #region Auth
         private bool IsTeamsVerificationInvoke(ITurnContext turnContext)
         {
@@ -447,7 +463,7 @@ namespace Microsoft.ExpertConnect
         /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
         private static async Task<DialogTurnResult> PromptStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
         {
-//            await step.Context.SendActivityAsync(JsonConvert.SerializeObject(step.Context.Activity));
+// await step.Context.SendActivityAsync(JsonConvert.SerializeObject(step.Context.Activity));
             return await step.BeginDialogAsync(OAuthHelpers.LoginPromptDialogId, cancellationToken: cancellationToken);
         }
 
@@ -470,8 +486,9 @@ namespace Microsoft.ExpertConnect
 
                 var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
                 var user = await GraphClient.GetMeAsync(client);
-                await step.Context.SendActivityAsync($"Kon'nichiwa {user.DisplayName}! You are now logged in.",
-                    cancellationToken: cancellationToken);
+// await step.Context.SendActivityAsync($"Kon'nichiwa {user.DisplayName}! You are now logged in.",
+//                    cancellationToken: cancellationToken);
+                await SendWelcomeMessage(step.Context, cancellationToken);
                 return await step.EndDialogAsync(null, cancellationToken); // Maybe just end ??
             }
 
