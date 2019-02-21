@@ -17,12 +17,14 @@ namespace Microsoft.ExpertConnect.Dialogs
         private readonly CardBuilder _cardBuilder;
         private readonly string _oAuthConnectionSettingName;
         private readonly string _shareFileWith;
+        private readonly IConfiguration _config;
 
         public ProjectDetailDialog(string id, CardBuilder cb, IConfiguration config)
             : base(id)
         {
             InitialDialogId = InitialId;
             _cardBuilder = cb;
+            _config = config;
             _oAuthConnectionSettingName = Helper.GetValueFromConfiguration(config, AppSettingsKey.OAuthConnectionSettingsName);
             _shareFileWith = Helper.GetValueFromConfiguration(config, AppSettingsKey.ShareFileWith);
 
@@ -82,7 +84,11 @@ namespace Microsoft.ExpertConnect.Dialogs
                 .ConfigureAwait(false);
             if (token != null)
             {
-                var driveItem = DialogHelper.UploadAnItemToOneDrive(token, userInfo.Style, _shareFileWith);
+                var styleLink = Helper.GetPowerPointTemplateLink(userInfo.Style, _config);
+                styleLink = styleLink == string.Empty
+                    ? Helper.GetPowerPointTemplateLink(userInfo.Color, _config)
+                    : styleLink;
+                var driveItem = DialogHelper.UploadAnItemToOneDrive(token, styleLink, _shareFileWith);
                 // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
                 return await stepContext.PromptAsync(
                 TextPrompt,

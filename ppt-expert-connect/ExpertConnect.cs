@@ -329,6 +329,8 @@ namespace Microsoft.ExpertConnect
                         $"Incoming message is {serializedTurnContextActivity}",
                         cancellationToken: cancellationToken);
                 }
+
+                await SendWelcomeMessage(turnContext, cancellationToken);
             }
             else
             {

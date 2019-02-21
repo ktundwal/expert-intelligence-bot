@@ -61,14 +61,14 @@ namespace Microsoft.ExpertConnect.Dialogs
                 cancellationToken);
         }
 
-        public static DriveItem UploadAnItemToOneDrive(TokenResponse tokenResponse, string style, string emailToShareWith = "nightking@expertconnectdev.onmicrosoft.com")
+        public static DriveItem UploadAnItemToOneDrive(TokenResponse tokenResponse, string pptLink, string emailToShareWith, string projectTicketNumber = "unknown")
         {
             DriveItem uploadedItem = null;
             if (tokenResponse != null)
             {
                 var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
                 var folder = GraphClient.GetOrCreateFolder(client, "expert-connect").Result;
-                uploadedItem = GraphClient.UploadPowerPointFileToDrive(client, folder, style);
+                uploadedItem = GraphClient.UploadPowerPointFileToDrive(client, folder, pptLink, projectTicketNumber);
                 if (!string.IsNullOrEmpty(emailToShareWith))
                 {
                     var shareWithResponse = GraphClient.ShareFileAsync(

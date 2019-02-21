@@ -46,7 +46,8 @@ namespace Microsoft.ExpertConnect.Helpers
             {
                 DriveItem uploadedFile = null;
 
-                uploadedFile = await graphClient.Me.Drive.Root.ItemWithPath(fileStream.Name).Content.Request().PutAsync<DriveItem>(fileStream);
+                uploadedFile = await graphClient.Me.Drive.Root.ItemWithPath(fileStream.Name).Content.Request()
+                    .PutAsync<DriveItem>(fileStream);
                 return (uploadedFile);
             }
         }
@@ -65,6 +66,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 {
                     return await CreateFolder(graphClient, path);
                 }
+
                 throw;
             }
             catch (Exception ex)
@@ -93,6 +95,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 throw;
             }
         }
+
         private static async Task LoadFolderFromId(GraphServiceClient graphClient, string id)
         {
             if (null == graphClient) return;
@@ -113,7 +116,8 @@ namespace Microsoft.ExpertConnect.Helpers
         }
 
         // https://github.com/microsoftgraph/msgraph-sdk-dotnet/blob/2d565c10969689344bbdaa58f4ab74df06303063/tests/Microsoft.Graph.Test/Requests/Functional/OneDriveTests.cs#L39
-        public static async Task<DriveItem> UploadFileAsync(GraphServiceClient graphClient, DriveItem folder, string fileName, MemoryStream ms)
+        public static async Task<DriveItem> UploadFileAsync(GraphServiceClient graphClient, DriveItem folder,
+            string fileName, MemoryStream ms)
         {
             var utcNow = System.DateTimeOffset.UtcNow;
             var props = new DriveItemUploadableProperties();
@@ -125,7 +129,8 @@ namespace Microsoft.ExpertConnect.Helpers
             // Get the provider. 
             // POST /v1.0/drive/items/01KGPRHTV6Y2GOVW7725BZO354PWSELRRZ:/_hamiltion.png:/microsoft.graph.createUploadSession
             // The CreateUploadSesssion action doesn't seem to support the options stated in the metadata.
-            var uploadSession = await graphClient.Me.Drive.Items[folder.Id].ItemWithPath(fileName).CreateUploadSession().Request().PostAsync();
+            var uploadSession = await graphClient.Me.Drive.Items[folder.Id].ItemWithPath(fileName).CreateUploadSession()
+                .Request().PostAsync();
 
             var maxChunkSize = 320 * 1024; // 320 KB - Change this to your chunk size. 5MB is the default.
             var provider = new ChunkedUploadProvider(uploadSession, graphClient, ms, maxChunkSize);
@@ -162,60 +167,45 @@ namespace Microsoft.ExpertConnect.Helpers
             return itemResult;
         }
 
-        public static async Task<string> ShareFileAsync(GraphServiceClient graphClient, DriveItem fileToShare, string emailToShareWith, string inviteMessage)
+        public static async Task<string> ShareFileAsync(GraphServiceClient graphClient, DriveItem fileToShare,
+            string emailToShareWith, string inviteMessage)
         {
             var recipients = new List<DriveRecipient>()
+            {
+                new DriveRecipient()
                 {
-                    new DriveRecipient()
-                    {
-                        Email = emailToShareWith
-                    }
-                };
+                    Email = emailToShareWith
+                }
+            };
 
             var roles = new List<string>()
-                {
-                    "write"
-                };
+            {
+                "write"
+            };
 
             var inviteCollection = await graphClient.Me.Drive.Items[fileToShare.Id]
-                                                       .Invite(recipients, true, roles, true, inviteMessage)
-                                                       .Request()
-                                                       .PostAsync();
+                .Invite(recipients, true, roles, true, inviteMessage)
+                .Request()
+                .PostAsync();
 
             return inviteCollection[0].GrantedTo.User.DisplayName;
         }
 
-        public static DriveItem UploadPowerPointFileToDrive(GraphServiceClient graphClient, DriveItem folder, string style)
+        public static DriveItem UploadPowerPointFileToDrive(GraphServiceClient graphClient, DriveItem folder, string pptLink, string projectId)
         {
             using (MemoryStream ms = new MemoryStream())
             {
+                byte[] responseData;
                 WebClient c = new WebClient();
-                byte[] responseData = c.DownloadData("https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RE27I0K");
+                responseData = pptLink != string.Empty
+                    ? c.DownloadData(pptLink)
+                    : c.DownloadData("https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RE2lrfa");
 
-                ms.Write(responseData, 0, (int)responseData.Length);
+                ms.Write(responseData, 0, (int) responseData.Length);
 
                 string todayDate = DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss");
-                string projectId = "unknown";
                 string projectIdentifier = $"ppt-project-{projectId}-{todayDate}";
                 return UploadFileAsync(graphClient, folder, $"{projectIdentifier}/{projectIdentifier}.pptx", ms).Result;
-            }
-        }
-
-        public static DriveItem UploadPowerPointFileToDriveEx(GraphServiceClient graphClient, DriveItem folder, string style)
-        {
-            var location = style.Split(",", StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
-            location = "dev";
-            using (MemoryStream ms = new MemoryStream()) //TODO: will memory run out of space?
-            using (FileStream file = new FileStream($@"C:\{location}\template.pptx", FileMode.Open, FileAccess.Read))
-            {
-                byte[] bytes = new byte[file.Length];
-                file.Read(bytes, 0, (int)file.Length);
-                ms.Write(bytes, 0, (int)file.Length);
-
-                string todaysDate = DateTime.Now.ToString("yyyy-MM-dd hh-mm tt");
-                string projectId = "unknown";
-                string projectIdentifier = $"ppt-project-{projectId}-{todaysDate}";
-                return (UploadFileAsync(graphClient, folder, $"{projectIdentifier}/{projectIdentifier}.pptx", ms)).Result;
             }
         }
     }

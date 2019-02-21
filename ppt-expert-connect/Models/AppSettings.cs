@@ -13,5 +13,8 @@
         public const string ResearchProjectViaTeamsMinHours = "ResearchProjectViaTeamsMinHours";
         public const string AgentToAssignVsoTasksTo = "AgentToAssignVsoTasksTo";
         public const string OAuthConnectionSettingsName = "OAuthConnectionSettingsName";
+        public const string TemplateLinkDark = "TemplateLinkDark";
+        public const string TemplateLinkLight = "TemplateLinkLight";
+        public const string TemplateLinkColorful = "TemplateLinkColorful";
     }
 }
