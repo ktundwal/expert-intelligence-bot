@@ -89,6 +89,7 @@ namespace Microsoft.ExpertConnect.Dialogs
                     ? Helper.GetPowerPointTemplateLink(userInfo.Color, _config)
                     : styleLink;
                 var driveItem = DialogHelper.UploadAnItemToOneDrive(token, styleLink, _shareFileWith);
+                userInfo.PptWebUrl = driveItem.WebUrl;
                 // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
                 return await stepContext.PromptAsync(
                 TextPrompt,

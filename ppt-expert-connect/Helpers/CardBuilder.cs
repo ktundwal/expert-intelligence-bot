@@ -167,22 +167,19 @@ namespace Microsoft.ExpertConnect.Helpers
                 string.Empty,
                 "Want to change anything, or should we send this job to the designer ? ",
                 list);
-            
+
             card.Body.AddRange(list);
 
             AdaptiveColumnSet optionSet = new AdaptiveColumnSet()
             {
                 Columns =
                 {
-                    CreateAdaptiveColumnWithText("Looks good, send the job")
-                }
+                    CreateAdaptiveColumnWithText("Looks good, send the job"),
+                },
             };
             optionSet.Spacing = AdaptiveSpacing.Padding;
 
-//            if (!string.IsNullOrEmpty(userInfo.Purpose))
-//            {
             optionSet.Columns.Add(CreateAdaptiveColumnWithText(Constants.ChangeSomething));
-//            }
 
             card.Body.Add(optionSet);
             return card;
@@ -272,7 +269,7 @@ namespace Microsoft.ExpertConnect.Helpers
             {
                 Text = Constants.V2PurposeDescription,
                 Spacing = AdaptiveSpacing.ExtraLarge,
-                Wrap = true
+                Wrap = true,
             };
 
             AdaptiveColumnSet options = new AdaptiveColumnSet()
@@ -286,8 +283,8 @@ namespace Microsoft.ExpertConnect.Helpers
                     AdaptiveCardHelper.CreateAdaptiveColumnWithText(
                         Constants.V2ProgressReport,
                         Constants.V2ProgressReportDesc
-                    )
-                }
+                    ),
+                },
             };
             AdaptiveColumnSet options2 = new AdaptiveColumnSet()
             {
@@ -300,8 +297,8 @@ namespace Microsoft.ExpertConnect.Helpers
                     AdaptiveCardHelper.CreateAdaptiveColumnWithText(
                         Constants.V2Cleanup,
                         Constants.V2CleanupDec
-                    )
-                }
+                    ),
+                },
             };
 
             card.Body.Add(description);
@@ -316,7 +313,7 @@ namespace Microsoft.ExpertConnect.Helpers
             card.Body.Add(new AdaptiveTextBlock()
             {
                 Text = Constants.Variations,
-                Wrap = true
+                Wrap = true,
             });
 
             AdaptiveColumnSet optionSetA = new AdaptiveColumnSet()
@@ -433,11 +430,11 @@ namespace Microsoft.ExpertConnect.Helpers
         public AdaptiveCard V2ImageOptions()
         {
             AdaptiveCard card = new AdaptiveCard();
-            
+
             card.Body.Add(new AdaptiveTextBlock()
             {
                 Text = Constants.ImagesDesc,
-                Wrap = true
+                Wrap = true,
             });
 
             AdaptiveColumnSet options = new AdaptiveColumnSet
@@ -446,8 +443,8 @@ namespace Microsoft.ExpertConnect.Helpers
                 Columns =
                 {
                     CreateAdaptiveColumnWithText(Constants.NewImages),
-                    CreateAdaptiveColumnWithText(Constants.OwnImages)
-                }
+                    CreateAdaptiveColumnWithText(Constants.OwnImages),
+                },
             };
 
             card.Body.Add(options);
@@ -538,7 +535,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 {
                     CreateAdaptiveColumnWithText(Constants.Complete),
                     CreateAdaptiveColumnWithText(Constants.Revision),
-                }
+                },
             };
             card.Body.Add(optionsSet);
             return card;
@@ -606,8 +603,8 @@ namespace Microsoft.ExpertConnect.Helpers
                         "Got it. We will address your feedback and get back to you shortly.") {Wrap = true} :
                     badRating ? new AdaptiveTextBlock(
                         "Dang, really? Please tell us why you gave us this rating, so we can improve.") {Wrap = true} :
-                    new AdaptiveTextBlock("Any other feedback to help us improve the process?") {Wrap = true}
-                }
+                    new AdaptiveTextBlock("Any other feedback to help us improve the process?") {Wrap = true},
+                },
             };
         }
 
@@ -617,8 +614,8 @@ namespace Microsoft.ExpertConnect.Helpers
             {
                 Body = new List<AdaptiveElement>
                 {
-                    new AdaptiveTextBlock("Let us know what you would like to see changed or updated? We will address your feedback and get back to you shortly.") {Wrap = true}
-                }
+                    new AdaptiveTextBlock("Let us know what you would like to see changed or updated? We will address your feedback and get back to you shortly.") {Wrap = true},
+                },
             };
         }
 
@@ -694,6 +691,32 @@ namespace Microsoft.ExpertConnect.Helpers
             card.Items.Add(textBlock);
             card.Items.Add(ctaContainer);
 
+            return card;
+        }
+
+        public AdaptiveCard AgentAdaptiveCard(UserInfo userInfo)
+        {
+            AdaptiveCard card = new AdaptiveCard();
+
+            AdaptiveTextBlock header = new AdaptiveTextBlock($"PowerPoint request #{userInfo.VsoId} from {userInfo.Name}");
+            header.Wrap = true;
+
+            List<AdaptiveElement> list = new List<AdaptiveElement> { header };
+
+            AddToSummary("Intent", userInfo.Purpose, list);
+            AddToSummary("Style", userInfo.Style, list);
+            AddToSummary("Color", userInfo.Color, list);
+
+            var visualInfo = !string.IsNullOrEmpty(userInfo.Visuals)
+                ? userInfo.Visuals + ", " + userInfo.Images
+                : userInfo.Images;
+
+            AddToSummary("Visuals", visualInfo, list);
+            AddToSummary("Comments", userInfo.Extra, list);
+
+            AdaptiveTextBlock vsoLink = new AdaptiveTextBlock($"[VSO Ticket]({userInfo.VsoLink}) --- [PowerPoint File]({userInfo.PptWebUrl})");
+            list.Add(vsoLink);
+            card.Body.AddRange(list);
             return card;
         }
     }

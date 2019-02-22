@@ -432,13 +432,14 @@ namespace Microsoft.ExpertConnect
                     }
                     else
                     {
+                        userProfile.Id = turnContext.Activity.From.Id;
+                        userProfile.Name = turnContext.Activity.From.Name;
                         await dialogContext.BeginDialogAsync(DialogId.Start, userProfile, cancellationToken);
                     }
 
                     break;
                 }
             }
-
 
             // Save the dialog state into the conversation state.
             await _accessors.ConversationState.SaveChangesAsync(turnContext, false, cancellationToken);

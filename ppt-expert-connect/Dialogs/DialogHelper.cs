@@ -89,16 +89,17 @@ namespace Microsoft.ExpertConnect.Dialogs
             {
                 throw new System.Exception("rsadad");
             }
-            var cardToSend = cb.V2VsoTicketCard(ticketNumber, "https://www.microsoft.com");
+            var cardToUser = cb.V2VsoTicketCard(ticketNumber, "https://www.microsoft.com");
+            var cardToAgent = cb.AgentAdaptiveCard(userInfo);
 
-            await context.SendActivityAsync(CreateAdaptiveCardAsActivity(cardToSend));
+            await context.SendActivityAsync(CreateAdaptiveCardAsActivity(cardToUser));
 
             var agentConversationId = await CreateAgentConversationMessage(
                 context,
                 $"PowerPoint request from {context.Activity.From.Name} via {context.Activity.ChannelId}",
                 credentials,
                 idTable,
-                cardToSend);
+                cardToAgent);
 
             var endUserMapping = await endUserAndAgentTable.CreateNewMapping(
                 ticketNumber.ToString(), // Obtain this information from userInfo Class

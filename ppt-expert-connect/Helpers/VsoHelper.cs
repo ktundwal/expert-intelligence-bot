@@ -74,7 +74,7 @@ namespace Microsoft.ExpertConnect.Helpers
         /// </summary>
         /// <param name="description"></param>
         /// <returns>Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem</returns>
-        public async Task<int> CreateTaskInVso(
+        public async Task<(int id, string url)> CreateTaskInVso(
             string taskType,
             string requestedBy,
             string description,
@@ -168,13 +168,14 @@ namespace Microsoft.ExpertConnect.Helpers
                     var result = await workItemTrackingHttpClient.CreateWorkItemAsync(patchDocument, Project, taskType);
                     Trace.TraceInformation($"Task Successfully Created: {taskType} task {result.Id}");
 
-                    var taskInVso = (int)result.Id;
+                    int taskInVso = (int)result.Id;
+                    result.Links.Links.TryGetValue("html", out var taskInVsoLink);
 
                     properties.Add("vsoId", taskInVso.ToString());
                     Console.WriteLine("CreateTaskInVso");
 //                    WebApiConfig.TelemetryClient.TrackEvent("CreateTaskInVso", properties);
 
-                    return taskInVso;
+                    return (taskInVso, ((ReferenceLink)taskInVsoLink).Href);
                 }
             }
             catch (Exception ex)
@@ -541,7 +542,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 var userProfile = context.Activity.From.Name; // TODO: Replace with user object
                 var deadline = DateTime.UtcNow.AddHours(Convert.ToInt32(Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.ResearchProjectViaTeamsMinHours)));
 
-                var vsoTicketNumber = await CreateTaskInVso(
+                var vsoItem = await CreateTaskInVso(
                     ResearchTaskType,
                     context.Activity.From.Name,
                     userChoices,
@@ -551,8 +552,9 @@ namespace Microsoft.ExpertConnect.Helpers
                     userProfile,
                     context.Activity.ChannelId);
 
-                userInfo.VsoId = vsoTicketNumber.ToString();
-                return vsoTicketNumber;
+                userInfo.VsoId = vsoItem.id.ToString();
+                userInfo.VsoLink = vsoItem.url;
+                return vsoItem.id;
             }
             catch (System.Exception e)
             {
