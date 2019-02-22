@@ -4,6 +4,8 @@
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <CodeAnalysisRuleSet>ExpertConnect.ruleset</CodeAnalysisRuleSet>
     <RootNamespace>Microsoft.ExpertConnect</RootNamespace>
+    <ApplicationInsightsResourceId>/subscriptions/afcc27a7-2928-4f22-9373-2a1c93408b79/resourcegroups/ecbot/providers/microsoft.insights/components/ecbot_tbkravtf</ApplicationInsightsResourceId>
+    <ApplicationInsightsAnnotationResourceId>/subscriptions/afcc27a7-2928-4f22-9373-2a1c93408b79/resourcegroups/ecbot/providers/microsoft.insights/components/ecbot_tbkravtf</ApplicationInsightsAnnotationResourceId>
   </PropertyGroup>
 
   <ItemGroup>
