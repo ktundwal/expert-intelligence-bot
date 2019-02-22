@@ -85,7 +85,8 @@ namespace Microsoft.ExpertConnect.Dialogs
                             client,
                             uploadedItem,
                             emailToShareWith,
-                            "sharing via OneDriveClient").Result;
+                            "sharing via OneDriveClient", 
+                            logger).Result;
                         logger.LogTrace($"Successfully shared OneDrive file {shareWithResponse}");
                     }
 

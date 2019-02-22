@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using DelegateAuthenticationProvider = Microsoft.Graph.DelegateAuthenticationProvider;
 using DriveItem = Microsoft.Graph.DriveItem;
@@ -167,20 +168,24 @@ namespace Microsoft.ExpertConnect.Helpers
             return itemResult;
         }
 
-        public static async Task<string> ShareFileAsync(GraphServiceClient graphClient, DriveItem fileToShare,
-            string emailToShareWith, string inviteMessage)
+        public static async Task<string> ShareFileAsync(
+            GraphServiceClient graphClient,
+            DriveItem fileToShare,
+            string emailToShareWith,
+            string inviteMessage,
+            ILogger logger)
         {
             var recipients = new List<DriveRecipient>()
             {
                 new DriveRecipient()
                 {
-                    Email = emailToShareWith
-                }
+                    Email = emailToShareWith,
+                },
             };
 
             var roles = new List<string>()
             {
-                "write"
+                "write",
             };
 
             var inviteCollection = await graphClient.Me.Drive.Items[fileToShare.Id]
@@ -188,7 +193,17 @@ namespace Microsoft.ExpertConnect.Helpers
                 .Request()
                 .PostAsync();
 
-            return inviteCollection[0].GrantedTo.User.DisplayName;
+            string id = "not_available";
+            try
+            {
+                id = inviteCollection[0].GrantedTo.User.Id;
+            }
+            catch (Exception e)
+            {
+                logger.LogError($"Error extracting id from invited collection", e);
+            }
+
+            return id;
         }
 
         public static DriveItem UploadPowerPointFileToDrive(GraphServiceClient graphClient, DriveItem folder, string pptLink, string projectId)
