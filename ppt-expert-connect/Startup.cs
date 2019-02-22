@@ -68,6 +68,8 @@ namespace Microsoft.ExpertConnect
 
             IdentityModelEventSource.ShowPII = true; //To show detail of error and see the problem
 
+            services.AddApplicationInsightsTelemetry();
+
             services.AddBot<ExpertConnect>(options =>
                 {
                     var secretKey = Configuration.GetSection("botFileSecret")?.Value;
@@ -203,6 +205,7 @@ namespace Microsoft.ExpertConnect
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
             _loggerFactory = loggerFactory;
+            _loggerFactory.AddApplicationInsights(app.ApplicationServices, LogLevel.Information);
 
             app.UseDefaultFiles()
                 .UseStaticFiles()

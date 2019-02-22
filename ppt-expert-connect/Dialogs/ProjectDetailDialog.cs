@@ -5,11 +5,13 @@ using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.ExpertConnect.Helpers;
 using Microsoft.ExpertConnect.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.ExpertConnect.Dialogs
 {
     public class ProjectDetailDialog : ComponentDialog
     {
+        private readonly ILogger _logger;
         private const string InitialId = DialogId.PostSelectionPath;
         private const string DictionaryKey = nameof(TemplateDetailDialog);
         private const string TextPrompt = "textPrompt";
@@ -19,9 +21,11 @@ namespace Microsoft.ExpertConnect.Dialogs
         private readonly string _shareFileWith;
         private readonly IConfiguration _config;
 
-        public ProjectDetailDialog(string id, CardBuilder cb, IConfiguration config)
+        public ProjectDetailDialog(string id, CardBuilder cb, IConfiguration config, ILoggerFactory loggerFactory)
             : base(id)
         {
+            _logger = loggerFactory.CreateLogger<ProjectDetailDialog>();
+
             InitialDialogId = InitialId;
             _cardBuilder = cb;
             _config = config;
@@ -88,7 +92,7 @@ namespace Microsoft.ExpertConnect.Dialogs
                 styleLink = styleLink == string.Empty
                     ? Helper.GetPowerPointTemplateLink(userInfo.Color, _config)
                     : styleLink;
-                var driveItem = DialogHelper.UploadAnItemToOneDrive(token, styleLink, _shareFileWith);
+                var driveItem = DialogHelper.UploadAnItemToOneDrive(token, styleLink, _shareFileWith, _logger);
                 userInfo.PptWebUrl = driveItem.WebUrl;
                 // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
                 return await stepContext.PromptAsync(

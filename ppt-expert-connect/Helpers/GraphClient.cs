@@ -195,9 +195,8 @@ namespace Microsoft.ExpertConnect.Helpers
         {
             using (MemoryStream ms = new MemoryStream())
             {
-                byte[] responseData;
                 WebClient c = new WebClient();
-                responseData = pptLink != string.Empty
+                var responseData = pptLink != string.Empty
                     ? c.DownloadData(pptLink)
                     : c.DownloadData("https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RE2lrfa");
 
