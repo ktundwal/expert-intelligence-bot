@@ -30,7 +30,7 @@ namespace Microsoft.ExpertConnect
     {
         private ILoggerFactory _loggerFactory;
         private readonly bool _isProduction;
-        private int _stackTraceLength = 300;
+        private int _stackTraceLength = 900;
 
         public Startup(IHostingEnvironment env)
         {
