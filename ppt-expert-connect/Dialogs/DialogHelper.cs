@@ -26,9 +26,12 @@ namespace Microsoft.ExpertConnect.Dialogs
 
         public static PromptOptions CreateAdaptiveCardAsPrompt(AdaptiveCard card)
         {
+            var retryPrompt = MessageFactory.Text("I'm sorry, I didn't understand that. Please select from the options in the card below") as Activity;
+            retryPrompt.Attachments.Add(CreateAdaptiveCardAttachment(card));
             return new PromptOptions
             {
                 Prompt = MessageFactory.Attachment(CreateAdaptiveCardAttachment(card)) as Activity,
+                RetryPrompt = retryPrompt,
             };
         }
 

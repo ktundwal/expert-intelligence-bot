@@ -397,6 +397,8 @@ namespace Microsoft.ExpertConnect
                             userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
                             await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, cancellationToken);
                             break;
+                        default:
+                            break;
                     }
 
                     break;

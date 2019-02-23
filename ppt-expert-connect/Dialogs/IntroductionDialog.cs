@@ -1,4 +1,6 @@
-﻿using System.Threading;
+﻿using System;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.ExpertConnect.Helpers;
@@ -13,17 +15,17 @@ namespace Microsoft.ExpertConnect.Dialogs
 
         private readonly CardBuilder _cardBuilder;
 
-        public IntroductionDialog(string id, CardBuilder cb) : base(id)
+        public IntroductionDialog(string id, CardBuilder cb)
+            : base(id)
         {
             InitialDialogId = InitialId;
             _cardBuilder = cb;
 
             var steps = new WaterfallStep[] { IntroductionStep, PostIntroductionStep };
-            AddDialog(new TextPrompt(TextPrompt));
+            AddDialog(new TextPrompt(TextPrompt, IntroductionOptionsValidatorAsync));
             AddDialog(new WaterfallDialog(InitialId, steps));
         }
 
-        #region Introduction
         private async Task<DialogTurnResult> IntroductionStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
         {
             // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
@@ -31,7 +33,7 @@ namespace Microsoft.ExpertConnect.Dialogs
             return await stepContext.PromptAsync(
                 TextPrompt,
                 DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.PresentationIntro()),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         private async Task<DialogTurnResult> PostIntroductionStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
@@ -53,7 +55,12 @@ namespace Microsoft.ExpertConnect.Dialogs
 
             return await stepContext.EndDialogAsync(userInfo, cancellationToken);
         }
-        #endregion
 
+        private Task<bool> IntroductionOptionsValidatorAsync(PromptValidatorContext<string> promptContext, CancellationToken cancellationToken)
+        {
+            var text = promptContext.Recognized.Value;
+            string[] options = { Constants.V2ShowExamples, Constants.V2LetsBegin };
+            return Task.FromResult(options.Contains(text, StringComparer.InvariantCultureIgnoreCase));
+        }
     }
 }

@@ -114,7 +114,6 @@ namespace Microsoft.ExpertConnect.Helpers
 
         #endregion
 
-
         #region Buttons
 
         public const string CreateBrief = "Create a brief";

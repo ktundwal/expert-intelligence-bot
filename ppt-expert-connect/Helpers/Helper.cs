@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.ExpertConnect.Models;
 using Microsoft.Extensions.Configuration;
 
@@ -44,6 +46,15 @@ namespace Microsoft.ExpertConnect.Helpers
             }
 
             return pptLink;
+        }
+
+        public static PromptValidator<string> CreateValidatorFromOptionsAsync(string[] options)
+        {
+            return (PromptValidatorContext<string> promptContext, CancellationToken cancellationToken) =>
+            {
+                var text = promptContext.Recognized.Value;
+                return Task.FromResult(options.Contains(text));
+            };
         }
     }
 }

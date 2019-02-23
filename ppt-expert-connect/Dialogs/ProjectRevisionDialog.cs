@@ -13,7 +13,8 @@ namespace Microsoft.ExpertConnect.Dialogs
 
         private readonly CardBuilder _cardBuilder;
 
-        public ProjectRevisionDialog(string id, CardBuilder cb) : base(id)
+        public ProjectRevisionDialog(string id, CardBuilder cb)
+            : base(id)
         {
             InitialDialogId = InitialId;
             _cardBuilder = cb;
@@ -22,9 +23,9 @@ namespace Microsoft.ExpertConnect.Dialogs
             AddDialog(new TextPrompt(TextPrompt));
             AddDialog(new WaterfallDialog(InitialId, steps));
         }
-        #region ProjectInRevision
 
-        private async Task<DialogTurnResult> PromptForRevisionFeedbackStep(WaterfallStepContext context,
+        private async Task<DialogTurnResult> PromptForRevisionFeedbackStep(
+            WaterfallStepContext context,
             CancellationToken cancellationToken)
         {
             return await context.PromptAsync(
@@ -33,7 +34,8 @@ namespace Microsoft.ExpertConnect.Dialogs
                 cancellationToken);
         }
 
-        private async Task<DialogTurnResult> ProcessRevisionFeedback(WaterfallStepContext context,
+        private async Task<DialogTurnResult> ProcessRevisionFeedback(
+            WaterfallStepContext context,
             CancellationToken cancellationToken)
         {
             // Get the current profile object from user state.
@@ -44,7 +46,5 @@ namespace Microsoft.ExpertConnect.Dialogs
             userInfo.State = UserDialogState.ProjectUnderRevision;
             return await context.EndDialogAsync(userInfo, cancellationToken);
         }
-
-        #endregion
     }
 }

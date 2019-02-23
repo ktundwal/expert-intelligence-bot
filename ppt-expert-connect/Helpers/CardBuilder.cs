@@ -393,11 +393,14 @@ namespace Microsoft.ExpertConnect.Helpers
                 Wrap = true,
             };
 
-            var styleA = AdaptiveCardHelper.CreateAdaptiveColumnWithImage("Photos",
+            var styleA = AdaptiveCardHelper.CreateAdaptiveColumnWithImage(
+                Constants.VisualsPhotos,
                 Helper.GetAssetLocationUrl(_botURL, _assetPath, @"graphic_photos.png"), true, true);
-            var styleB = AdaptiveCardHelper.CreateAdaptiveColumnWithImage("Illustrations",
+            var styleB = AdaptiveCardHelper.CreateAdaptiveColumnWithImage(
+                Constants.VisualsIllustrations,
                 Helper.GetAssetLocationUrl(_botURL, _assetPath, @"graphic_illustrations.png"), true, true);
-            var styleC = AdaptiveCardHelper.CreateAdaptiveColumnWithImage("Shapes",
+            var styleC = AdaptiveCardHelper.CreateAdaptiveColumnWithImage(
+                Constants.VisualsShapes,
                 Helper.GetAssetLocationUrl(_botURL, _assetPath, @"graphic_shapes.png"), true, true);
 
             AdaptiveColumnSet optionSetA = new AdaptiveColumnSet()

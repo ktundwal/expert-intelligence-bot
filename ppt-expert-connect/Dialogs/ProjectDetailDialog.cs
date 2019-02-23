@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
@@ -12,7 +13,9 @@ namespace Microsoft.ExpertConnect.Dialogs
     {
         private const string InitialId = DialogId.PostSelectionPath;
         private const string DictionaryKey = nameof(TemplateDetailDialog);
+        private const string ImagePrompt = "imagePrompt";
         private const string TextPrompt = "textPrompt";
+        private const string TicketPrompt = "ticketPrompt";
 
         private readonly CardBuilder _cardBuilder;
         private readonly string _oAuthConnectionSettingName;
@@ -34,19 +37,20 @@ namespace Microsoft.ExpertConnect.Dialogs
                 ExtraInfoStep,
                 UserInfoAddedStep,
                 SummaryStep,
-                TicketStep
+                TicketStep,
             };
+            AddDialog(new TextPrompt(ImagePrompt, Helper.CreateValidatorFromOptionsAsync(new[] { Constants.NewImages, Constants.OwnImages })));
+            AddDialog(new TextPrompt(TicketPrompt, Helper.CreateValidatorFromOptionsAsync(new[] { Constants.LooksGood, Constants.ChangeSomething })));
             AddDialog(new TextPrompt(TextPrompt));
             AddDialog(new WaterfallDialog(InitialId, steps));
         }
 
-        #region PostSelectionPath
-
-        private async Task<DialogTurnResult> ImageOptions(WaterfallStepContext stepContext,
+        private async Task<DialogTurnResult> ImageOptions(
+            WaterfallStepContext stepContext,
             CancellationToken cancellationToken)
         {
             return await stepContext.PromptAsync(
-                TextPrompt,
+                ImagePrompt,
                 DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.V2ImageOptions()),
                 cancellationToken);
         }
@@ -107,16 +111,16 @@ namespace Microsoft.ExpertConnect.Dialogs
         {
             var userInfo = DialogHelper.GetUserInfoFromContext(stepContext);
 
-            // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
-
             return await stepContext.PromptAsync(
-                TextPrompt,
+                TicketPrompt,
                 DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.SummaryCard(userInfo)),
                 cancellationToken);
 
         }
 
-        private async Task<DialogTurnResult> TicketStep(WaterfallStepContext stepContext, CancellationToken cancellationToken)
+        private async Task<DialogTurnResult> TicketStep(
+            WaterfallStepContext stepContext,
+            CancellationToken cancellationToken)
         {
             // Get the current profile object from user state.
             var userInfo = DialogHelper.GetUserInfoFromContext(stepContext);
@@ -132,14 +136,7 @@ namespace Microsoft.ExpertConnect.Dialogs
             }
 
             userInfo.State = UserDialogState.ProjectCreated;
-//
-//            await stepContext.Context.SendActivityAsync(
-//                DialogHelper.CreateAdaptiveCardAsActivity(_cardBuilder.V2VsoTicketCard(251, "https://www.microsoft.com")), cancellationToken);
-
             return await stepContext.EndDialogAsync(userInfo, cancellationToken);
         }
-
-        #endregion
-
     }
 }
