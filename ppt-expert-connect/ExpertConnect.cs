@@ -827,16 +827,20 @@ namespace Microsoft.ExpertConnect
 
         private string GetCommandFromAgent(string botName, string message)
         {
-            var atBotPattern = new Regex($"^<at>({botName})</at>");
-            var fullPattern = new Regex($@"^<at>({botName})</at> \((.*)\) (.*)");
+            var botNameRegexr = $"^<at>({botName})</at>";
+            var atBotPattern = new Regex(botNameRegexr);
+            var fullPattern = new Regex($@"{botNameRegexr} \((.*)\) (.*)");
             return atBotPattern.IsMatch(message) ? fullPattern.Match(message).Groups[2].Value : null;
         }
 
         private string ExtractMessageFromCommand(string botName, string command, string message)
         {
-            var atBotPattern = new Regex($"^<at>({botName})</at>");
-            var commandPattern = new Regex($" ({command}) ");
-            var fullPattern = new Regex($@"^<at>({botName})</at> \(({command})\) (.*)");
+            var botNameRegexr = $"^<at>({botName})</at>";
+            var commandRegexr = $@" \(({command})\) ";
+
+            var atBotPattern = new Regex(botNameRegexr);
+            var commandPattern = new Regex(commandRegexr);
+            var fullPattern = new Regex($"{botNameRegexr}{commandRegexr}(.*)");
 
             if (atBotPattern.IsMatch(message) && commandPattern.IsMatch(message))
             {
