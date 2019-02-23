@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
@@ -10,6 +11,7 @@ using Microsoft.Bot.Connector.Teams.Models;
 using Microsoft.Bot.Schema;
 using Microsoft.ExpertConnect.Helpers;
 using Microsoft.ExpertConnect.Models;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using DriveItem = Microsoft.Graph.DriveItem;
 
@@ -64,25 +66,43 @@ namespace Microsoft.ExpertConnect.Dialogs
                 cancellationToken);
         }
 
-        public static DriveItem UploadAnItemToOneDrive(TokenResponse tokenResponse, string pptLink, string emailToShareWith, string projectTicketNumber = "unknown")
+        public static DriveItem UploadAnItemToOneDrive(
+            TokenResponse tokenResponse,
+            string pptLink,
+            string emailToShareWith,
+            ILogger logger,
+            string projectTicketNumber = "unknown")
         {
-            DriveItem uploadedItem = null;
             if (tokenResponse != null)
             {
-                var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
-                var folder = GraphClient.GetOrCreateFolder(client, "expert-connect").Result;
-                uploadedItem = GraphClient.UploadPowerPointFileToDrive(client, folder, pptLink, projectTicketNumber);
-                if (!string.IsNullOrEmpty(emailToShareWith))
+                try
                 {
-                    var shareWithResponse = GraphClient.ShareFileAsync(
-                        client, 
-                        uploadedItem, 
-                        emailToShareWith, 
-                        "sharing via OneDriveClient").Result;
+                    var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
+                    var folder = GraphClient.GetOrCreateFolder(client, "expert-connect").Result;
+                    var uploadedItem =
+                        GraphClient.UploadPowerPointFileToDrive(client, folder, pptLink, projectTicketNumber);
+                    logger.LogTrace($"Successfully added file to OneDrive {uploadedItem.WebUrl}");
+                    if (!string.IsNullOrEmpty(emailToShareWith))
+                    {
+                        var shareWithResponse = GraphClient.ShareFileAsync(
+                            client,
+                            uploadedItem,
+                            emailToShareWith,
+                            "sharing via OneDriveClient", 
+                            logger).Result;
+                        logger.LogTrace($"Successfully shared OneDrive file {shareWithResponse}");
+                    }
+
+                    return uploadedItem;
+                }
+                catch (Exception e)
+                {
+                    logger.LogError($"Error uploading and sharing file {pptLink}", e);
+                    throw;
                 }
             }
 
-            return uploadedItem;
+            throw new Exception("User token not available. Cant upload to OneDrive");
         }
 
         public static async Task CreateProjectAndSendToUserAndAgent(ITurnContext context, UserInfo userInfo, CardBuilder cb, VsoHelper vso, SimpleCredentialProvider credentials, IdTable idTable, EndUserAndAgentIdMapping endUserAndAgentTable)

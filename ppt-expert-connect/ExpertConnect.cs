@@ -97,7 +97,7 @@ namespace Microsoft.ExpertConnect
             _dialogs.Add(new IntroductionDialog(DialogId.Start, _cb));
             _dialogs.Add(new TemplateDetailDialog(DialogId.DetailPath, _cb));
             _dialogs.Add(new ExampleTemplateDialog(DialogId.ExamplePath, _cb));
-            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, _cb, configuration));
+            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, _cb, configuration, loggerFactory));
             _dialogs.Add(new ProjectRevisionDialog(DialogId.ProjectRevisionPath, _cb));
             _dialogs.Add(new ProjectCompleteDialog(DialogId.ProjectCompletePath, _cb));
 

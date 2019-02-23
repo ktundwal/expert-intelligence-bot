@@ -30,7 +30,7 @@ namespace Microsoft.ExpertConnect
     {
         private ILoggerFactory _loggerFactory;
         private readonly bool _isProduction;
-        private int _stackTraceLength = 300;
+        private int _stackTraceLength = 900;
 
         public Startup(IHostingEnvironment env)
         {
@@ -67,6 +67,8 @@ namespace Microsoft.ExpertConnect
             ICredentialProvider credentialProvider = null;
 
             IdentityModelEventSource.ShowPII = true; //To show detail of error and see the problem
+
+            services.AddApplicationInsightsTelemetry();
 
             services.AddBot<ExpertConnect>(options =>
                 {
@@ -203,6 +205,7 @@ namespace Microsoft.ExpertConnect
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
             _loggerFactory = loggerFactory;
+            _loggerFactory.AddApplicationInsights(app.ApplicationServices, LogLevel.Information);
 
             app.UseDefaultFiles()
                 .UseStaticFiles()
