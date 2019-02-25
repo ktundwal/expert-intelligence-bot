@@ -576,12 +576,11 @@ namespace Microsoft.ExpertConnect
             WaterfallStepContext stepContext,
             CancellationToken cancellationToken)
         {
-            var userInfo = await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-            userInfo.State = UserDialogState.ProjectCompleted;
+            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserFromAgentConversationId(stepContext.Context.Activity
+                .Conversation.Id);
+            var vsoId = await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(endUserInfo.UserId);
 
-            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo(userInfo.VsoId);
-
-            await SendCardToUserEx(stepContext.Context, endUserInfo, _cb.V2PresentationResponse(endUserInfo.Name), userInfo.VsoId, cancellationToken);
+            await SendCardToUserEx(stepContext.Context, endUserInfo, _cb.V2PresentationResponse(endUserInfo.Name), vsoId, cancellationToken);
 
             return await stepContext.EndDialogAsync(null, cancellationToken);
         }
@@ -775,6 +774,17 @@ namespace Microsoft.ExpertConnect
             return async (context, token) =>
             {
                 var dialogContext = await _dialogs.CreateContextAsync(context, token);
+
+                var userInfo = await _accessors.UserInfoAccessor.GetAsync(context, () => new UserInfo(), token);
+                userInfo.State = UserDialogState.ProjectCompleted;
+                await _accessors.UserInfoAccessor.SetAsync(context, userInfo, token);
+                // Save the dialog state into the conversation state.
+                await _accessors.ConversationState.SaveChangesAsync(context, false, token);
+
+                // Save the user profile updates into the user state.
+                await _accessors.UserState.SaveChangesAsync(context, false, token);
+
+
                 await context.SendActivityAsync(DialogHelper.CreateAdaptiveCardAsActivity(card), token);
                 await dialogContext.ContinueDialogAsync(token);
             };
