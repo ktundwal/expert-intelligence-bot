@@ -94,7 +94,7 @@ namespace Microsoft.ExpertConnect
             var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
             _dialogs.Add(new WaterfallDialog(DialogId.Auth, authDialog));
 
-            _dialogs.Add(new IntroductionDialog(DialogId.Start, _cb));
+            _dialogs.Add(new IntroductionDialog(DialogId.Start, _cb, _vso));
             _dialogs.Add(new TemplateDetailDialog(DialogId.DetailPath, _cb));
             _dialogs.Add(new ExampleTemplateDialog(DialogId.ExamplePath, _cb));
             _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, _cb, configuration, loggerFactory));
@@ -529,17 +529,18 @@ namespace Microsoft.ExpertConnect
             var message =
                     ExtractMessageFromCommand(Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.BotName), "reply to user", context.Context.Activity.Text);
 
-            var userInfo =
-                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
+//            var userInfo =
+//                await _accessors.UserInfoAccessor.GetAsync(context.Context, () => new UserInfo(), cancellationToken);
 
-            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserInfo(userInfo.VsoId);
-            userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
+            var endUserInfo = await _endUserAndAgentIdMapping.GetEndUserFromAgentConversationId(context.Context.Activity
+                .Conversation.Id);
+            var vsoId = await _endUserAndAgentIdMapping.GetVsoTicketFromUserID(endUserInfo.UserId);
 
             await SendMessageToUserEx(
                 context.Context,
                 endUserInfo,
                 message,
-                userInfo.VsoId,
+                vsoId,
                 cancellationToken);
 
             await context.Context.SendActivityAsync("Message has been sent to user", null, null, cancellationToken);
@@ -754,6 +755,16 @@ namespace Microsoft.ExpertConnect
             {
                 var dialogContext = await _dialogs.CreateContextAsync(turnContext, token);
                 turnContext.Activity.Text = message;
+
+                var userInfo = await _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), token);
+                userInfo.State = UserDialogState.ProjectInOneOnOneConversation;
+                await _accessors.UserInfoAccessor.SetAsync(turnContext, userInfo, token);
+                // Save the dialog state into the conversation state.
+                await _accessors.ConversationState.SaveChangesAsync(turnContext, false, token);
+
+                // Save the user profile updates into the user state.
+                await _accessors.UserState.SaveChangesAsync(turnContext, false, token);
+
                 await turnContext.SendActivityAsync(message, null, null, token);
                 await dialogContext.ContinueDialogAsync(cancellationToken: token);
             };

@@ -30,7 +30,7 @@ namespace Microsoft.ExpertConnect.Helpers
         private const string RequestedByFieldName = "Custom.RequestedBy";
         public readonly string Uri;
         public readonly string Project;
-        public static readonly string ResearchTaskType = "Research";
+        public const string ResearchTaskType = "Research";
         public static readonly string VirtualAssistanceTaskType = "Virtual Assistance";
         public static readonly string[] TaskTypes = { ResearchTaskType, VirtualAssistanceTaskType };
 
@@ -60,7 +60,7 @@ namespace Microsoft.ExpertConnect.Helpers
             catch (Exception e)
             {
                 Console.WriteLine("GetWorkItemTrackingHttpClient");
-//                WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
+// WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
 //                {
 //                    {"function", "GetWorkItemTrackingHttpClient" }
 //                });
@@ -81,7 +81,7 @@ namespace Microsoft.ExpertConnect.Helpers
             string assignedTo,
             DateTime targetDate,
             string teamsConversationId,
-//            UserProfile userProfile,
+// UserProfile userProfile,
             string userProfileAlias,
             string channelId)
         {
@@ -107,58 +107,59 @@ namespace Microsoft.ExpertConnect.Helpers
                 {
                     Operation = Operation.Add,
                     Path = "/fields/System.Title",
-                    Value = $"PPT request from {userProfileAlias} via {channelId} due {targetDate}"
+                    Value = $"PPT request from {userProfileAlias} via {channelId} due {targetDate}",
                 },
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = $"/fields/{DescriptionFieldName}", Value = description
+                    Operation = Operation.Add, Path = $"/fields/{DescriptionFieldName}", Value = description,
                 },
                 new JsonPatchOperation()
                 {
                     Operation = Operation.Add,
                     Path = "/fields/" + GetRequestedByFieldNameBasedOnTaskType(taskType),
-                    Value = requestedBy
+                    Value = requestedBy,
                 },
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = $"/fields/{EndUserAliasFieldName}", Value = userProfileAlias
+                    Operation = Operation.Add, Path = $"/fields/{EndUserAliasFieldName}", Value = userProfileAlias,
                 },
-//                new JsonPatchOperation()
+
+// new JsonPatchOperation()
 //                {
 //                    Operation = Operation.Add, Path = $"/fields/{EndUserMobilePhoneFieldName}", Value = userProfile.MobilePhone
 //                },
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = $"/fields/{AgentConversationIdFieldName}", Value = teamsConversationId
+                    Operation = Operation.Add, Path = $"/fields/{AgentConversationIdFieldName}", Value = teamsConversationId,
                 },
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = $"/fields/{FreelancerplatformFieldName}", Value = "UpWork"
+                    Operation = Operation.Add, Path = $"/fields/{FreelancerplatformFieldName}", Value = "UpWork",
                 },
                 new JsonPatchOperation()
                 {
                     Operation = Operation.Add,
                     Path = $"/fields/{FreelancerplatformJobIdFieldName}",
-                    Value = "not assigned"
+                    Value = "not assigned",
                 },
                 new JsonPatchOperation()
                 {
                     Operation = Operation.Add,
                     Path = "/fields/System.AssignedTo",
-                    Value = assignedTo
+                    Value = assignedTo,
                 },
                 new JsonPatchOperation()
                 {
                     Operation = Operation.Add,
                     Path = "/fields/Microsoft.VSTS.Scheduling.TargetDate",
-                    Value = targetDate
+                    Value = targetDate,
                 },
                 new JsonPatchOperation()
                 {
                     Operation = Operation.Add,
                     Path = "/fields/Custom.FreelancerName",
-                    Value = "not assigned"
-                }
+                    Value = "not assigned",
+                },
             };
 
             try
@@ -173,15 +174,15 @@ namespace Microsoft.ExpertConnect.Helpers
 
                     properties.Add("vsoId", taskInVso.ToString());
                     Console.WriteLine("CreateTaskInVso");
-//                    WebApiConfig.TelemetryClient.TrackEvent("CreateTaskInVso", properties);
 
+                    // WebApiConfig.TelemetryClient.TrackEvent("CreateTaskInVso", properties);
                     return (taskInVso, ((ReferenceLink)taskInVsoLink).Href);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
-                //                WebApiConfig.TelemetryClient.TrackException(ex, properties);
+                // WebApiConfig.TelemetryClient.TrackException(ex, properties);
                 throw;
             }
         }
@@ -203,7 +204,7 @@ namespace Microsoft.ExpertConnect.Helpers
             {
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = "/fields/Custom.TeamsConversationId", Value = teamsConversationId
+                    Operation = Operation.Add, Path = "/fields/Custom.TeamsConversationId", Value = teamsConversationId,
                 },
             };
 
@@ -232,7 +233,7 @@ namespace Microsoft.ExpertConnect.Helpers
         /// <returns>List of Microsoft.TeamFoundation.WorkItemTracking.WebApi.Models.WorkItem</returns>
         public async Task<List<WorkItem>> GetWorkItemsForUser(string taskType, string channelId, string fromName)
         {
-            //create a wiql object and build our query
+            // create a wiql object and build our query
             Wiql wiql = new Wiql()
             {
                 Query = "Select [State], [Title], [Description], [Microsoft.VSTS.Scheduling.TargetDate], " +
@@ -253,13 +254,13 @@ namespace Microsoft.ExpertConnect.Helpers
             {
                 using (WorkItemTrackingHttpClient workItemTrackingHttpClient = GetWorkItemTrackingHttpClient())
                 {
-                    //execute the query to get the list of work items in the results
+                    // execute the query to get the list of work items in the results
                     WorkItemQueryResult workItemQueryResult = await workItemTrackingHttpClient.QueryByWiqlAsync(wiql);
 
-                    //some error handling                
+                    // some error handling                
                     if (workItemQueryResult.WorkItems.Count() != 0)
                     {
-                        //need to get the list of our work item ids and put them into an array
+                        // need to get the list of our work item ids and put them into an array
                         List<int> list = new List<int>();
                         foreach (var item in workItemQueryResult.WorkItems)
                         {
@@ -267,7 +268,7 @@ namespace Microsoft.ExpertConnect.Helpers
                         }
                         int[] arr = list.ToArray();
 
-                        //build a list of the fields we want to see
+                        // build a list of the fields we want to see
                         string[] fields = new string[10];
                         fields[0] = "System.Id";
                         fields[1] = TitleFieldName;
@@ -280,12 +281,12 @@ namespace Microsoft.ExpertConnect.Helpers
                         fields[8] = EndUserNameFieldName;
                         fields[9] = GetRequestedByFieldNameBasedOnTaskType(taskType);
 
-                        //get work items for the ids found in query
+                        // get work items for the ids found in query
                         List<WorkItem> workItems = workItemTrackingHttpClient.GetWorkItemsAsync(arr, fields, workItemQueryResult.AsOf).Result;
 
                         Trace.TraceInformation($"Query Results: {workItems.Count} items found");
 
-                        //loop though work items and write to console
+                        // loop though work items and write to console
                         foreach (var workItem in workItems)
                         {
                             Trace.TraceInformation("{0}          {1}                     {2}", workItem.Id, workItem.Fields[TitleFieldName], workItem.Fields[StateFieldName]);
@@ -300,7 +301,7 @@ namespace Microsoft.ExpertConnect.Helpers
             catch (Exception e)
             {
                 Console.WriteLine(e);
-//                WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
+// WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
 //                {
 //                    {"function", "GetWorkItemsForUser" },
 //                    {"fromName", fromName }
@@ -327,7 +328,7 @@ namespace Microsoft.ExpertConnect.Helpers
             catch (Exception e)
             {
                 Console.WriteLine(e);
-//                WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
+// WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
 //                {
 //                    {"function", "GetProjectStatus" },
 //                    {"vsoId", vsoId.ToString() }
@@ -344,7 +345,7 @@ namespace Microsoft.ExpertConnect.Helpers
         public async Task<EndUserAndAgentIdMapping.EndUserAndAgentIdMappingEntity>
             GetStateFromVsoGivenAgentConversationId(string agentConversationId)
         {
-            //create a wiql object and build our query
+            // create a wiql object and build our query
             Wiql wiql = new Wiql()
             {
                 Query = "Select " +
@@ -354,22 +355,22 @@ namespace Microsoft.ExpertConnect.Helpers
                         $"[{EndUserNameFieldName}] " +
                         "From WorkItems " +
                         $"Where " +
-                        //$"[Work Item Type] = '{taskType}' And " +
+                        // $"[Work Item Type] = '{taskType}' And " +
                         "[System.TeamProject] = '" + Project + "' " +
-                        $"And [{AgentConversationIdFieldName}] = '" + agentConversationId + "' "
+                        $"And [{AgentConversationIdFieldName}] = '" + agentConversationId + "' ",
             };
 
             using (WorkItemTrackingHttpClient workItemTrackingHttpClient = GetWorkItemTrackingHttpClient())
             {
-                //execute the query to get the list of work items in the results
+                // execute the query to get the list of work items in the results
                 try
                 {
                     WorkItemQueryResult workItemQueryResult = await workItemTrackingHttpClient.QueryByWiqlAsync(wiql);
 
-                    //some error handling                
+                    // some error handling                
                     if (workItemQueryResult.WorkItems.Count() != 0)
                     {
-                        //need to get the list of our work item ids and put them into an array
+                        // need to get the list of our work item ids and put them into an array
                         List<int> list = new List<int>();
                         foreach (var item in workItemQueryResult.WorkItems)
                         {
@@ -377,19 +378,19 @@ namespace Microsoft.ExpertConnect.Helpers
                         }
                         int[] arr = list.ToArray();
 
-                        //build a list of the fields we want to see
+                        // build a list of the fields we want to see
                         string[] fields = new string[4];
                         fields[0] = EndUserConversationIdFieldName;
                         fields[1] = AgentConversationIdFieldName;
                         fields[2] = EndUserIdFieldName;
                         fields[3] = EndUserNameFieldName;
 
-                        //get work items for the ids found in query
+                        // get work items for the ids found in query
                         List<WorkItem> workItems = await workItemTrackingHttpClient.GetWorkItemsAsync(arr, fields, workItemQueryResult.AsOf);
 
                         Trace.TraceInformation($"Query Results: {workItems.Count} items found");
 
-                        //loop though work items and write to console
+                        // loop though work items and write to console
                         var firstWorkItem = workItems.FirstOrDefault();
                         if (firstWorkItem != null)
                         {
@@ -409,7 +410,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 }
                 catch (Exception e)
                 {
-//                    WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
+// WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
 //                    {
 //                        {"function", "GetStateFromVsoGivenAgentConversationId" },
 //                        {"agentConversationId", agentConversationId }
@@ -426,7 +427,7 @@ namespace Microsoft.ExpertConnect.Helpers
             {
                 new JsonPatchOperation()
                 {
-                    Operation = Operation.Add, Path = "/fields/System.State", Value = "Closed"
+                    Operation = Operation.Add, Path = "/fields/System.State", Value = "Closed",
                 },
             };
 
@@ -441,7 +442,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 }
                 catch (Exception ex)
                 {
-//                    WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
+// WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
 //                    {
 //                        {"function", "CloseProject" },
 //                        {"vsoId", vsoId.ToString() }
@@ -472,7 +473,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 }
                 catch (Exception ex)
                 {
-//                    WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
+// WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
 //                    {
 //                        {"function", "GetProjectSummary" },
 //                        {"vsoId", vsoId.ToString() }
@@ -495,7 +496,7 @@ namespace Microsoft.ExpertConnect.Helpers
             }
             catch (Exception e)
             {
-//                WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
+// WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
 //                {
 //                    {"function", "GetWorkItem" },
 //                    {"vsoId", vsoId.ToString() }
@@ -520,7 +521,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 }
                 catch (Exception ex)
                 {
-                    //                    WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
+                    // WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
                     //                    {
                     //                        {"function", "GetAgentConversationIdForVso" },
                     //                        {"vsoId", vsoId.ToString() },
@@ -558,7 +559,7 @@ namespace Microsoft.ExpertConnect.Helpers
             }
             catch (System.Exception e)
             {
-                //TODO: redo catch clause
+                // TODO: redo catch clause
                 try
                 {
                     // close this ticket
@@ -567,7 +568,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 catch (System.Exception exception)
                 {
                     Console.WriteLine("Error closing project during exception received in CreateProject");
-//                    WebApiConfig.TelemetryClient.TrackException(exception, new Dictionary<string, string>
+// WebApiConfig.TelemetryClient.TrackException(exception, new Dictionary<string, string>
 //                    {
 //                        {"debugNote", "Error closing project during exception received in CreateProject" },
 //                        {"CreateProjectException", e.ToString() },
@@ -578,5 +579,133 @@ namespace Microsoft.ExpertConnect.Helpers
             }
         }
 
+        public async Task<(int id, string url)> CreateTaskOnly(
+            string channelId, // "msteams"
+            string requestedBy,
+            string userProfileAlias = "",
+            string taskType = ResearchTaskType)
+        {
+            JsonPatchDocument patchDocument = new JsonPatchDocument
+            {
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add,
+                    Path = "/fields/System.Title",
+                    Value = $"PowerPoint request from {userProfileAlias} via {channelId}", // due {targetDate}",
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add,
+                    Path = "/fields/" + RequestedByFieldName,
+                    Value = requestedBy,
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add, Path = $"/fields/{EndUserAliasFieldName}", Value = userProfileAlias,
+                },
+            };
+
+            try
+            {
+                using (WorkItemTrackingHttpClient workItemTrackingHttpClient = GetWorkItemTrackingHttpClient())
+                {
+                    var result = await workItemTrackingHttpClient.CreateWorkItemAsync(patchDocument, Project, taskType);
+                    Trace.TraceInformation($"Task Successfully Created: {taskType} task {result.Id}");
+
+                    int taskInVso = (int)result.Id;
+                    result.Links.Links.TryGetValue("html", out var taskInVsoLink);
+
+                    Console.WriteLine("CreateTaskInVso");
+
+                    return (taskInVso, ((ReferenceLink)taskInVsoLink).Href);
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.TraceInformation($"Something went wrong creating task for {requestedBy} -- {ex}");
+                throw;
+            }
+        }
+
+        public async Task<List<WorkItem>> GetExistingUserTask(string channelId, string endUserId, string endUserName, string taskType = ResearchTaskType)
+        {
+            // create a wiql object and build our query
+            Wiql wiql = new Wiql()
+            {
+                Query = "Select " +
+                        "[State], [Title], [Description], [Microsoft.VSTS.Scheduling.TargetDate], " +
+//                        $"[{EndUserConversationIdFieldName}], " +
+//                        $"[{AgentConversationIdFieldName}], " +
+                        $"[{EndUserIdFieldName}], " +
+                        $"[{EndUserNameFieldName}], " +
+                        $"[{RequestedByFieldName}] " +
+                        "From WorkItems " +
+                        $"Where [Work Item Type] = '{taskType}' " +
+                        $"And [System.TeamProject] = '{Project}' " +
+                        $"And [{RequestedByFieldName}] = '{endUserName}' " +
+                        $"And [{StateFieldName}] <> 'Closed' " +
+                        "Order By [State] Asc, [Changed Date] Desc",
+            };
+
+            try
+            {
+                using (WorkItemTrackingHttpClient workItemTrackingHttpClient = GetWorkItemTrackingHttpClient())
+                {
+                    // execute the query to get the list of work items in the results
+                    WorkItemQueryResult workItemQueryResult = await workItemTrackingHttpClient.QueryByWiqlAsync(wiql);
+
+                    // some error handling                
+                    if (workItemQueryResult.WorkItems.Count() != 0)
+                    {
+                        // need to get the list of our work item ids and put them into an array
+                        List<int> list = new List<int>();
+                        foreach (var item in workItemQueryResult.WorkItems)
+                        {
+                            list.Add(item.Id);
+                        }
+                        int[] arr = list.ToArray();
+
+                        // build a list of the fields we want to see
+                        string[] fields = new string[10];
+                        fields[0] = "System.Id";
+                        fields[1] = TitleFieldName;
+                        fields[2] = StateFieldName;
+                        fields[3] = DescriptionFieldName;
+                        fields[4] = "Microsoft.VSTS.Scheduling.TargetDate";
+                        fields[5] = EndUserConversationIdFieldName;
+                        fields[6] = AgentConversationIdFieldName;
+                        fields[7] = EndUserIdFieldName;
+                        fields[8] = EndUserNameFieldName;
+                        fields[9] = GetRequestedByFieldNameBasedOnTaskType(taskType);
+
+                        // get work items for the ids found in query
+                        List<WorkItem> workItems = workItemTrackingHttpClient.GetWorkItemsAsync(arr, fields, workItemQueryResult.AsOf).Result;
+
+                        Trace.TraceInformation($"Query Results: {workItems.Count} items found");
+
+                        // loop though work items and write to console
+                        foreach (var workItem in workItems)
+                        {
+                            Trace.TraceInformation("{0}          {1}                     {2}", workItem.Id, workItem.Fields[TitleFieldName], workItem.Fields[StateFieldName]);
+                        }
+
+                        return workItems;
+                    }
+
+                    return null;
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                // WebApiConfig.TelemetryClient.TrackException(e, new Dictionary<string, string>
+                //                {
+                //                    {"function", "GetWorkItemsForUser" },
+                //                    {"fromName", fromName }
+                //                });
+
+                throw;
+            }
+        }
     }
 }

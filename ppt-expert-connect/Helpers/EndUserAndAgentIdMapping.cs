@@ -101,6 +101,35 @@ namespace Microsoft.ExpertConnect.Helpers
             return returnVal;
         }
 
+        public async Task<EndUserModel> GetEndUserFromAgentConversationId(string agentConversationId)
+        {
+            EndUserModel eum = null;
+            try
+            {
+                TableQuery<EndUserAndAgentIdMappingEntity> rangeQuery =
+                    new TableQuery<EndUserAndAgentIdMappingEntity>()
+                        .Where(TableQuery.GenerateFilterCondition("AgentConversationId", QueryComparisons.Equal, agentConversationId));
+
+                var queryResults = await _endUserAndAgentIdMappingClient.ExecuteQuerySegmentedAsync(rangeQuery, null);
+                if (queryResults != null)
+                {
+                    eum = queryResults.Select(e => new EndUserModel()
+                    {
+                        Name = e.EndUserName,
+                        UserId = e.EndUserId,
+                        Conversation = e.EndUserConversationReference,
+                    }).FirstOrDefault();
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+
+            return eum;
+        }
+
         public async Task<EndUserModel> GetEndUserInfo(string vsoId)
         {
             EndUserModel eUM = null;
@@ -118,7 +147,7 @@ namespace Microsoft.ExpertConnect.Helpers
                     {
                         Name = e.EndUserName,
                         UserId = e.EndUserId,
-                        Conversation = e.EndUserConversationReference
+                        Conversation = e.EndUserConversationReference,
                     }).FirstOrDefault();
                 }
             }

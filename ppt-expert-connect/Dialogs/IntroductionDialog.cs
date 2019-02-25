@@ -14,12 +14,14 @@ namespace Microsoft.ExpertConnect.Dialogs
         private const string TextPrompt = "textPrompt";
 
         private readonly CardBuilder _cardBuilder;
+        private readonly VsoHelper _vsoHelper;
 
-        public IntroductionDialog(string id, CardBuilder cb)
+        public IntroductionDialog(string id, CardBuilder cb, VsoHelper vso)
             : base(id)
         {
             InitialDialogId = InitialId;
             _cardBuilder = cb;
+            _vsoHelper = vso;
 
             var steps = new WaterfallStep[] { IntroductionStep, PostIntroductionStep };
             AddDialog(new TextPrompt(TextPrompt, IntroductionOptionsValidatorAsync));
@@ -52,6 +54,10 @@ namespace Microsoft.ExpertConnect.Dialogs
             {
                 userInfo.State = UserDialogState.ProjectCollectTemplateDetails;
             }
+
+//            var vsoItem = await _vsoHelper.CreateTaskOnly("msteams", stepContext.Context.Activity.From.Name, stepContext.Context.Activity.From.Id);
+//            userInfo.VsoId = vsoItem.id.ToString();
+//            userInfo.VsoLink = vsoItem.url;
 
             return await stepContext.EndDialogAsync(userInfo, cancellationToken);
         }

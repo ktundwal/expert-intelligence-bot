@@ -176,7 +176,7 @@ namespace Microsoft.ExpertConnect.Dialogs
                     activity: agentMessageActivity,
                     channelData: channelData);
 
-                var conversationResourceResponse = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(
+                ConversationResourceResponse conversationResourceResponse = await BotConnectorUtility.BuildRetryPolicy().ExecuteAsync(
                     async ()
                         => await connectorClient.Result.Conversations.CreateConversationAsync(conversationParams));
 
