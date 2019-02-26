@@ -61,6 +61,9 @@ namespace Microsoft.ExpertConnect
         /// <seealso cref="https://docs.microsoft.com/en-us/azure/bot-service/bot-service-manage-channels?view=azure-bot-service-4.0"/>
         public void ConfigureServices(IServiceCollection services)
         {
+            const int TypingIndicatorDelay = 250;
+            const int TypingIndicatorDuration = 5000;
+
             AzureBlobTranscriptStore blobStore = null;
             IdTable idTable = null;
             EndUserAndAgentIdMapping endUserAndAgentIdMapping = null;
@@ -155,6 +158,9 @@ namespace Microsoft.ExpertConnect
                     blobStore = new AzureBlobTranscriptStore(blobStorageConfig.ConnectionString, storageContainer);
                     var transcriptMiddleware = new TranscriptLoggerMiddleware(blobStore);
                     options.Middleware.Add(transcriptMiddleware);
+
+                    var typingIndicatorMiddleware = new ShowTypingMiddleware(TypingIndicatorDelay, TypingIndicatorDuration);
+                    options.Middleware.Add(typingIndicatorMiddleware);
 
                     // Add access to idTable on AzureStorage
                     idTable = new IdTable(blobStorageConfig.ConnectionString);
