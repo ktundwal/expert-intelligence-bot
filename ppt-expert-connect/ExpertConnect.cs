@@ -30,7 +30,6 @@ namespace Microsoft.ExpertConnect
     public class ExpertConnect : IBot
     {
         private const string PreCompletionSelectionPath = "PreCompletionSelection";
-        private const string UserToSelectProjectStatePath = "UserToSelectProjectState";
         private const string ReplyToUserPath = "ReplyToUser";
         private const string ReplyToAgentPath = "ReplyToAgent";
 
@@ -89,17 +88,16 @@ namespace Microsoft.ExpertConnect
             _cb = new CardBuilder(configuration);
             _vso = new VsoHelper(configuration);
             _dialogs = new DialogSet(accessors.DialogStateAccessor);
-            _dialogs.Add(OAuthHelpers.Prompt(_oAuthConnectionSettingName));
+//            _dialogs.Add(OAuthHelpers.Prompt(_oAuthConnectionSettingName));
 
-            var authDialog = new WaterfallStep[] {PromptStepAsync, LoginStepAsync};
-            _dialogs.Add(new WaterfallDialog(DialogId.Auth, authDialog));
-
+            _dialogs.Add(new AuthDialog(DialogId.Auth, _oAuthConnectionSettingName));
             _dialogs.Add(new IntroductionDialog(DialogId.Start, _cb, _vso));
             _dialogs.Add(new TemplateDetailDialog(DialogId.DetailPath, _cb));
             _dialogs.Add(new ExampleTemplateDialog(DialogId.ExamplePath, _cb));
             _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, _cb, configuration, loggerFactory));
             _dialogs.Add(new ProjectRevisionDialog(DialogId.ProjectRevisionPath, _cb));
             _dialogs.Add(new ProjectCompleteDialog(DialogId.ProjectCompletePath, _cb));
+            _dialogs.Add(new ProjectCompletionReplyFromAgentDialog(DialogId.UserToSelectProjectStatePath));
 
             var replyToUserSteps = new WaterfallStep[] { ReplyToUserStep };
             _dialogs.Add(new WaterfallDialog(ReplyToUserPath, replyToUserSteps));
@@ -109,9 +107,6 @@ namespace Microsoft.ExpertConnect
 
             var agentToUserForPostProjectCompletionBranching = new WaterfallStep[]{ ShowPostProjectCompletionChoices };
             _dialogs.Add(new WaterfallDialog(PreCompletionSelectionPath, agentToUserForPostProjectCompletionBranching));
-
-            var handleProjectCompletionReplyFromAgent = new WaterfallStep[] { PostCompletionChoiceSelection };
-            _dialogs.Add(new WaterfallDialog(UserToSelectProjectStatePath, handleProjectCompletionReplyFromAgent));
 
             _dialogs.Add(new TextPrompt(DialogId.SimpleTextPrompt));
         }
@@ -212,7 +207,9 @@ namespace Microsoft.ExpertConnect
                     }
                     else
                     {
-                        await dialogContext.BeginDialogAsync(DialogId.Auth, null, cancellationToken);
+                        var userProfile =
+                            _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), cancellationToken);
+                        await dialogContext.BeginDialogAsync(DialogId.Auth, userProfile, cancellationToken);
                     }
 
                     break;
@@ -247,10 +244,12 @@ namespace Microsoft.ExpertConnect
             CancellationToken cancellationToken,
             DialogContext dialogContext)
         {
+            var userInfo = await _accessors.UserInfoAccessor.GetAsync(turnContext, () => new UserInfo(), cancellationToken);
             await dialogContext.CancelAllDialogsAsync(cancellationToken);
             await _transcriptStore.DeleteTranscriptAsync(
                 turnContext.Activity.ChannelId,
                 turnContext.Activity.Conversation.Id);
+            if(!string.IsNullOrEmpty(userInfo.VsoId)) {_vso.CloseProject(Convert.ToInt32(userInfo.VsoId));}
             await _accessors.UserInfoAccessor.DeleteAsync(turnContext, cancellationToken);
             await _accessors.DialogStateAccessor.DeleteAsync(turnContext, cancellationToken);
 
@@ -340,7 +339,6 @@ namespace Microsoft.ExpertConnect
                     cancellationToken: cancellationToken);
             }
 
-
             // Save the dialog state into the conversation state.
             await _accessors.ConversationState.SaveChangesAsync(turnContext, false, cancellationToken);
 
@@ -381,7 +379,8 @@ namespace Microsoft.ExpertConnect
                                 _vso,
                                 _botCredentials,
                                 _idTable,
-                                _endUserAndAgentIdMapping);
+                                _endUserAndAgentIdMapping,
+                                cancellationToken);
                             break;
                         case UserDialogState.ProjectUnderRevision:
                             var vsoTicketForUser =
@@ -426,11 +425,11 @@ namespace Microsoft.ExpertConnect
                     }
                     else if (userProfile.State == UserDialogState.ProjectInOneOnOneConversation)
                     {
-                        await dialogContext.BeginDialogAsync(ReplyToAgentPath, null, cancellationToken);
+                        await dialogContext.BeginDialogAsync(ReplyToAgentPath, userProfile, cancellationToken);
                     }
                     else if (userProfile.State == UserDialogState.ProjectCompleted)
                     {
-                        await dialogContext.BeginDialogAsync(UserToSelectProjectStatePath, null, cancellationToken);
+                        await dialogContext.BeginDialogAsync(DialogId.UserToSelectProjectStatePath, userProfile, cancellationToken);
                     }
                     else
                     {
@@ -455,72 +454,11 @@ namespace Microsoft.ExpertConnect
             await context.SendActivityAsync(WelcomeMessage, cancellationToken: cancellationToken);
         }
 
-        #region Auth
         private bool IsTeamsVerificationInvoke(ITurnContext turnContext)
         {
             var activity = turnContext.Activity;
             return activity.Type == ActivityTypes.Invoke && activity.Name == "signin/verifyState";
         }
-
-        /// <summary>
-        /// This <see cref="WaterfallStep"/> prompts the user to log in.
-        /// </summary>
-        /// <param name="step">A <see cref="WaterfallStepContext"/> provides context for the current waterfall step.</param>
-        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
-        /// or threads to receive notice of cancellation.</param>
-        /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
-        private static async Task<DialogTurnResult> PromptStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
-        {
-// await step.Context.SendActivityAsync(JsonConvert.SerializeObject(step.Context.Activity));
-            return await step.BeginDialogAsync(OAuthHelpers.LoginPromptDialogId, cancellationToken: cancellationToken);
-        }
-
-        /// <summary>
-        /// In this step we check that a token was received and prompt the user as needed.
-        /// </summary>
-        /// <param name="step">A <see cref="WaterfallStepContext"/> provides context for the current waterfall step.</param>
-        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
-        /// or threads to receive notice of cancellation.</param>
-        /// <returns>A <see cref="Task"/> representing the operation result of the operation.</returns>
-        private async Task<DialogTurnResult> LoginStepAsync(WaterfallStepContext step, CancellationToken cancellationToken)
-        {
-            // Get the token from the previous step. Note that we could also have gotten the
-            // token directly from the prompt itself. There is an example of this in the next method.
-            var tokenResponse = (TokenResponse)step.Result;
-            if (tokenResponse != null)
-            {
-                var userProfile = await _accessors.UserInfoAccessor.GetAsync(step.Context, () => new UserInfo(), cancellationToken);
-                userProfile.Token = tokenResponse;
-
-                var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
-                var user = await GraphClient.GetMeAsync(client);
-// await step.Context.SendActivityAsync($"Kon'nichiwa {user.DisplayName}! You are now logged in.",
-//                    cancellationToken: cancellationToken);
-                await SendWelcomeMessage(step.Context, cancellationToken);
-                return await step.EndDialogAsync(null, cancellationToken); // Maybe just end ??
-            }
-
-            await step.Context.SendActivityAsync(
-                "Login was not successful please try again. Starting Auth dialog back again.",
-                cancellationToken: cancellationToken);
-            return await step.ReplaceDialogAsync(DialogId.Auth, null, cancellationToken);
-
-        }
-
-        /// <summary>
-        /// Greet new users as they are added to the conversation.
-        /// </summary>
-        /// <param name="turnContext">Provides the <see cref="ITurnContext"/> for the turn of the bot.</param>
-        /// <param name="cancellationToken" >(Optional) A <see cref="CancellationToken"/> that can be used by other objects
-        /// or threads to receive notice of cancellation.</param>
-        /// <returns>A <see cref="Task"/> representing the operation result of the Turn operation.</returns>
-        private static async Task SendWelcomeMessageAsync(ITurnContext turnContext, CancellationToken cancellationToken)
-        {
-            await turnContext.SendActivityAsync(
-                $"Welcome to ExpertConnect {turnContext.Activity.From.Name}. {WelcomeText}",
-                cancellationToken: cancellationToken);
-        }
-        #endregion
 
         #region ReplyToUser/Agent
 
@@ -585,26 +523,6 @@ namespace Microsoft.ExpertConnect
             return await stepContext.EndDialogAsync(null, cancellationToken);
         }
 
-        private async Task<DialogTurnResult> PostCompletionChoiceSelection(
-            WaterfallStepContext stepContext,
-            CancellationToken cancellationToken)
-        {
-            var choice = stepContext.Context.Activity.Text;
-            var userInfo =
-                await _accessors.UserInfoAccessor.GetAsync(stepContext.Context, () => new UserInfo(), cancellationToken);
-
-            if (choice.Equals(Constants.Complete))
-            {
-                return await stepContext.ReplaceDialogAsync(DialogId.ProjectCompletePath, userInfo, cancellationToken);
-            }
-            if (choice.Equals(Constants.Revision))
-            {
-                return await stepContext.ReplaceDialogAsync(DialogId.ProjectRevisionPath, userInfo, cancellationToken);
-            }
-
-            // TODO: handle case of message not a part of the two texts
-            return null;
-        }
         #endregion
 
         #region Helpers

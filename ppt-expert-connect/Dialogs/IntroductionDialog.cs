@@ -32,6 +32,24 @@ namespace Microsoft.ExpertConnect.Dialogs
         {
             // WaterfallStep always finishes with the end of the Waterfall or with another dialog; here it is a Prompt Dialog.
             // Running a prompt here means the next WaterfallStep will be run when the users response is received.
+            var userInfo = DialogHelper.GetUserInfoFromContext(stepContext);
+
+            try
+            {
+                var vsoItem = await _vsoHelper.CreateTaskOnly(
+                    stepContext.Context.Activity.ChannelId,
+                    stepContext.Context.Activity.From.Id,
+                    stepContext.Context.Activity.From.Name,
+                    stepContext.Context.Activity.From.Name);
+                userInfo.VsoId = vsoItem.id.ToString();
+                userInfo.VsoLink = vsoItem.url;
+            }
+            catch (Exception ex)
+            {
+                await stepContext.Context.SendActivityAsync($"Please wait for the agent to respond to open project **{userInfo.VsoId}**. Otherwise, use reset to close the existing project and open a new one.", cancellationToken: cancellationToken);
+                return await stepContext.EndDialogAsync(userInfo, cancellationToken);
+            }
+
             return await stepContext.PromptAsync(
                 TextPrompt,
                 DialogHelper.CreateAdaptiveCardAsPrompt(_cardBuilder.PresentationIntro()),
@@ -54,10 +72,6 @@ namespace Microsoft.ExpertConnect.Dialogs
             {
                 userInfo.State = UserDialogState.ProjectCollectTemplateDetails;
             }
-
-//            var vsoItem = await _vsoHelper.CreateTaskOnly("msteams", stepContext.Context.Activity.From.Name, stepContext.Context.Activity.From.Id);
-//            userInfo.VsoId = vsoItem.id.ToString();
-//            userInfo.VsoLink = vsoItem.url;
 
             return await stepContext.EndDialogAsync(userInfo, cancellationToken);
         }

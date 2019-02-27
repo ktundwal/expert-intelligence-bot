@@ -61,8 +61,8 @@ namespace Microsoft.ExpertConnect
         /// <seealso cref="https://docs.microsoft.com/en-us/azure/bot-service/bot-service-manage-channels?view=azure-bot-service-4.0"/>
         public void ConfigureServices(IServiceCollection services)
         {
-            const int TypingIndicatorDelay = 250;
-            const int TypingIndicatorDuration = 5000;
+            const int TypingIndicatorDelay = 100;
+            const int TypingIndicatorDuration = 2500;
 
             AzureBlobTranscriptStore blobStore = null;
             IdTable idTable = null;

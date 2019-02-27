@@ -442,13 +442,7 @@ namespace Microsoft.ExpertConnect.Helpers
                 }
                 catch (Exception ex)
                 {
-// WebApiConfig.TelemetryClient.TrackException(ex, new Dictionary<string, string>
-//                    {
-//                        {"function", "CloseProject" },
-//                        {"vsoId", vsoId.ToString() }
-//                    });
                     Console.WriteLine(ex);
-
                     throw;
                 }
             }
@@ -581,6 +575,7 @@ namespace Microsoft.ExpertConnect.Helpers
 
         public async Task<(int id, string url)> CreateTaskOnly(
             string channelId, // "msteams"
+            string userId,
             string requestedBy,
             string userProfileAlias = "",
             string taskType = ResearchTaskType)
@@ -607,6 +602,13 @@ namespace Microsoft.ExpertConnect.Helpers
 
             try
             {
+                // Check if an existing task is there
+                var existingWorkItem = await GetExistingUserTask(channelId, userId, requestedBy, taskType);
+                if (!(existingWorkItem is null) && existingWorkItem.Count > 0)
+                {
+                    throw new Exception($"There are {existingWorkItem.Count} task(s) open");
+                }
+
                 using (WorkItemTrackingHttpClient workItemTrackingHttpClient = GetWorkItemTrackingHttpClient())
                 {
                     var result = await workItemTrackingHttpClient.CreateWorkItemAsync(patchDocument, Project, taskType);
@@ -704,6 +706,89 @@ namespace Microsoft.ExpertConnect.Helpers
                 //                    {"fromName", fromName }
                 //                });
 
+                throw;
+            }
+        }
+
+        public async Task<int> UpdateProjectSpecs(ITurnContext context, UserInfo userInfo)
+        {
+            var userProfileAlias = userInfo.Name; // Should get alias
+            var channelId = context.Activity.ChannelId;
+            var targetDate = DateTime.UtcNow.AddHours(Convert.ToInt32(
+                Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.ResearchProjectViaTeamsMinHours)));
+
+            var assignedTo = Helper.GetValueFromConfiguration(_configuration, AppSettingsKey.AgentToAssignVsoTasksTo);
+
+            var description = userInfo.Introduction + "\n" +
+                              userInfo.Purpose + "\n" + // TODO: add more into description
+                              userInfo.Style + "\n" +
+                              userInfo.Color + "\n" +
+                              userInfo.Images + "\n" +
+                              userInfo.Extra + "\n" +
+                              userInfo.PptWebUrl + "\n" +
+                              userInfo.Visuals + "\n";
+
+            JsonPatchDocument patchDocument = new JsonPatchDocument
+            {
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add,
+                    Path = "/fields/System.Title",
+                    Value = $"PPT request from {userProfileAlias} via {channelId} due {targetDate}",
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add, Path = $"/fields/{DescriptionFieldName}", Value = description,
+                },
+//                new JsonPatchOperation()
+//                {
+//                    Operation = Operation.Add, Path = $"/fields/{AgentConversationIdFieldName}", Value = teamsConversationId,
+//                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add, Path = $"/fields/{FreelancerplatformFieldName}", Value = "UpWork",
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add,
+                    Path = $"/fields/{FreelancerplatformJobIdFieldName}",
+                    Value = "not assigned",
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add,
+                    Path = "/fields/System.AssignedTo",
+                    Value = assignedTo,
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add,
+                    Path = "/fields/Microsoft.VSTS.Scheduling.TargetDate",
+                    Value = targetDate,
+                },
+                new JsonPatchOperation()
+                {
+                    Operation = Operation.Add,
+                    Path = "/fields/Custom.FreelancerName",
+                    Value = "not assigned",
+                },
+            };
+
+            try
+            {
+                using (WorkItemTrackingHttpClient workItemTrackingHttpClient = GetWorkItemTrackingHttpClient())
+                {
+
+                    WorkItem result =
+                        await workItemTrackingHttpClient.UpdateWorkItemAsync(patchDocument, Convert.ToInt32(userInfo.VsoId));
+
+                    return (int)result.Id;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                // WebApiConfig.TelemetryClient.TrackException(ex, properties);
                 throw;
             }
         }

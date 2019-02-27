@@ -105,17 +105,14 @@ namespace Microsoft.ExpertConnect.Dialogs
             throw new Exception("User token not available. Cant upload to OneDrive");
         }
 
-        public static async Task CreateProjectAndSendToUserAndAgent(ITurnContext context, UserInfo userInfo, CardBuilder cb, VsoHelper vso, SimpleCredentialProvider credentials, IdTable idTable, EndUserAndAgentIdMapping endUserAndAgentTable)
+        public static async Task CreateProjectAndSendToUserAndAgent(ITurnContext context, UserInfo userInfo, CardBuilder cb, VsoHelper vso, SimpleCredentialProvider credentials, IdTable idTable, EndUserAndAgentIdMapping endUserAndAgentTable, CancellationToken cancellationToken)
         {
-            var ticketNumber = await vso.CreateProject(context, userInfo);
-            if (ticketNumber == int.MinValue)
-            {
-                throw new System.Exception("rsadad");
-            }
+            //            var ticketNumber = await vso.CreateProject(context, userInfo);
+            var ticketNumber = await vso.UpdateProjectSpecs(context, userInfo);
             var cardToUser = cb.V2VsoTicketCard(ticketNumber, "https://www.microsoft.com");
             var cardToAgent = cb.AgentAdaptiveCard(userInfo);
 
-            await context.SendActivityAsync(CreateAdaptiveCardAsActivity(cardToUser));
+            await context.SendActivityAsync(CreateAdaptiveCardAsActivity(cardToUser), cancellationToken);
 
             var agentConversationId = await CreateAgentConversationMessage(
                 context,

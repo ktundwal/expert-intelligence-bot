@@ -4,6 +4,8 @@ namespace Microsoft.ExpertConnect.Helpers
 {
     public class Constants
     {
+        public const string PostLoginWelcomeMessage =
+            @"Thank you for signing in. Say something to get started, or we will continue where you left off.";
         public const string WhoIsBot = "Hello! Welcome to Expert Connect.";
         public const string BotDescription = "We’re supported by experts from UpWork and FancyHands, who can work for you.";
         public const string StartingOptionDescription = "Please select an option below. We’ll collect some information to get started, then a project manager will review your request and follow up.";
