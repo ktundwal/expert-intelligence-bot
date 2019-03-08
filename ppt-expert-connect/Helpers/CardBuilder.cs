@@ -93,7 +93,7 @@ namespace Microsoft.ExpertConnect.Helpers
             AdaptiveCard card = new AdaptiveCard();
             AdaptiveTextBlock title = new AdaptiveTextBlock()
             {
-                Text = $"Got it. Here's a [link]({driveItemUrl}) to an online PowerPoint template file.",
+                Text = $"Got it. Here's a **[link]({driveItemUrl})** to an online PowerPoint template file.",
                 Wrap = true,
             };
 
