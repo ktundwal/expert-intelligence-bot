@@ -1,6 +1,7 @@
 ﻿using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.ExpertConnect.Helpers;
@@ -23,8 +24,9 @@ namespace Microsoft.ExpertConnect.Dialogs
         private readonly string _oAuthConnectionSettingName;
         private readonly string _shareFileWith;
         private readonly IConfiguration _config;
+        private readonly IHostingEnvironment _hostingEnvironment;
 
-        public ProjectDetailDialog(string id, CardBuilder cb, IConfiguration config, ILoggerFactory loggerFactory)
+        public ProjectDetailDialog(string id, CardBuilder cb, IConfiguration config, ILoggerFactory loggerFactory, IHostingEnvironment hosting)
             : base(id)
         {
             _logger = loggerFactory.CreateLogger<ProjectDetailDialog>();
@@ -32,6 +34,7 @@ namespace Microsoft.ExpertConnect.Dialogs
             InitialDialogId = InitialId;
             _cardBuilder = cb;
             _config = config;
+            _hostingEnvironment = hosting;
             _oAuthConnectionSettingName = Helper.GetValueFromConfiguration(config, AppSettingsKey.OAuthConnectionSettingsName);
             _shareFileWith = Helper.GetValueFromConfiguration(config, AppSettingsKey.ShareFileWith);
 
@@ -92,9 +95,9 @@ namespace Microsoft.ExpertConnect.Dialogs
                 .ConfigureAwait(false);
             if (token != null)
             {
-                var styleLink = Helper.GetPowerPointTemplateLink(userInfo.Style, _config);
+                var styleLink = Helper.GetPowerPointTemplateLink(userInfo.Style, _config, _hostingEnvironment);
                 styleLink = styleLink == string.Empty
-                    ? Helper.GetPowerPointTemplateLink(userInfo.Color, _config)
+                    ? Helper.GetPowerPointTemplateLink(userInfo.Color, _config, _hostingEnvironment)
                     : styleLink;
                 var driveItem = DialogHelper.UploadAnItemToOneDrive(token, styleLink, _shareFileWith, _logger, userInfo.VsoId);
                 userInfo.PptWebUrl = driveItem.WebUrl;

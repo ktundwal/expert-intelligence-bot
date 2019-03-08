@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using AdaptiveCards;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Azure;
 using Microsoft.Bot.Builder.Dialogs;
@@ -61,7 +62,8 @@ namespace Microsoft.ExpertConnect
             IdTable idTable,
             EndUserAndAgentIdMapping endUserAndAgentIdMapping,
             ICredentialProvider credentials,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IHostingEnvironment hostingEnvironment)
         {
             if (loggerFactory == null)
             {
@@ -94,7 +96,7 @@ namespace Microsoft.ExpertConnect
             _dialogs.Add(new IntroductionDialog(DialogId.Start, _cb, _vso));
             _dialogs.Add(new TemplateDetailDialog(DialogId.DetailPath, _cb));
             _dialogs.Add(new ExampleTemplateDialog(DialogId.ExamplePath, _cb));
-            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, _cb, configuration, loggerFactory));
+            _dialogs.Add(new ProjectDetailDialog(DialogId.PostSelectionPath, _cb, configuration, loggerFactory, hostingEnvironment));
             _dialogs.Add(new ProjectRevisionDialog(DialogId.ProjectRevisionPath, _cb));
             _dialogs.Add(new ProjectCompleteDialog(DialogId.ProjectCompletePath, _cb));
             _dialogs.Add(new ProjectCompletionReplyFromAgentDialog(DialogId.UserToSelectProjectStatePath));

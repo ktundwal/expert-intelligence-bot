@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Bot.Builder.Dialogs;
 using Microsoft.ExpertConnect.Models;
 using Microsoft.Extensions.Configuration;
@@ -21,11 +22,13 @@ namespace Microsoft.ExpertConnect.Helpers
             return url + assetPath + location;
         }
 
-        public static string GetPowerPointTemplateLink(string style, IConfiguration configuration)
+        public static string GetPowerPointTemplateLink(string style, IConfiguration configuration, IHostingEnvironment hostingEnvironment)
         {
             if (string.IsNullOrEmpty(style)) { return string.Empty; }
 
-            var url = GetValueFromConfiguration(configuration, AppSettingsKey.BotUrl);
+            // TODO: Convert to relative links.
+//            var url = GetValueFromConfiguration(configuration, AppSettingsKey.BotUrl);
+            var url = hostingEnvironment.WebRootPath + "/";
             var assetPath = GetValueFromConfiguration(configuration, AppSettingsKey.AssetsPath);
             var pptLink = string.Empty;
 

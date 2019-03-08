@@ -79,8 +79,7 @@ namespace Microsoft.ExpertConnect.Dialogs
                 {
                     var client = GraphClient.GetAuthenticatedClient(tokenResponse.Token);
                     var folder = GraphClient.GetOrCreateFolder(client, "expert-connect").Result;
-                    var uploadedItem =
-                        GraphClient.UploadPowerPointFileToDrive(client, folder, pptLink, projectTicketNumber);
+                    var uploadedItem = GraphClient.UploadPowerPointFileToDrive(client, folder, pptLink, projectTicketNumber);
                     logger.LogTrace($"Successfully added file to OneDrive {uploadedItem.WebUrl}");
                     if (!string.IsNullOrEmpty(emailToShareWith))
                     {

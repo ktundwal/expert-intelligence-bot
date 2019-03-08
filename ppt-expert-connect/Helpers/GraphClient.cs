@@ -118,7 +118,7 @@ namespace Microsoft.ExpertConnect.Helpers
 
         // https://github.com/microsoftgraph/msgraph-sdk-dotnet/blob/2d565c10969689344bbdaa58f4ab74df06303063/tests/Microsoft.Graph.Test/Requests/Functional/OneDriveTests.cs#L39
         public static async Task<DriveItem> UploadFileAsync(GraphServiceClient graphClient, DriveItem folder,
-            string fileName, MemoryStream ms)
+            string fileName, Stream ms)
         {
             var utcNow = System.DateTimeOffset.UtcNow;
             var props = new DriveItemUploadableProperties();
@@ -206,21 +206,32 @@ namespace Microsoft.ExpertConnect.Helpers
             return id;
         }
 
+//        public static async Task<DriveItem> UploadPowerPointFileToDrive(GraphServiceClient graphClient, DriveItem folder, string pptLink, string projectId)
+//        {
+//            using (MemoryStream ms = new MemoryStream())
+//            {
+//                WebClient c = new WebClient();
+//                var responseData = pptLink != string.Empty
+//                    ? c.DownloadData(pptLink)
+//                    : c.DownloadData("https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RE2lrfa");
+//
+//                ms.Write(responseData, 0, (int) responseData.Length);
+//
+//                string todayDate = DateTime.Now.ToString("yyyy-MM-dd"); // HH-mm-ss");
+//                string projectIdentifier = $"ppt-project-{projectId}-{todayDate}";
+//                return await UploadFileAsync(graphClient, folder, $"{projectIdentifier}/{projectIdentifier}.pptx", ms);
+//            }
+//        }
+
         public static DriveItem UploadPowerPointFileToDrive(GraphServiceClient graphClient, DriveItem folder, string pptLink, string projectId)
         {
-            using (MemoryStream ms = new MemoryStream())
+            using (var stream = new FileStream(@pptLink, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                WebClient c = new WebClient();
-                var responseData = pptLink != string.Empty
-                    ? c.DownloadData(pptLink)
-                    : c.DownloadData("https://query.prod.cms.rt.microsoft.com/cms/api/am/binary/RE2lrfa");
-
-                ms.Write(responseData, 0, (int) responseData.Length);
-
                 string todayDate = DateTime.Now.ToString("yyyy-MM-dd"); // HH-mm-ss");
                 string projectIdentifier = $"ppt-project-{projectId}-{todayDate}";
-                return UploadFileAsync(graphClient, folder, $"{projectIdentifier}/{projectIdentifier}.pptx", ms).Result;
+                return UploadFileAsync(graphClient, folder, $"{projectIdentifier}/{projectIdentifier}.pptx", stream).Result;
             }
+
         }
     }
 }
